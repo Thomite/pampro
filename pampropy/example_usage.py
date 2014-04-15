@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.dates import DayLocator, HourLocator, DateFormatter, drange
 from datetime import datetime, date, time, timedelta
+from scipy import stats
 import random
 
 import Time_Series
@@ -66,4 +67,30 @@ for chan in chans:
 	chan.normalise(0,100)
 	ts.add_channel(chan)
 
-ts.draw_separate()
+
+activity = chans[0]
+
+
+window = timedelta(hours=1)
+start = activity.timeframe[0]
+cutoff1 = start - timedelta(hours=start.time().hour, minutes=start.time().minute, seconds=start.time().second, microseconds=start.time().microsecond)
+cutoff2 = cutoff1 + window
+
+val = 0
+
+while(cutoff1 < activity.timeframe[1]):
+
+	print("Getting indices between {} and {}".format(cutoff1, cutoff2))
+	i1 = chan.get_window(cutoff1, cutoff2)
+
+	if (len(i1) > 0):
+		mean_val1 = stats.describe(chan.data[i1])
+		print(mean_val1)
+
+	cutoff1 = cutoff1 + window
+	cutoff2 = cutoff2 + window
+	
+	val = val+1
+	#ts.draw_separate()
+
+print(val)

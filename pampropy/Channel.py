@@ -25,6 +25,13 @@ class Channel(object):
 		min_value = min(self.data)
 		self.data = ((ceil - floor) * (self.data - min_value))/(max_value - min_value) + floor
 
+	def get_window(self, datetime_start, datetime_end):
+
+		indices = np.where((self.timestamps >= datetime_start) & (self.timestamps < datetime_end))
+		#print(indices)
+		#print(len(indices[0]))
+		return indices[0]
+
 def load_channels(source, source_type):
 
 	if (source_type == "Actiheart"):
@@ -56,10 +63,10 @@ def load_channels(source, source_type):
 		#ecg2 = ecg[indices2]
 		#timestamps2 = timestamps[indices2]
 
-		indices1 = np.where(ecg > 1)
-		activity = activity[indices1]
-		ecg = ecg[indices1]
-		timestamps = timestamps[indices1]
+		#indices1 = np.where(ecg > 1)
+		#activity = activity[indices1]
+		#ecg = ecg[indices1]
+		#timestamps = timestamps[indices1]
 
 		actiheart_activity = Channel("Actiheart-Activity")
 		actiheart_activity.set_contents(activity, timestamps)
