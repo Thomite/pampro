@@ -32,6 +32,37 @@ class Channel(object):
 		#print(len(indices[0]))
 		return indices[0]
 
+	def bouts(self, low, high, minimum_length=0):
+
+		state = 0
+		start_index = 0
+		end_index = 1
+		bouts = []
+
+		for i, value in enumerate(self.data):
+
+			if state == 0:
+
+				if value >= low and value <= high:
+
+					state = 1
+					start_index = i
+					end_index = i
+
+			else:
+
+				if value >= low and value <= high:
+
+					end_index = i
+
+				else:
+				
+					state = 0
+					if (end_index - start_index + 1 >= minimum_length):
+						bouts.append([self.timestamps[start_index], self.timestamps[end_index]])	
+
+		return bouts
+
 def load_channels(source, source_type):
 
 	if (source_type == "Actiheart"):

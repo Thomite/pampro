@@ -78,19 +78,13 @@ cutoff2 = cutoff1 + window
 
 val = 0
 
-while(cutoff1 < activity.timeframe[1]):
+print(activity.timeframe)
 
-	print("Getting indices between {} and {}".format(cutoff1, cutoff2))
-	i1 = chan.get_window(cutoff1, cutoff2)
+total = timedelta()
+bouts = activity.bouts(0,0,50)
+for bout in bouts:
+	diff = bout[1] - bout[0]
+	total = total + diff
+	print bout[0], " ~ ", bout[1], ": ", diff
 
-	if (len(i1) > 0):
-		mean_val1 = stats.describe(chan.data[i1])
-		print(mean_val1)
-
-	cutoff1 = cutoff1 + window
-	cutoff2 = cutoff2 + window
-	
-	val = val+1
-	#ts.draw_separate()
-
-print(val)
+print total
