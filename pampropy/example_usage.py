@@ -82,14 +82,18 @@ print(activity.timeframe)
 
 total = timedelta()
 bouts = activity.bouts(100,99999)
-for bout in bouts:
-	diff = bout[1] - bout[0]
-	total = total + diff
-	print bout[0], " ~ ", bout[1], ": ", diff
+#for bout in bouts:
+	#diff = bout[1] - bout[0]
+	#total = total + diff
+	#print bout[0], " ~ ", bout[1], ": ", diff
 
 
-subset_channel = ecg.blah(bouts, "ECG when activity > 100")
+subset_channel = ecg.subset_using_bouts(bouts, "ECG when activity > 100")
 
 ts.add_channel(subset_channel)
 
-ts.draw_separate()
+times,data = activity.piecewise_summary( timedelta(days=1) )
+for time,val in zip(times,data):
+	print time, val
+
+#ts.draw_separate()

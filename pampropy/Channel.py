@@ -32,6 +32,46 @@ class Channel(object):
 		#print(len(indices[0]))
 		return indices[0]
 
+	def piecewise_summary(self, window_size):
+
+		start = self.timeframe[0] - timedelta(hours=self.timeframe[0].hour, minutes=self.timeframe[0].minute, seconds=self.timeframe[0].second, microseconds=self.timeframe[0].microsecond)
+		print(start)
+
+		end = self.timeframe[1] + timedelta(hours=23-self.timeframe[1].hour, minutes=59-self.timeframe[1].minute, seconds=59-self.timeframe[1].second, microseconds=999999-self.timeframe[1].microsecond)
+		print(end)
+		print("-----------")
+		# ------------------------------
+
+		#if False:
+		window = window_size
+		start_dts = start
+		end_dts = start + window
+
+		epoch_starts = []
+		output = []
+
+		while start_dts < end:
+			
+			indices = self.get_window(start_dts, end_dts)
+
+			total = -1
+			mean = -1
+			if (len(indices) > 0):
+				total = sum(self.data[indices])
+				mean = np.mean(self.data[indices])
+
+			#print("{} ... {}: {}".format(start_dts, end_dts, total))
+
+			epoch_starts.append(start_dts)
+			output.append([total, mean])
+		
+			start_dts = start_dts + window
+			end_dts = end_dts + window
+
+
+		return epoch_starts,output
+
+
 	def bouts(self, low, high, minimum_length=0, return_indices=False):
 
 		state = 0
