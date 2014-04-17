@@ -30,6 +30,11 @@ class Time_Series(object):
 		print("Added channel {} to time series.".format(channel.name))
 		print("Earliest: {}, latest: {}".format(self.earliest, self.latest))
 
+	def add_channels(self, new_channels):
+
+		for c in new_channels:
+			self.add_channel(c)
+
 	def draw(self):
 
 		fig = plt.figure(figsize=(15,10))

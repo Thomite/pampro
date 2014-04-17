@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.dates import DayLocator, HourLocator, DateFormatter, drange
@@ -61,26 +62,19 @@ channel_c.set_contents([420+random.random()*2+np.sin(x*0.025)*10 for x in range(
 #ts.add_channel(channel_c)
 
 
-chans = Channel.load_channels("V:/P5_PhysAct/People/Tom/pampropy/data/ARBOTW.txt", "Actiheart")
 
-for chan in chans:
-#	chan.normalise(0,100)
-	ts.add_channel(chan)
+
+
+here = os.path.dirname(__file__)
+filename = os.path.join(here, '..', 'data\ARBOTW.txt')
+
+chans = Channel.load_channels(filename, "Actiheart")
+ts.add_channels(chans)
 
 
 activity = chans[0]
 ecg = chans[1]
 
-window = timedelta(hours=1)
-start = activity.timeframe[0]
-cutoff1 = start - timedelta(hours=start.time().hour, minutes=start.time().minute, seconds=start.time().second, microseconds=start.time().microsecond)
-cutoff2 = cutoff1 + window
-
-val = 0
-
-print(activity.timeframe)
-
-total = timedelta()
 bouts = activity.bouts(100,99999)
 #for bout in bouts:
 	#diff = bout[1] - bout[0]
@@ -88,12 +82,14 @@ bouts = activity.bouts(100,99999)
 	#print bout[0], " ~ ", bout[1], ": ", diff
 
 
-subset_channel = ecg.subset_using_bouts(bouts, "ECG when activity > 100")
+#subset_channel = ecg.subset_using_bouts(bouts, "ECG when activity > 100")
 
-ts.add_channel(subset_channel)
+#ts.add_channel(subset_channel)
+stats = ["mean", "sum", "std", "min", "max", "n"]
 
-times,data = activity.piecewise_summary( timedelta(days=1) )
-for time,val in zip(times,data):
-	print time, val
+dataset = activity.piecewise_statistics( timedelta(days=1, hours=3), statistics=stats )
+print stats
+for row in dataset:
+	print row
 
-#ts.draw_separate()
+ts.draw_separate()
