@@ -71,8 +71,8 @@ class Time_Series(object):
 		for index, channel in enumerate(self.channels):
 			ax = fig.add_subplot(len(self.channels),1,1+index)
 			ax.set_xlim(self.earliest, self.latest)
-			ax.plot(channel.timestamps, channel.data)
-
+			ax.plot(channel.timestamps, channel.data, label=channel.name)
+			legend = ax.legend(loc='upper right')
 		fig.tight_layout()
 
 		plt.show()

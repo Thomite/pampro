@@ -61,15 +61,15 @@ channel_c.set_contents([420+random.random()*2+np.sin(x*0.025)*10 for x in range(
 #ts.add_channel(channel_c)
 
 
-chans = Channel.load_channels("V:/Projects/pampropy/data/ARBOTW.txt", "Actiheart")
+chans = Channel.load_channels("V:/P5_PhysAct/People/Tom/pampropy/data/ARBOTW.txt", "Actiheart")
 
 for chan in chans:
-	chan.normalise(0,100)
+#	chan.normalise(0,100)
 	ts.add_channel(chan)
 
 
 activity = chans[0]
-
+ecg = chans[1]
 
 window = timedelta(hours=1)
 start = activity.timeframe[0]
@@ -81,10 +81,15 @@ val = 0
 print(activity.timeframe)
 
 total = timedelta()
-bouts = activity.bouts(0,0,50)
+bouts = activity.bouts(100,99999)
 for bout in bouts:
 	diff = bout[1] - bout[0]
 	total = total + diff
 	print bout[0], " ~ ", bout[1], ": ", diff
 
-print total
+
+subset_channel = ecg.blah(bouts, "ECG when activity > 100")
+
+ts.add_channel(subset_channel)
+
+ts.draw_separate()

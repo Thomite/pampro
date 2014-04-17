@@ -32,7 +32,7 @@ class Channel(object):
 		#print(len(indices[0]))
 		return indices[0]
 
-	def bouts(self, low, high, minimum_length=0):
+	def bouts(self, low, high, minimum_length=0, return_indices=False):
 
 		state = 0
 		start_index = 0
@@ -59,9 +59,31 @@ class Channel(object):
 				
 					state = 0
 					if (end_index - start_index + 1 >= minimum_length):
-						bouts.append([self.timestamps[start_index], self.timestamps[end_index]])	
-
+						if return_indices:
+							bouts.append([self.timestamps[start_index], self.timestamps[end_index], start_index, end_index])	
+						else:
+							bouts.append([self.timestamps[start_index], self.timestamps[end_index]])
+	
 		return bouts
+
+	def subset_using_bouts(self, bout_list, name):
+		# Given a list of bouts, create a new channel from this taking only the data from inside those bouts
+		c = Channel(name)
+
+		c.set_contents(np.zeros(self.size), self.timestamps)
+
+		#print(self.data[2345])
+
+		for bout in bout_list:
+			#print(bout)
+
+			indices = np.where((self.timestamps >= bout[0]) & (self.timestamps < bout[1]))
+
+			#c.data[bout[2]:bout[3]] = self.data[bout[2]:bout[3]]
+			c.data[indices] = self.data[indices]
+
+		return c
+
 
 def load_channels(source, source_type):
 
