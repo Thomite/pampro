@@ -62,29 +62,52 @@ class Channel(object):
 
 		return output_row
 
-	def piecewise_statistics(self, window_size, statistics=["mean"]):
+	def piecewise_statistics(self, window_size, statistics=["mean"], file_target=False):
 
 		start = self.timeframe[0] - timedelta(hours=self.timeframe[0].hour, minutes=self.timeframe[0].minute, seconds=self.timeframe[0].second, microseconds=self.timeframe[0].microsecond)
 		end = self.timeframe[1] + timedelta(hours=23-self.timeframe[1].hour, minutes=59-self.timeframe[1].minute, seconds=59-self.timeframe[1].second, microseconds=999999-self.timeframe[1].microsecond)
 
 		# ------------------------------
 
+		if file_target == False:
+			output = []
+		else:
+			file_output = open(file_target, 'w')
+			file_output.write("timestamp,")
+			for index,var in enumerate(statistics):
+				file_output.write(var)
+				if (index < len(statistics)-1):
+						file_output.write(",")
+				else:
+					file_output.write("\n")
+
 		window = window_size
 		start_dts = start
 		end_dts = start + window
 
-		output = []
-
+	
 		while start_dts < end:
 			
-			output.append(self.window_statistics(start_dts, end_dts, statistics))
+			if file_target == False:
+				output.append(self.window_statistics(start_dts, end_dts, statistics))
 		
+			else:
+				results = self.window_statistics(start_dts, end_dts, statistics)
+				for index,var in enumerate(results):
+					file_output.write(str(var))
+					if (index < len(results)-1):
+						file_output.write(",")
+					else:
+						file_output.write("\n")
+
+
 			start_dts = start_dts + window
 			end_dts = end_dts + window
 
-
-		return output
-
+		if file_target == False:
+			return output
+		else:
+			file_output.close()
 
 	def bouts(self, low, high, minimum_length=0, return_indices=False):
 

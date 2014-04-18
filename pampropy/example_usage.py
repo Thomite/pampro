@@ -87,9 +87,9 @@ bouts = activity.bouts(100,99999)
 #ts.add_channel(subset_channel)
 stats = ["mean", "sum", "std", "min", "max", "n"]
 
-dataset = activity.piecewise_statistics( timedelta(days=1, hours=3), statistics=stats )
-print stats
-for row in dataset:
-	print row
+activity.piecewise_statistics( timedelta(hours=1), statistics=stats, file_target=os.path.join(here, '..', 'data/test.csv') )
+#print stats
+#for row in dataset:
+	#print row
 
 ts.draw_separate()
