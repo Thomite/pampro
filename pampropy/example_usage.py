@@ -85,11 +85,11 @@ bouts = activity.bouts(100,99999)
 #subset_channel = ecg.subset_using_bouts(bouts, "ECG when activity > 100")
 
 #ts.add_channel(subset_channel)
-stats = ["mean", "sum", "std", "min", "max", "n"]
+stats = ["mean", "sum", "std", "min", "max", "n", [0,499],[500,5000]]
 
 activity.piecewise_statistics( timedelta(hours=1), statistics=stats, file_target=os.path.join(here, '..', 'data/test.csv') )
 #print stats
 #for row in dataset:
 	#print row
 
-ts.draw_separate()
+#ts.draw_separate()

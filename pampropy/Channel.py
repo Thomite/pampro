@@ -54,6 +54,11 @@ class Channel(object):
 					output_row.append(np.max(self.data[indices]))
 				elif stat == "n":
 					output_row.append(len(indices))
+				elif isinstance(stat, list):
+
+					indices2 = np.where((self.data[indices] >= stat[0]) & (self.data[indices] < stat[1]))[0]
+					output_row.append(len(indices2))
+
 				else:
 					output_row.append(-1)
 		else:
@@ -73,9 +78,15 @@ class Channel(object):
 			output = []
 		else:
 			file_output = open(file_target, 'w')
+
+			# Print the header
 			file_output.write("timestamp,")
 			for index,var in enumerate(statistics):
-				file_output.write(var)
+				if not isinstance(var,list):
+					file_output.write(var)
+				else:
+					file_output.write("mte_"+str(var[0])+"_lte_"+str(var[1]))
+
 				if (index < len(statistics)-1):
 						file_output.write(",")
 				else:
