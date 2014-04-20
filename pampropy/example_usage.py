@@ -8,44 +8,14 @@ import random
 
 import Time_Series
 import Channel
-
+import Annotation
 ts = Time_Series.Time_Series()
 
 
-# Create channel A
-
-dt = datetime.strptime("15-Mar-2014 16:32", "%d-%b-%Y %H:%M")
-epoch_length = timedelta(minutes=1)
-
-timestamp_list = []
-for i in range(0,1000):
-	timestamp_list.append(dt)
-	dt = dt + epoch_length
-
-timestamps_a = np.array(timestamp_list)
-
-channel_a = Channel.Channel("A")
-channel_a.set_contents([350+random.random()*2+np.cos(x*0.02)*30 for x in range(0,1000)], timestamps_a)
-
-# Create channel B
-
-dt = datetime.strptime("15-Mar-2014 21:00", "%d-%b-%Y %H:%M")
-epoch_length = timedelta(seconds=30)
-
-timestamp_list = []
-for i in range(0,3000):
-	timestamp_list.append(dt)
-	dt = dt + epoch_length
-
-timestamps_b = np.array(timestamp_list)
-
-channel_b = Channel.Channel("B")
-channel_b.set_contents([500+random.random()+np.sin(x*0.025)*10 for x in range(0,3000)], timestamps_b)
-
-# Create channel C
+# Create artificial channel 
 
 dt = datetime.strptime("15-Mar-2014 18:03", "%d-%b-%Y %H:%M")
-epoch_length = timedelta(minutes=2, seconds=30)
+epoch_length = timedelta(minutes=5)
 
 timestamp_list = []
 for i in range(0,900):
@@ -57,23 +27,16 @@ timestamps_c = np.array(timestamp_list)
 channel_c = Channel.Channel("C")
 channel_c.set_contents([420+random.random()*2+np.sin(x*0.025)*10 for x in range(0,900)], timestamps_c)
 
-#ts.add_channel(channel_a)
-#ts.add_channel(channel_b)
-#ts.add_channel(channel_c)
 
+# Load sample Actiheart data
 
-
-
-
-here = os.path.dirname(__file__)
-filename = os.path.join(here, '..', 'data\ARBOTW.txt')
+filename = os.path.join(os.path.dirname(__file__), '..', 'data\ARBOTW.txt')
 
 chans = Channel.load_channels(filename, "Actiheart")
 ts.add_channels(chans)
+ts.add_channel(channel_c)
 
-
-activity = chans[0]
-ecg = chans[1]
+activity = ts.get_channel("Actiheart-Activity")
 
 bouts = activity.bouts(100,99999)
 #for bout in bouts:
@@ -83,13 +46,29 @@ bouts = activity.bouts(100,99999)
 
 
 #subset_channel = ecg.subset_using_bouts(bouts, "ECG when activity > 100")
-
 #ts.add_channel(subset_channel)
-stats = ["mean", "sum", "std", "min", "max", "n", [0,499],[500,5000]]
 
-activity.piecewise_statistics( timedelta(hours=1), statistics=stats, file_target=os.path.join(here, '..', 'data/test.csv') )
-#print stats
+stats = ["mean", "sum", "std", "min", "max", "n", [0,499],[500,5000]]
+#activity.piecewise_statistics( timedelta(minutes=15), statistics=stats, file_target=os.path.join(os.path.dirname(__file__), '..', 'data/activity_test.csv') )
+
+# We can also return the data by not supplying a file_target
+#dataset = activity.piecewise_statistics( timedelta(days=1), statistics=stats )
 #for row in dataset:
 	#print row
 
-#ts.draw_separate()
+
+start = datetime.strptime("16-Mar-2014 00:00", "%d-%b-%Y %H:%M")
+end = start + timedelta(days=1)
+
+a1 = Annotation.Annotation("whatever", start + timedelta(hours=2, minutes=42), start + timedelta(hours=10, minutes=40))
+a1.draw_properties = {'alpha':0.1, 'lw':0, 'facecolor':[0.196,0.196,0.196]}
+a2 = Annotation.Annotation("whatever", start + timedelta(hours=16, minutes=0), start + timedelta(hours=17, minutes=30))
+a2.draw_properties = {'alpha':0.5, 'lw':0, 'facecolor':[0.196,0.78431,0.196]}
+
+ts.get_channel("Actiheart-ECG").add_annotations([a1,a2])
+ts.get_channel("Actiheart-Activity").add_annotation(a1)
+
+ts.get_channel("Actiheart-ECG").draw_properties = {'alpha':0.9, 'color':[0.78431,0.196,0.196]}
+
+ts.draw_separate()
+

@@ -1,5 +1,6 @@
 import numpy as np
 from datetime import datetime, date, time, timedelta
+import Annotation
 
 class Channel(object):
 
@@ -10,6 +11,8 @@ class Channel(object):
 		self.timeframe = 0
 		self.data = []
 		self.timestamps = []
+		self.annotations = []
+		self.draw_properties = {}
 
 	def set_contents(self, data, timestamps):
 		
@@ -18,6 +21,13 @@ class Channel(object):
 		self.size = len(self.data)
 
 		self.timeframe = self.timestamps[0], self.timestamps[self.size-1], (self.timestamps[self.size-1]-self.timestamps[0]), self.size
+
+	def add_annotation(self, annotation):
+		self.annotations.append(annotation)
+
+	def add_annotations(self, annotations):
+		for a in annotations:
+			self.add_annotation(a)
 
 	def normalise(self, floor=0, ceil=1):
 
