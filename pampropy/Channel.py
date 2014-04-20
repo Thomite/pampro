@@ -50,7 +50,7 @@ class Channel(object):
 
 		output_row = [pretty_timestamp]
 		if (len(indices) > 0):
-
+			
 			for stat in statistics:
 				if stat == "mean":
 					output_row.append(np.mean(self.data[indices]))
@@ -77,12 +77,17 @@ class Channel(object):
 
 		return output_row
 
-	def piecewise_statistics(self, window_size, statistics=["mean"], file_target=False):
+	def piecewise_statistics(self, window_size, statistics=["mean"], time_period=False, file_target=False):
 
-		start = self.timeframe[0] - timedelta(hours=self.timeframe[0].hour, minutes=self.timeframe[0].minute, seconds=self.timeframe[0].second, microseconds=self.timeframe[0].microsecond)
-		end = self.timeframe[1] + timedelta(hours=23-self.timeframe[1].hour, minutes=59-self.timeframe[1].minute, seconds=59-self.timeframe[1].second, microseconds=999999-self.timeframe[1].microsecond)
-
+		if time_period == False:
+			start = self.timeframe[0] - timedelta(hours=self.timeframe[0].hour, minutes=self.timeframe[0].minute, seconds=self.timeframe[0].second, microseconds=self.timeframe[0].microsecond)
+			end = self.timeframe[1] + timedelta(hours=23-self.timeframe[1].hour, minutes=59-self.timeframe[1].minute, seconds=59-self.timeframe[1].second, microseconds=999999-self.timeframe[1].microsecond)
+		else:
+			start = time_period[0]
+			end = time_period[1]
 		# ------------------------------
+
+		print start , "---", end
 
 		if file_target == False:
 			output = []
@@ -109,6 +114,7 @@ class Channel(object):
 	
 		while start_dts < end:
 			
+			#print start_dts, "--", end_dts
 			if file_target == False:
 				output.append(self.window_statistics(start_dts, end_dts, statistics))
 		
@@ -208,16 +214,10 @@ def load_channels(source, source_type):
 
 		timestamps = np.array(timestamp_list)
 
-		#cutoff1 = datetime.strptime("16-Mar-2014 13:00", "%d-%b-%Y  %H:%M")
-		#cutoff2 = datetime.strptime("17-Mar-2014 13:00", "%d-%b-%Y  %H:%M")
-		#indices2 = np.where((timestamps > cutoff1) & (timestamps < cutoff2))
-		#ecg2 = ecg[indices2]
-		#timestamps2 = timestamps[indices2]
-
 		#indices1 = np.where(ecg > 1)
 		#activity = activity[indices1]
 		#ecg = ecg[indices1]
-		#timestamps = timestamps[indices1]
+		#timestamps2 = timestamps[indices1]
 
 		actiheart_activity = Channel("Actiheart-Activity")
 		actiheart_activity.set_contents(activity, timestamps)

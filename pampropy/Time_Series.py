@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from datetime import datetime, date, time, timedelta
 
 class Time_Series(object):
 
@@ -40,6 +41,22 @@ class Time_Series(object):
 	def get_channel(self, channel_name):
 
 		return self.channel_lookup[channel_name]
+
+
+	def piecewise_statistics(self, window_size, file_target, statistics=["mean"], time_period=False):
+
+		if time_period == False:
+			start = self.earliest - timedelta(hours=self.earliest.hour, minutes=self.earliest.minute, seconds=self.earliest.second, microseconds=self.earliest.microsecond)
+			end = self.latest + timedelta(hours=23-self.latest.hour, minutes=59-self.latest.minute, seconds=59-self.latest.second, microseconds=999999-self.latest.microsecond)
+		else:
+			start = time_period[0]
+			end = time_period[1]
+		# ------------------------------
+		#print start, "--|--", end
+		for channel in self.channels:
+			target = file_target + channel.name + ".csv"
+			channel.piecewise_statistics(window_size, statistics=statistics, time_period=[start,end], file_target=target)
+
 
 	def draw(self, time_period=False):
 
@@ -92,7 +109,8 @@ class Time_Series(object):
 				ax.set_xlim(self.earliest, self.latest)
 			else:
 				indices = channel.get_window(time_period[0], time_period[1])
-				ax.plot(channel.timestamps[indices[0]:indices[-1]], channel.data[indices[0]:indices[-1]], label=channel.name, **channel.draw_properties)
+				if (len(indices) > 0):
+					ax.plot(channel.timestamps[indices[0]:indices[-1]], channel.data[indices[0]:indices[-1]], label=channel.name, **channel.draw_properties)
 				ax.set_xlim(time_period[0], time_period[1])
 
 			for a in channel.annotations:
