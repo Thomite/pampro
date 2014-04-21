@@ -1,6 +1,7 @@
 import numpy as np
 from datetime import datetime, date, time, timedelta
 import Annotation
+import copy
 
 class Channel(object):
 
@@ -13,6 +14,10 @@ class Channel(object):
 		self.timestamps = []
 		self.annotations = []
 		self.draw_properties = {}
+
+	def clone(self):
+
+		return copy.deepcopy(self)
 
 	def set_contents(self, data, timestamps):
 		
@@ -189,6 +194,24 @@ class Channel(object):
 		return c
 
 
+	def moving_average(self, size):
+
+		averaged = []
+		half = (size-1)/2
+
+		for i in range(0,self.size):
+			total = 0
+			contributors = 0
+			for j in range(i-half,i+half):
+				if (j >= 0) & (j < self.size):
+					contributors+=1
+					total += self.data[j]
+			averaged.append(total/contributors)
+
+		result = Channel(self.name + "_ma")
+		result.set_contents(np.array(averaged), self.timestamps)
+		return result
+
 def load_channels(source, source_type):
 
 	if (source_type == "Actiheart"):
@@ -214,10 +237,10 @@ def load_channels(source, source_type):
 
 		timestamps = np.array(timestamp_list)
 
-		#indices1 = np.where(ecg > 1)
-		#activity = activity[indices1]
-		#ecg = ecg[indices1]
-		#timestamps2 = timestamps[indices1]
+		indices1 = np.where(ecg > 1)
+		activity = activity[indices1]
+		ecg = ecg[indices1]
+		timestamps2 = timestamps[indices1]
 
 		actiheart_activity = Channel("Actiheart-Activity")
 		actiheart_activity.set_contents(activity, timestamps)

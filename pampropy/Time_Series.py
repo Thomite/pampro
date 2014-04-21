@@ -96,7 +96,7 @@ class Time_Series(object):
 
 		plt.show()
 
-	def draw_separate(self, time_period=False):
+	def draw_separate(self, time_period=False, file_target=False):
 
 		fig = plt.figure(figsize=(15,10))
 
@@ -120,5 +120,7 @@ class Time_Series(object):
 			legend = ax.legend(loc='upper right')
 		fig.tight_layout()
 
-		plt.show()
-
+		if file_target==False:
+			plt.show()
+		else:
+			plt.savefig(file_target, dpi=300, frameon=False)
