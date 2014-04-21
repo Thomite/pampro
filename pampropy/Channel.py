@@ -141,6 +141,50 @@ class Channel(object):
 		else:
 			file_output.close()
 
+
+	def channel_statistics(self, statistics=["mean"], file_target=False):
+
+		start = self.timeframe[0]
+		end = self.timeframe[1]
+
+		# ------------------------------
+		output = []
+		if not file_target == False:
+			file_output = open(file_target, 'w')
+
+			# Print the header
+			file_output.write("timestamp,")
+			for index,var in enumerate(statistics):
+				if not isinstance(var,list):
+					file_output.write(var)
+				else:
+					file_output.write("mte_"+str(var[0])+"_lte_"+str(var[1]))
+
+				if (index < len(statistics)-1):
+						file_output.write(",")
+				else:
+					file_output.write("\n")
+
+		if not file_target == False:
+			
+			results = self.window_statistics(start, end, statistics)
+			for index,var in enumerate(results):
+				file_output.write(str(var))
+				if (index < len(results)-1):
+					file_output.write(",")
+				else:
+					file_output.write("\n")
+			
+		else:
+			
+			output.append(self.window_statistics(start, end, statistics))
+
+
+		if not file_target == False:
+			file_output.close()
+		else:
+			return output
+
 	def bouts(self, low, high, minimum_length=0, return_indices=False):
 
 		state = 0
@@ -212,6 +256,23 @@ class Channel(object):
 		result.set_contents(np.array(averaged), self.timestamps)
 		return result
 
+	def moving_std(self, size):
+
+		averaged = []
+		half = (size-1)/2
+
+		for i in range(0,self.size):
+
+			low = max(0,i-half)
+			high = min(self.size,i+half)
+			
+			averaged.append(np.std(self.data[low:high]))
+
+		result = Channel(self.name + "_mstd")
+		result.set_contents(np.array(averaged), self.timestamps)
+		return result
+
+
 def load_channels(source, source_type):
 
 	if (source_type == "Actiheart"):
@@ -243,9 +304,9 @@ def load_channels(source, source_type):
 		timestamps2 = timestamps[indices1]
 
 		actiheart_activity = Channel("Actiheart-Activity")
-		actiheart_activity.set_contents(activity, timestamps)
+		actiheart_activity.set_contents(activity, timestamps2)
 
 		actiheart_ecg = Channel("Actiheart-ECG")
-		actiheart_ecg.set_contents(ecg, timestamps)
+		actiheart_ecg.set_contents(ecg, timestamps2)
 
 		return [actiheart_activity, actiheart_ecg]

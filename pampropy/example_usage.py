@@ -36,9 +36,6 @@ channel_c.set_contents(np.array([120+random.random()*2+np.sin(x*0.025)*10 for x 
 # Load sample Actiheart data
 filename = os.path.join(os.path.dirname(__file__), '..', 'data\ARBOTW.txt')
 chans = Channel.load_channels(filename, "Actiheart")
-#ts.add_channels(chans)
-#ts.add_channel(channel_c)
-
 activity = chans[0]
 ecg = chans[1]
 
@@ -49,29 +46,37 @@ activity_ma = activity.moving_average(15)
 ts.add_channel(ecg_ma)
 ts.add_channel(activity_ma)
 
+blah = ecg.moving_std(35)
+ts.add_channel(blah)
 
+# Infer sleep from Actiheart channels
 awake_probability = channel_inference.infer_sleep_actiheart(activity, ecg)
 ts.add_channel(awake_probability)
 
-# Subset a channel where the bouts occur
-#subset_channel = ecg.subset_using_bouts(bouts, "Low activity")
-#ts.add_channel(subset_channel)
 
+# Output channel summary statistics
+chan_stat = activity.channel_statistics(statistics=["mean","sum","n"],file_target= os.path.join(os.path.dirname(__file__), '..', 'data/blah.txt'))
+#for x in chan_stat:#
+	#print x
 
 # Define a period of interest
 start = datetime.strptime("17-Mar-2014 00:00", "%d-%b-%Y %H:%M")
 end = start + timedelta(days=3)
 
 
-
-#ts.add_channel(activity)
+# Infer vector magnitude from three channels
+#vm = channel_inference.infer_vector_magnitude(awake_probability, ecg, activity)
 
 
 # Get a list of bouts where awake probability was >= 0 and <= 0.001 for 240 epochs or more
 bouts = awake_probability.bouts(0,0.001,240)
-for bout in bouts:
-	print bout[0].day, bout[0], " -- ", bout[1]
+#for bout in bouts:
+#	print bout[0].day, bout[0], " -- ", bout[1]
 
+
+# Subset a channel where the bouts occur
+#subset_channel = ecg.subset_using_bouts(bouts, "Low activity")
+#ts.add_channel(subset_channel)
 
 # Turn the bouts into annotations and highlight those sections in the signals
 annotations = Annotation.annotations_from_bouts(bouts)
@@ -87,6 +92,7 @@ ecg_ma.draw_properties = {'alpha':1, 'lw':2, 'color':[0.78431,0.196,0.196]}
 activity_ma.draw_properties = {'alpha':1, 'lw':2, 'color':[0.196,0.196,0.78431]}
 awake_probability.draw_properties = {'alpha':1, 'lw':2, 'color':[0.78431,0.196,0.78431]}
 ts.draw_separate(time_period=[start,end])#, file_target=os.path.join(os.path.dirname(__file__), '..', 'data/blah.png'))
+
 
 # Save some stats about the time series to a file
 stats = ["mean", "sum", "std", "min", "max", "n", [0,499],[500,5000]]
