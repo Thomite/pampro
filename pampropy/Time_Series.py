@@ -96,12 +96,19 @@ class Time_Series(object):
 
 		plt.show()
 
-	def draw_separate(self, time_period=False, file_target=False):
+	def draw_separate(self, channels=False, time_period=False, file_target=False):
 
 		fig = plt.figure(figsize=(15,10))
 
-		for index, channel in enumerate(self.channels):
-			ax = fig.add_subplot(len(self.channels), 1, 1+index)
+		channel_list = []
+		if channels==False:
+			channel_list = self.channels
+		else:
+			for c in channels:
+				channel_list.append(self.get_channel(c))
+
+		for index, channel in enumerate(channel_list):
+			ax = fig.add_subplot(len(channel_list), 1, 1+index)
 			
 
 			if time_period==False:

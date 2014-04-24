@@ -46,7 +46,8 @@ activity_ma = activity.moving_average(15)
 ts.add_channel(ecg_ma)
 ts.add_channel(activity_ma)
 
-blah = ecg.moving_std(35)
+blah = activity.time_derivative()
+blah = blah.moving_average(121)
 ts.add_channel(blah)
 
 # Infer sleep from Actiheart channels
@@ -55,7 +56,7 @@ ts.add_channel(awake_probability)
 
 
 # Output channel summary statistics
-chan_stat = activity.channel_statistics(statistics=["mean","sum","n"],file_target= os.path.join(os.path.dirname(__file__), '..', 'data/blah.txt'))
+#chan_stat = activity.channel_statistics(statistics=["mean","sum","n"],file_target= os.path.join(os.path.dirname(__file__), '..', 'data/blah.txt'))
 #for x in chan_stat:#
 	#print x
 
@@ -85,7 +86,7 @@ activity.add_annotations(annotations)
 ecg_ma.add_annotations(annotations)
 activity_ma.add_annotations(annotations)
 awake_probability.add_annotations(annotations)
-
+blah.add_annotations(annotations)
 
 # Define the appearance of the signals
 ecg_ma.draw_properties = {'alpha':1, 'lw':2, 'color':[0.78431,0.196,0.196]}

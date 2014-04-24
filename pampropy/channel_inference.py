@@ -27,13 +27,17 @@ def infer_vector_magnitude(x,y,z):
 
 	result.set_contents( np.sqrt( np.multiply(x.data,x.data) + np.multiply(y.data,y.data) + np.multiply(z.data,z.data) ), x.timestamps )
 
-	print len(x.data)
-	print len(x.timestamps)
-
-	print len(y.data)
-	print len(y.timestamps)
-
-	print len(z.data)
-	print len(z.timestamps)
-
 	return result
+
+def infer_pitch_roll(x,y,z):
+
+	pitch = Channel.Channel("Pitch")
+	roll = Channel.Channel("Roll")
+
+	pitch_degrees = np.arctan(x.data/np.sqrt((y.data*y.data) + (z.data*z.data))) * 180.0/np.pi * -1.0
+	roll_degrees = np.arctan(y.data/np.sqrt((x.data*x.data) + (z.data*z.data))) * 180.0/np.pi * -1.0
+
+	pitch.set_contents( pitch_degrees, x.timestamps)
+	roll.set_contents( roll_degrees, x.timestamps)
+
+	return [pitch, roll]

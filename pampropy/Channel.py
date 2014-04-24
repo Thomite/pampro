@@ -272,6 +272,17 @@ class Channel(object):
 		result.set_contents(np.array(averaged), self.timestamps)
 		return result
 
+	def time_derivative(self):
+		
+		result = Channel(self.name + "_td")
+		result.set_contents(np.diff(self.data), self.timestamps[:-1])
+		return result
+
+	def absolute(self):
+
+		result = Channel(self.name + "_abs")
+		result.set_contents(np.abs(self.data), self.timestamps)
+		return result
 
 def load_channels(source, source_type):
 
@@ -310,3 +321,71 @@ def load_channels(source, source_type):
 		actiheart_ecg.set_contents(ecg, timestamps2)
 
 		return [actiheart_activity, actiheart_ecg]
+
+	elif (source_type == "activPAL"):
+
+		ap_timestamp, ap_x, ap_y, ap_z = np.loadtxt(source, delimiter=',', unpack=True, skiprows=5, dtype={'names':('ap_timestamp','ap_x','ap_y','ap_z'), 'formats':('S16','f8','f8','f8')})
+		print("A")
+		dt = datetime.strptime("30-Dec-1899", "%d-%b-%Y")
+
+		last = dt
+		ap_timestamps = []
+		for val in ap_timestamp:
+
+			test = val.split(".")
+
+			while len(test[1]) < 10:
+				test[1] = test[1] + "0"
+
+			finaltest = dt + timedelta(days=int(test[0]), microseconds=int(test[1])*8.64)
+			ap_timestamps.append(finaltest)
+
+			if finaltest < last:
+				print("! - this is before the last one...last: {}, now: {}".format(last, finaltest))
+			last = finaltest
+
+		ap_timestamps = np.array(ap_timestamps)
+		print("B")
+		x = Channel("activPAL x")
+		y = Channel("activPAL y")
+		z = Channel("activPAL z")
+
+		ap_x = (ap_x-128.0)/64.0
+		ap_y = (ap_y-128.0)/64.0
+		ap_z = (ap_z-128.0)/64.0
+
+		x.set_contents(np.array(ap_x, dtype=np.float64), ap_timestamps)
+		y.set_contents(np.array(ap_y, dtype=np.float64), ap_timestamps)
+		z.set_contents(np.array(ap_z, dtype=np.float64), ap_timestamps)
+		print("C")
+		return [x,y,z]
+
+	elif (source_type == "CSV"):
+
+		f = open(source, 'r')
+		s = f.readline().strip()
+		f.close()
+
+		test = s.split(",")
+
+		source_split = source.split("/")
+		
+		data = np.loadtxt(source, delimiter=',', skiprows=1, dtype='str')
+		
+		#print(data.shape)
+		#print(data[:,0])
+
+		timestamps = []
+		for date_row in data[:,0]:
+			timestamps.append(datetime.strptime(date_row, "%d/%m/%Y %H:%M:%S:%f"))
+		timestamps = np.array(timestamps)
+
+		channels = []
+		for col in range(1,len(test)):
+			
+			name = source_split[-1] + " - " + test[col]
+			c = Channel(name)
+			c.set_contents(np.array(data[:,col], dtype=np.float64), timestamps)
+			channels.append(c)
+
+		return channels
