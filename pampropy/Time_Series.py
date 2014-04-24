@@ -58,6 +58,43 @@ class Time_Series(object):
 			channel.piecewise_statistics(window_size, statistics=statistics, time_period=[start,end], file_target=target)
 
 
+	def write_channels_to_file(self, file_target, channel_list=False):
+
+		channel_sources = []
+
+		if channel_list == False:
+			channel_sources = self.channels
+		else:
+			for channel_name in channel_list:
+				channel_sources.append(self.get_channel(channel_name))
+
+		file_output = open(file_target, 'w')
+
+		# Print the header
+		file_output.write("timestamp,")
+		for index,chan in enumerate(channel_sources):
+			file_output.write(chan.name)
+			if (index < len(channel_sources)-1):
+				file_output.write(",")
+			else:
+				file_output.write("\n")
+
+
+		for i in range(0,len(channel_sources[0].data)):
+
+			pretty_timestamp = channel_sources[0].timestamps[i].strftime("%d/%m/%Y %H:%M:%S:%f")
+			file_output.write(pretty_timestamp + ",")
+			
+			for n,chan in enumerate(channel_sources):
+
+				file_output.write(str(chan.data[i]))
+				if n < len(channel_sources)-1:
+					file_output.write(",")
+				else:
+					file_output.write("\n")
+		
+		file_output.close()
+
 	def draw(self, time_period=False):
 
 		fig = plt.figure(figsize=(15,10))

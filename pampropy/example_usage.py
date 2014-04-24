@@ -17,22 +17,6 @@ import channel_inference
 ts = Time_Series.Time_Series()
 
 
-# Create artificial channel 
-
-dt = datetime.strptime("11-Mar-2014 18:00", "%d-%b-%Y %H:%M")
-epoch_length = timedelta(minutes=1)
-
-length = 1400
-timestamp_list = []
-for i in range(0,length):
-	timestamp_list.append(dt)
-	dt = dt + epoch_length
-
-timestamps_c = np.array(timestamp_list)
-channel_c = Channel.Channel("C")
-channel_c.set_contents(np.array([120+random.random()*2+np.sin(x*0.025)*10 for x in range(0,length)]), timestamps_c)
-
-
 # Load sample Actiheart data
 filename = os.path.join(os.path.dirname(__file__), '..', 'data\ARBOTW.txt')
 chans = Channel.load_channels(filename, "Actiheart")
@@ -54,19 +38,22 @@ ts.add_channel(blah)
 awake_probability = channel_inference.infer_sleep_actiheart(activity, ecg)
 ts.add_channel(awake_probability)
 
+# Create a new Time Series for output, add some hourly channels to it and write that to a file
+ts_output = Time_Series.Time_Series()
+test = activity.piecewise_statistics(timedelta(hours=1), statistics=["mean", "max"])
+for t in test:
+	ts_output.add_channel(t)
+	
+test2 = ecg.piecewise_statistics(timedelta(hours=1), statistics=["mean", "max"])
+for t in test2:
+	ts_output.add_channel(t)
 
-# Output channel summary statistics
-#chan_stat = activity.channel_statistics(statistics=["mean","sum","n"],file_target= os.path.join(os.path.dirname(__file__), '..', 'data/blah.txt'))
-#for x in chan_stat:#
-	#print x
+ts_output.write_channels_to_file(file_target=os.path.join(os.path.dirname(__file__), '..', 'data/ah_hourly.csv'))
+
 
 # Define a period of interest
 start = datetime.strptime("17-Mar-2014 00:00", "%d-%b-%Y %H:%M")
 end = start + timedelta(days=3)
-
-
-# Infer vector magnitude from three channels
-#vm = channel_inference.infer_vector_magnitude(awake_probability, ecg, activity)
 
 
 # Get a list of bouts where awake probability was >= 0 and <= 0.001 for 240 epochs or more
@@ -92,14 +79,6 @@ blah.add_annotations(annotations)
 ecg_ma.draw_properties = {'alpha':1, 'lw':2, 'color':[0.78431,0.196,0.196]}
 activity_ma.draw_properties = {'alpha':1, 'lw':2, 'color':[0.196,0.196,0.78431]}
 awake_probability.draw_properties = {'alpha':1, 'lw':2, 'color':[0.78431,0.196,0.78431]}
-ts.draw_separate(time_period=[start,end])#, file_target=os.path.join(os.path.dirname(__file__), '..', 'data/blah.png'))
+ts.draw_separate()#, file_target=os.path.join(os.path.dirname(__file__), '..', 'data/blah.png'))
 
 
-# Save some stats about the time series to a file
-stats = ["mean", "sum", "std", "min", "max", "n", [0,499],[500,5000]]
-#ts.piecewise_statistics( timedelta(days=1), statistics=stats, file_target=os.path.join(os.path.dirname(__file__), '..', 'data/ts_') )
-
-# We can also return the data by not supplying a file_target
-#dataset = activity.piecewise_statistics( timedelta(days=1), statistics=stats )
-#for row in dataset:
-	#print row

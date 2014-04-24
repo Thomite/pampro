@@ -23,14 +23,20 @@ class Channel(object):
 		
 		self.data = data
 		self.timestamps = timestamps
-		self.size = len(self.data)
 
+		self.calculate_timeframe()
+
+	def calculate_timeframe(self):
+
+		self.size = len(self.data)
 		self.timeframe = self.timestamps[0], self.timestamps[self.size-1], (self.timestamps[self.size-1]-self.timestamps[0]), self.size
 
 	def add_annotation(self, annotation):
+
 		self.annotations.append(annotation)
 
 	def add_annotations(self, annotations):
+
 		for a in annotations:
 			self.add_annotation(a)
 
@@ -82,7 +88,13 @@ class Channel(object):
 
 		return output_row
 
-	def piecewise_statistics(self, window_size, statistics=["mean"], time_period=False, file_target=False):
+	
+
+	def append_data(self, timestamp, data_row):
+		self.timestamps.append(timestamp)
+		self.data.append(data_row)
+
+	def piecewise_statistics(self, window_size, statistics=["mean"], time_period=False):
 
 		if time_period == False:
 			start = self.timeframe[0] - timedelta(hours=self.timeframe[0].hour, minutes=self.timeframe[0].minute, seconds=self.timeframe[0].second, microseconds=self.timeframe[0].microsecond)
@@ -94,52 +106,32 @@ class Channel(object):
 
 		print start , "---", end
 
-		if file_target == False:
-			output = []
-		else:
-			file_output = open(file_target, 'w')
-
-			# Print the header
-			file_output.write("timestamp,")
-			for index,var in enumerate(statistics):
-				if not isinstance(var,list):
-					file_output.write(var)
-				else:
-					file_output.write("mte_"+str(var[0])+"_lte_"+str(var[1]))
-
-				if (index < len(statistics)-1):
-						file_output.write(",")
-				else:
-					file_output.write("\n")
+		channel_list = []
+		for var in statistics:
+			
+			channel = Channel(self.name + "/" + var)
+			channel_list.append(channel)
 
 		window = window_size
 		start_dts = start
 		end_dts = start + window
 
-	
 		while start_dts < end:
 			
-			#print start_dts, "--", end_dts
-			if file_target == False:
-				output.append(self.window_statistics(start_dts, end_dts, statistics))
-		
-			else:
-				results = self.window_statistics(start_dts, end_dts, statistics)
-				for index,var in enumerate(results):
-					file_output.write(str(var))
-					if (index < len(results)-1):
-						file_output.write(",")
-					else:
-						file_output.write("\n")
-
+			results = self.window_statistics(start_dts, end_dts, statistics)
+			for i in range(1,len(results)):
+				
+				channel_list[i-1].append_data(start_dts, results[i])
 
 			start_dts = start_dts + window
 			end_dts = end_dts + window
 
-		if file_target == False:
-			return output
-		else:
-			file_output.close()
+		for channel in channel_list:
+			channel.calculate_timeframe()
+			channel.data = np.array(channel.data)
+			channel.timestamps = np.array(channel.timestamps)
+
+		return channel_list
 
 
 	def channel_statistics(self, statistics=["mean"], file_target=False):
@@ -236,7 +228,6 @@ class Channel(object):
 			c.data[indices] = self.data[indices]
 
 		return c
-
 
 	def moving_average(self, size):
 
