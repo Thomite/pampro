@@ -42,10 +42,14 @@ class Channel(object):
 
 	def get_window(self, datetime_start, datetime_end):
 
-		indices = np.where((self.timestamps >= datetime_start) & (self.timestamps < datetime_end))
+		#indices = np.where((self.timestamps >= datetime_start) & (self.timestamps < datetime_end))
 		#print(indices)
 		#print(len(indices[0]))
-		return indices[0]
+		#return indices[0]
+		# 7 mins 10 seconds
+		start = np.searchsorted(self.timestamps, datetime_start, 'left')
+		end = np.searchsorted(self.timestamps, datetime_end, 'right')
+		return np.arange(start, end)
 
 	def window_statistics(self, start_dts, end_dts, statistics):
 
