@@ -96,19 +96,27 @@ class Time_Series(object):
 		
 		file_output.close()
 
-	def draw(self, time_period=False):
+	def draw(self, channels=False, time_period=False):
 
 		fig = plt.figure(figsize=(15,10))
 
 		ax = fig.add_subplot(1,1,1)
 
-		for channel in self.channels:
+		channel_list = []
+		if channels==False:
+			channel_list = self.channels
+		else:
+			for c in channels:
+				channel_list.append(self.get_channel(c))
+		
+
+		for channel in channel_list:
 
 			if time_period==False:
 				ax.plot(channel.timestamps, channel.data, alpha=0.9, label=channel.name)
 			else:
 				indices = channel.get_window(time_period[0], time_period[1])
-				ax.plot(channel.timestamps[indices], channel.data[indices], alpha=0.9, label=channel.name)
+				ax.plot(channel.timestamps[indices], channel.data[indices], label=channel.name, **channel.draw_properties)
 
 		legend = ax.legend(loc='upper right')
 
@@ -116,17 +124,30 @@ class Time_Series(object):
 
 		plt.show()
 
-	def draw_normalised(self):
+	def draw_normalised(self, channels=False, time_period=False):
 
 		fig = plt.figure(figsize=(15,10))
 
 		ax = fig.add_subplot(1, 1, 1)
 
-		for channel in self.channels:
+		channel_list = []
+		if channels==False:
+			channel_list = self.channels
+		else:
+			for c in channels:
+				channel_list.append(self.get_channel(c))
+		
+
+		for channel in channel_list:
 			max_value = max(channel.data)
 			min_value = min(channel.data)
 			 
-			ax.plot(channel.timestamps, ((1 - 0) * (channel.data - min_value))/(max_value - min_value) + 0, label=channel.name)
+			if time_period==False:
+				indices = channel.get_window(time_period[0], time_period[1])
+				if (len(indices) > 0):
+					ax.plot(channel.timestamps[indices], ((1 - 0) * (channel.data[indices] - min_value))/(max_value - min_value) + 0, label=channel.name, **channel.draw_properties)
+			else:
+				ax.plot(channel.timestamps, ((1 - 0) * (channel.data - min_value))/(max_value - min_value) + 0, label=channel.name, **channel.draw_properties)
 
 		legend = ax.legend(loc='upper right')
 
