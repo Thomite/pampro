@@ -55,7 +55,7 @@ class Channel(object):
 		# 7 mins 10 seconds
 		start = np.searchsorted(self.timestamps, datetime_start, 'left')
 		end = np.searchsorted(self.timestamps, datetime_end, 'right')
-		return np.arange(start, end)
+		return np.arange(start, end-1)
 
 	def window_statistics(self, start_dts, end_dts, statistics):
 
@@ -108,12 +108,12 @@ class Channel(object):
 			end = time_period[1]
 		# ------------------------------
 
-		print start , "---", end
+		#print start , "---", end
 
 		channel_list = []
 		for var in statistics:
 			
-			channel = Channel(self.name + "/" + var)
+			channel = Channel(self.name + "_" + var)
 			channel_list.append(channel)
 
 		window = window_size
@@ -226,7 +226,7 @@ class Channel(object):
 		for bout in bout_list:
 			#print(bout)
 
-			indices = np.where((self.timestamps >= bout[0]) & (self.timestamps < bout[1]))
+			indices = self.get_window(bout[0], bout[1])
 
 			#c.data[bout[2]:bout[3]] = self.data[bout[2]:bout[3]]
 			c.data[indices] = self.data[indices]
@@ -295,7 +295,7 @@ def load_channels(source, source_type):
 		line8 = first_lines[8]
 		test = line8.split(",")
 		dt = datetime.strptime(test[1], "%d-%b-%Y  %H:%M")
-		one_minute = timedelta(minutes=1)
+		one_minute = timedelta(seconds=15)
 
 		timestamp_list = []
 		for i in range(0,len(activity)):
@@ -309,10 +309,10 @@ def load_channels(source, source_type):
 		ecg = ecg[indices1]
 		timestamps2 = timestamps[indices1]
 
-		actiheart_activity = Channel("Actiheart-Activity")
+		actiheart_activity = Channel("AH_Activity")
 		actiheart_activity.set_contents(activity, timestamps2)
 
-		actiheart_ecg = Channel("Actiheart-ECG")
+		actiheart_ecg = Channel("AH-ECG")
 		actiheart_ecg.set_contents(ecg, timestamps2)
 
 		return [actiheart_activity, actiheart_ecg]
@@ -323,7 +323,6 @@ def load_channels(source, source_type):
 		print("A")
 		dt = datetime.strptime("30-Dec-1899", "%d-%b-%Y")
 
-		last = dt
 		ap_timestamps = []
 		for val in ap_timestamp:
 
@@ -335,15 +334,11 @@ def load_channels(source, source_type):
 			finaltest = dt + timedelta(days=int(test[0]), microseconds=int(test[1])*8.64)
 			ap_timestamps.append(finaltest)
 
-			if finaltest < last:
-				print("! - this is before the last one...last: {}, now: {}".format(last, finaltest))
-			last = finaltest
-
 		ap_timestamps = np.array(ap_timestamps)
 		print("B")
-		x = Channel("activPAL x")
-		y = Channel("activPAL y")
-		z = Channel("activPAL z")
+		x = Channel("AP_X")
+		y = Channel("AP_Y")
+		z = Channel("AP_Z")
 
 		ap_x = (ap_x-128.0)/64.0
 		ap_y = (ap_y-128.0)/64.0
@@ -354,6 +349,40 @@ def load_channels(source, source_type):
 		z.set_contents(np.array(ap_z, dtype=np.float64), ap_timestamps)
 		print("C")
 		return [x,y,z]
+
+	elif (source_type == "GeneActiv_CSV"):
+
+		ga_timestamp, ga_x, ga_y, ga_z, ga_lux, ga_event, ga_temperature = np.genfromtxt(source, delimiter=',', unpack=True, skip_header=80, dtype=str)
+
+		ga_x = np.array(ga_x, dtype=np.float64)
+		ga_y = np.array(ga_y, dtype=np.float64)
+		ga_z = np.array(ga_z, dtype=np.float64)
+		ga_lux = np.array(ga_lux, dtype=np.int32)
+		ga_event = np.array(ga_event, dtype=np.bool_)
+		ga_temperature = np.array(ga_temperature, dtype=np.float32)
+
+		ga_timestamps = []
+
+		for i in range(0, len(ga_timestamp)):
+			ts = datetime.strptime(ga_timestamp[i], "%Y-%m-%d %H:%M:%S:%f")
+			ga_timestamps.append(ts)
+		ga_timestamps = np.array(ga_timestamps)
+
+		x = Channel("GA_X")
+		y = Channel("GA_Y")
+		z = Channel("GA_Z")
+		lux = Channel("GA_Lux")
+		event = Channel("GA_Event")
+		temperature = Channel("GA_Temperature")
+
+		x.set_contents(ga_x, ga_timestamps)
+		y.set_contents(ga_y, ga_timestamps)
+		z.set_contents(ga_z, ga_timestamps)
+		lux.set_contents(ga_lux, ga_timestamps)
+		event.set_contents(ga_event, ga_timestamps)
+		temperature.set_contents(ga_temperature, ga_timestamps)
+
+		return [x,y,z,lux,event,temperature]
 
 	elif (source_type == "CSV"):
 

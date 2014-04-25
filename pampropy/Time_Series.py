@@ -3,8 +3,9 @@ from datetime import datetime, date, time, timedelta
 
 class Time_Series(object):
 
-	def __init__(self):
+	def __init__(self, name):
 		
+		self.name = name
 		self.channels = []
 		self.number_of_channels = 0
 		self.channel_lookup = {}
@@ -30,8 +31,8 @@ class Time_Series(object):
 
 		self.channel_lookup[channel.name] = channel
 
-		print("Added channel {} to time series.".format(channel.name))
-		print("Earliest: {}, latest: {}".format(self.earliest, self.latest))
+		print("Added channel {} to time series {}.".format(channel.name, self.name))
+		#print("Earliest: {}, latest: {}".format(self.earliest, self.latest))
 
 	def add_channels(self, new_channels):
 

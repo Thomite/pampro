@@ -17,7 +17,7 @@ import channel_inference
 
 start_time = datetime.now()
 
-ts = Time_Series.Time_Series()
+ts = Time_Series.Time_Series("activPAL")
 
 
 
@@ -42,14 +42,22 @@ print("Inferred VM, pitch and roll")
 #annotations = Annotation.annotations_from_bouts(bouts)
 #ecg.add_annotations(annotations)
 
+ts_output = Time_Series.Time_Series("activPAL output")
+
 # Save some stats about the time series to a file
 stats = ["mean", "sum", "std", "min", "max", "n"]
-ts.piecewise_statistics( timedelta(hours=1), statistics=stats, file_target=os.path.join(os.path.dirname(__file__), '..', 'data/ap_') )
+for channel in [x,y,z,vm,pitch,roll]:
+	derived_channels = channel.piecewise_statistics( timedelta(minutes=10), statistics=stats )
+	ts_output.add_channels(derived_channels)
+
+ts_output.write_channels_to_file(file_target=os.path.join(os.path.dirname(__file__), '..', 'data/ap_10m_data.csv'))
 
 end_time = start_time = datetime.now()
 duration = end_time - start_time
 print(duration)
 
+
+
 # Define the appearance of the signals
-#ts.draw_separate(file_target=os.path.join(os.path.dirname(__file__), '..', 'data/blah.png'))
+ts_output.draw_separate()
 
