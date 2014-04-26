@@ -17,7 +17,7 @@ import channel_inference
 
 start_time = datetime.now()
 
-ts = Time_Series.Time_Series()
+ts = Time_Series.Time_Series("activPAL")
 
 
 
@@ -34,32 +34,30 @@ print("Finished reading in data")
 
 # Infer vector magnitude from three channels
 vm = channel_inference.infer_vector_magnitude(x,y,z)
-#pitch, roll = channel_inference.infer_pitch_roll(x,y,z)
-ts.add_channel(vm)
+pitch, roll = channel_inference.infer_pitch_roll(x,y,z)
+ts.add_channels([x,y,z,vm,pitch,roll])
 print("Inferred VM, pitch and roll")
 
 # Turn the bouts into annotations and highlight those sections in the signals
 #annotations = Annotation.annotations_from_bouts(bouts)
 #ecg.add_annotations(annotations)
 
+ts_output = Time_Series.Time_Series("activPAL output")
+
 # Save some stats about the time series to a file
 stats = ["mean", "sum", "std", "min", "max", "n"]
-ts.piecewise_statistics( timedelta(hours=1), statistics=stats, file_target=os.path.join(os.path.dirname(__file__), '..', 'data/ap_daily_') )
+for channel in [x,y,z,vm,pitch,roll]:
+	derived_channels = channel.piecewise_statistics( timedelta(minutes=10), statistics=stats )
+	ts_output.add_channels(derived_channels)
+
+ts_output.write_channels_to_file(file_target=os.path.join(os.path.dirname(__file__), '..', 'data/ap_10m_data.csv'))
 
 end_time = start_time = datetime.now()
 duration = end_time - start_time
 print(duration)
 
+
+
 # Define the appearance of the signals
-#ecg_ma.draw_properties = {'alpha':1, 'lw':2, 'color':[0.78431,0.196,0.196]}
-#activity_ma.draw_properties = {'alpha':1, 'lw':2, 'color':[0.196,0.196,0.78431]}
-#awake_probability.draw_properties = {'alpha':1, 'lw':2, 'color':[0.78431,0.196,0.78431]}
-ts.draw_separate(file_target=os.path.join(os.path.dirname(__file__), '..', 'data/blah.png'))
+ts_output.draw_separate()
 
-
-
-
-# We can also return the data by not supplying a file_target
-#dataset = activity.piecewise_statistics( timedelta(days=1), statistics=stats )
-#for row in dataset:
-	#print row

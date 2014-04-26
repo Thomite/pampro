@@ -23,14 +23,20 @@ class Channel(object):
 		
 		self.data = data
 		self.timestamps = timestamps
-		self.size = len(self.data)
 
+		self.calculate_timeframe()
+
+	def calculate_timeframe(self):
+
+		self.size = len(self.data)
 		self.timeframe = self.timestamps[0], self.timestamps[self.size-1], (self.timestamps[self.size-1]-self.timestamps[0]), self.size
 
 	def add_annotation(self, annotation):
+
 		self.annotations.append(annotation)
 
 	def add_annotations(self, annotations):
+
 		for a in annotations:
 			self.add_annotation(a)
 
@@ -49,7 +55,7 @@ class Channel(object):
 		# 7 mins 10 seconds
 		start = np.searchsorted(self.timestamps, datetime_start, 'left')
 		end = np.searchsorted(self.timestamps, datetime_end, 'right')
-		return np.arange(start, end)
+		return np.arange(start, end-1)
 
 	def window_statistics(self, start_dts, end_dts, statistics):
 
@@ -86,7 +92,13 @@ class Channel(object):
 
 		return output_row
 
-	def piecewise_statistics(self, window_size, statistics=["mean"], time_period=False, file_target=False):
+	
+
+	def append_data(self, timestamp, data_row):
+		self.timestamps.append(timestamp)
+		self.data.append(data_row)
+
+	def piecewise_statistics(self, window_size, statistics=["mean"], time_period=False):
 
 		if time_period == False:
 			start = self.timeframe[0] - timedelta(hours=self.timeframe[0].hour, minutes=self.timeframe[0].minute, seconds=self.timeframe[0].second, microseconds=self.timeframe[0].microsecond)
@@ -96,54 +108,34 @@ class Channel(object):
 			end = time_period[1]
 		# ------------------------------
 
-		print start , "---", end
+		#print start , "---", end
 
-		if file_target == False:
-			output = []
-		else:
-			file_output = open(file_target, 'w')
-
-			# Print the header
-			file_output.write("timestamp,")
-			for index,var in enumerate(statistics):
-				if not isinstance(var,list):
-					file_output.write(var)
-				else:
-					file_output.write("mte_"+str(var[0])+"_lte_"+str(var[1]))
-
-				if (index < len(statistics)-1):
-						file_output.write(",")
-				else:
-					file_output.write("\n")
+		channel_list = []
+		for var in statistics:
+			
+			channel = Channel(self.name + "_" + var)
+			channel_list.append(channel)
 
 		window = window_size
 		start_dts = start
 		end_dts = start + window
 
-	
 		while start_dts < end:
 			
-			#print start_dts, "--", end_dts
-			if file_target == False:
-				output.append(self.window_statistics(start_dts, end_dts, statistics))
-		
-			else:
-				results = self.window_statistics(start_dts, end_dts, statistics)
-				for index,var in enumerate(results):
-					file_output.write(str(var))
-					if (index < len(results)-1):
-						file_output.write(",")
-					else:
-						file_output.write("\n")
-
+			results = self.window_statistics(start_dts, end_dts, statistics)
+			for i in range(1,len(results)):
+				
+				channel_list[i-1].append_data(start_dts, results[i])
 
 			start_dts = start_dts + window
 			end_dts = end_dts + window
 
-		if file_target == False:
-			return output
-		else:
-			file_output.close()
+		for channel in channel_list:
+			channel.calculate_timeframe()
+			channel.data = np.array(channel.data)
+			channel.timestamps = np.array(channel.timestamps)
+
+		return channel_list
 
 
 	def channel_statistics(self, statistics=["mean"], file_target=False):
@@ -234,13 +226,12 @@ class Channel(object):
 		for bout in bout_list:
 			#print(bout)
 
-			indices = np.where((self.timestamps >= bout[0]) & (self.timestamps < bout[1]))
+			indices = self.get_window(bout[0], bout[1])
 
 			#c.data[bout[2]:bout[3]] = self.data[bout[2]:bout[3]]
 			c.data[indices] = self.data[indices]
 
 		return c
-
 
 	def moving_average(self, size):
 
@@ -304,7 +295,7 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 		line8 = first_lines[8]
 		test = line8.split(",")
 		dt = datetime.strptime(test[1], "%d-%b-%Y  %H:%M")
-		one_minute = timedelta(minutes=1)
+		one_minute = timedelta(seconds=15)
 
 		timestamp_list = []
 		for i in range(0,len(activity)):
@@ -318,10 +309,10 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 		ecg = ecg[indices1]
 		timestamps2 = timestamps[indices1]
 
-		actiheart_activity = Channel("Actiheart-Activity")
+		actiheart_activity = Channel("AH_Activity")
 		actiheart_activity.set_contents(activity, timestamps2)
 
-		actiheart_ecg = Channel("Actiheart-ECG")
+		actiheart_ecg = Channel("AH-ECG")
 		actiheart_ecg.set_contents(ecg, timestamps2)
 
 		return [actiheart_activity, actiheart_ecg]
@@ -332,7 +323,6 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 		print("A")
 		dt = datetime.strptime("30-Dec-1899", "%d-%b-%Y")
 
-		last = dt
 		ap_timestamps = []
 		for val in ap_timestamp:
 
@@ -344,15 +334,11 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 			finaltest = dt + timedelta(days=int(test[0]), microseconds=int(test[1])*8.64)
 			ap_timestamps.append(finaltest)
 
-			if finaltest < last:
-				print("! - this is before the last one...last: {}, now: {}".format(last, finaltest))
-			last = finaltest
-
 		ap_timestamps = np.array(ap_timestamps)
 		print("B")
-		x = Channel("activPAL x")
-		y = Channel("activPAL y")
-		z = Channel("activPAL z")
+		x = Channel("AP_X")
+		y = Channel("AP_Y")
+		z = Channel("AP_Z")
 
 		ap_x = (ap_x-128.0)/64.0
 		ap_y = (ap_y-128.0)/64.0
@@ -363,6 +349,40 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 		z.set_contents(np.array(ap_z, dtype=np.float64), ap_timestamps)
 		print("C")
 		return [x,y,z]
+
+	elif (source_type == "GeneActiv_CSV"):
+
+		ga_timestamp, ga_x, ga_y, ga_z, ga_lux, ga_event, ga_temperature = np.genfromtxt(source, delimiter=',', unpack=True, skip_header=80, dtype=str)
+
+		ga_x = np.array(ga_x, dtype=np.float64)
+		ga_y = np.array(ga_y, dtype=np.float64)
+		ga_z = np.array(ga_z, dtype=np.float64)
+		ga_lux = np.array(ga_lux, dtype=np.int32)
+		ga_event = np.array(ga_event, dtype=np.bool_)
+		ga_temperature = np.array(ga_temperature, dtype=np.float32)
+
+		ga_timestamps = []
+
+		for i in range(0, len(ga_timestamp)):
+			ts = datetime.strptime(ga_timestamp[i], "%Y-%m-%d %H:%M:%S:%f")
+			ga_timestamps.append(ts)
+		ga_timestamps = np.array(ga_timestamps)
+
+		x = Channel("GA_X")
+		y = Channel("GA_Y")
+		z = Channel("GA_Z")
+		lux = Channel("GA_Lux")
+		event = Channel("GA_Event")
+		temperature = Channel("GA_Temperature")
+
+		x.set_contents(ga_x, ga_timestamps)
+		y.set_contents(ga_y, ga_timestamps)
+		z.set_contents(ga_z, ga_timestamps)
+		lux.set_contents(ga_lux, ga_timestamps)
+		event.set_contents(ga_event, ga_timestamps)
+		temperature.set_contents(ga_temperature, ga_timestamps)
+
+		return [x,y,z,lux,event,temperature]
 
 	elif (source_type == "CSV"):
 

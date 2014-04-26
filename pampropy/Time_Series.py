@@ -3,8 +3,9 @@ from datetime import datetime, date, time, timedelta
 
 class Time_Series(object):
 
-	def __init__(self):
+	def __init__(self, name):
 		
+		self.name = name
 		self.channels = []
 		self.number_of_channels = 0
 		self.channel_lookup = {}
@@ -30,8 +31,8 @@ class Time_Series(object):
 
 		self.channel_lookup[channel.name] = channel
 
-		print("Added channel {} to time series.".format(channel.name))
-		print("Earliest: {}, latest: {}".format(self.earliest, self.latest))
+		print("Added channel {} to time series {}.".format(channel.name, self.name))
+		#print("Earliest: {}, latest: {}".format(self.earliest, self.latest))
 
 	def add_channels(self, new_channels):
 
@@ -58,19 +59,64 @@ class Time_Series(object):
 			channel.piecewise_statistics(window_size, statistics=statistics, time_period=[start,end], file_target=target)
 
 
-	def draw(self, time_period=False):
+	def write_channels_to_file(self, file_target, channel_list=False):
+
+		channel_sources = []
+
+		if channel_list == False:
+			channel_sources = self.channels
+		else:
+			for channel_name in channel_list:
+				channel_sources.append(self.get_channel(channel_name))
+
+		file_output = open(file_target, 'w')
+
+		# Print the header
+		file_output.write("timestamp,")
+		for index,chan in enumerate(channel_sources):
+			file_output.write(chan.name)
+			if (index < len(channel_sources)-1):
+				file_output.write(",")
+			else:
+				file_output.write("\n")
+
+
+		for i in range(0,len(channel_sources[0].data)):
+
+			pretty_timestamp = channel_sources[0].timestamps[i].strftime("%d/%m/%Y %H:%M:%S:%f")
+			file_output.write(pretty_timestamp + ",")
+			
+			for n,chan in enumerate(channel_sources):
+
+				file_output.write(str(chan.data[i]))
+				if n < len(channel_sources)-1:
+					file_output.write(",")
+				else:
+					file_output.write("\n")
+		
+		file_output.close()
+
+	def draw(self, channels=False, time_period=False):
 
 		fig = plt.figure(figsize=(15,10))
 
 		ax = fig.add_subplot(1,1,1)
 
-		for channel in self.channels:
+		channel_list = []
+		if channels==False:
+			channel_list = self.channels
+		else:
+			for c in channels:
+				channel_list.append(self.get_channel(c))
+		
+
+		for channel in channel_list:
 
 			if time_period==False:
 				ax.plot(channel.timestamps, channel.data, alpha=0.9, label=channel.name)
 			else:
 				indices = channel.get_window(time_period[0], time_period[1])
-				ax.plot(channel.timestamps[indices], channel.data[indices], alpha=0.9, label=channel.name)
+				ax.plot(channel.timestamps[indices], channel.data[indices], label=channel.name, **channel.draw_properties)
 
 		legend = ax.legend(loc='upper right')
 
@@ -78,17 +124,30 @@ class Time_Series(object):
 
 		plt.show()
 
-	def draw_normalised(self):
+	def draw_normalised(self, channels=False, time_period=False):
 
 		fig = plt.figure(figsize=(15,10))
 
 		ax = fig.add_subplot(1, 1, 1)
 
-		for channel in self.channels:
+		channel_list = []
+		if channels==False:
+			channel_list = self.channels
+		else:
+			for c in channels:
+				channel_list.append(self.get_channel(c))
+		
+
+		for channel in channel_list:
 			max_value = max(channel.data)
 			min_value = min(channel.data)
 			 
-			ax.plot(channel.timestamps, ((1 - 0) * (channel.data - min_value))/(max_value - min_value) + 0, label=channel.name)
+			if time_period==False:
+				indices = channel.get_window(time_period[0], time_period[1])
+				if (len(indices) > 0):
+					ax.plot(channel.timestamps[indices], ((1 - 0) * (channel.data[indices] - min_value))/(max_value - min_value) + 0, label=channel.name, **channel.draw_properties)
+			else:
+				ax.plot(channel.timestamps, ((1 - 0) * (channel.data - min_value))/(max_value - min_value) + 0, label=channel.name, **channel.draw_properties)
 
 		legend = ax.legend(loc='upper right')
 

@@ -15,27 +15,13 @@ import channel_inference
 #from pampropy import Time_Series, Channel, Annotation, channel_inference
 execution_start = datetime.now()
 
-ts = Time_Series.Time_Series()
-
-
-# Create artificial channel 
-
-dt = datetime.strptime("11-Mar-2014 18:00", "%d-%b-%Y %H:%M")
-epoch_length = timedelta(minutes=1)
-
-length = 1400
-timestamp_list = []
-for i in range(0,length):
-	timestamp_list.append(dt)
-	dt = dt + epoch_length
-
-timestamps_c = np.array(timestamp_list)
-channel_c = Channel.Channel("C")
-channel_c.set_contents(np.array([120+random.random()*2+np.sin(x*0.025)*10 for x in range(0,length)]), timestamps_c)
+ts = Time_Series.Time_Series("Actiheart")
 
 
 # Load sample Actiheart data
-filename = os.path.join(os.path.dirname(__file__), '..', 'data\ARBOTW.txt')
+#filename = os.path.join(os.path.dirname(__file__), '..', 'data\ARBOTW.txt')
+filename = "Q:/Data/CSVs for Tom/Parallel files/514538L_top.txt"
+
 chans = Channel.load_channels(filename, "Actiheart")
 activity = chans[0]
 ecg = chans[1]
@@ -59,17 +45,20 @@ ts.add_channel(awake_probability)
 # Output channel summary statistics
 #chan_stat = activity.channel_statistics(statistics=["mean","sum","n"],file_target= os.path.join(os.path.dirname(__file__), '..', 'data/blah.txt'))
 #for x in chan_stat:#
-	#print x
+#print x
 
 # Define a period of interest
 start = datetime.strptime("17-Mar-2014 00:00", "%d-%b-%Y %H:%M")
 end = start + timedelta(days=3)
 
-for i in range(1000):
-	print i
-	# Save some stats about the time series to a file
-	stats = ["mean", "sum", "std", "min", "max", "n"]
-	ts.piecewise_statistics( timedelta(minutes=10), statistics=stats, file_target=os.path.join(os.path.dirname(__file__), '..', 'data/ah_10m_') )
+ts_output = Time_Series.Time_Series("Actiheart output")
+# Save some stats about the time series to a file
+stats = ["mean", "sum", "std", "min", "max", "n"]
+result_chans = activity.piecewise_statistics( timedelta(minutes=10), statistics=stats )
+ts_output.add_channels(result_chans)
+result_chans = ecg.piecewise_statistics( timedelta(minutes=10), statistics=stats )
+ts_output.add_channels(result_chans)
+ts_output.write_channels_to_file(file_target=os.path.join(os.path.dirname(__file__), '..', 'data/ah_data_10m.csv'))
 
 # Infer vector magnitude from three channels
 #vm = channel_inference.infer_vector_magnitude(awake_probability, ecg, activity)
@@ -78,7 +67,7 @@ for i in range(1000):
 # Get a list of bouts where awake probability was >= 0 and <= 0.001 for 240 epochs or more
 bouts = awake_probability.bouts(0,0.001,240)
 #for bout in bouts:
-#	print bout[0].day, bout[0], " -- ", bout[1]
+# print bout[0].day, bout[0], " -- ", bout[1]
 
 
 # Subset a channel where the bouts occur
@@ -108,7 +97,7 @@ stats = ["mean", "sum", "std", "min", "max", "n", [0,499],[500,5000]]
 # We can also return the data by not supplying a file_target
 #dataset = activity.piecewise_statistics( timedelta(days=1), statistics=stats )
 #for row in dataset:
-	#print row
+#print row
 
 execution_end = datetime.now()
 print("{} to {} = {}".format( execution_start, execution_end, execution_end - execution_start))
