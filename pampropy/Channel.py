@@ -404,10 +404,12 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 			timestamps.append(datetime.strptime(date_row, datetime_format))
 		timestamps = np.array(timestamps)
 
-		data_columns = range(0,len(test))-datetime_column
+		data_columns = list(range(0,len(test)))
+		del data_columns[datetime_column]
+		print data_columns
 		channels = []
 		for col in data_columns:
-			
+			print col
 			name = source_split[-1] + " - " + test[col]
 			c = Channel(name)
 			c.set_contents(np.array(data[:,col], dtype=np.float64), timestamps)
