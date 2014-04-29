@@ -44,19 +44,15 @@ class Time_Series(object):
 		return self.channel_lookup[channel_name]
 
 
-	def piecewise_statistics(self, window_size, file_target, statistics=["mean"], time_period=False):
+	def piecewise_statistics(self, window_size, statistics_dictionary, time_period=False):
 
-		if time_period == False:
-			start = self.earliest - timedelta(hours=self.earliest.hour, minutes=self.earliest.minute, seconds=self.earliest.second, microseconds=self.earliest.microsecond)
-			end = self.latest + timedelta(hours=23-self.latest.hour, minutes=59-self.latest.minute, seconds=59-self.latest.second, microseconds=999999-self.latest.microsecond)
-		else:
-			start = time_period[0]
-			end = time_period[1]
-		# ------------------------------
-		#print start, "--|--", end
-		for channel in self.channels:
-			target = file_target + channel.name + ".csv"
-			channel.piecewise_statistics(window_size, statistics=statistics, time_period=[start,end], file_target=target)
+		result_channels = []
+		
+		for channel_name,stats in statistics_dictionary.items():
+			
+			channels = self.get_channel(channel_name).piecewise_statistics(window_size, statistics=stats, time_period=time_period)
+			result_channels = result_channels + channels
+		return result_channels
 
 
 	def write_channels_to_file(self, file_target, channel_list=False):

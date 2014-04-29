@@ -112,8 +112,12 @@ class Channel(object):
 
 		channel_list = []
 		for var in statistics:
-			
-			channel = Channel(self.name + "_" + var)
+			name = self.name
+			if isinstance(var, list):
+				name = self.name + "_" + str(var[0]) + "_" + str(var[1])
+			else:
+				name = self.name + "_" + var
+			channel = Channel(name)
 			channel_list.append(channel)
 
 		window = window_size
