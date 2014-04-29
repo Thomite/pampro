@@ -44,13 +44,19 @@ print("Inferred VM, pitch and roll")
 
 ts_output = Time_Series.Time_Series("activPAL output")
 
-# Save some stats about the time series to a file
-stats = ["mean", "sum", "std", "min", "max", "n"]
-for channel in [x,y,z,vm,pitch,roll]:
-	derived_channels = channel.piecewise_statistics( timedelta(minutes=10), statistics=stats )
-	ts_output.add_channels(derived_channels)
+angle_levels = [
+[-90,-85],[-85,-80],[-80,-75],[-75,-70],[-70,-65],[-65,-60],[-60,-55],[-55,-50],[-50,-45],[-45,-40],[-40,-35],[-35,-30],[-30,-25],[-25,-20],[-20,-15],[-15,-10],[-10,-05],[-05,0],
+[0,05],[05,10],[10,15],[15,20],[20,25],[25,30],[30,35],[35,40],[40,45],[45,50],[50,55],[55,60],[60,65],[65,70],[70,75],[75,80],[80,85],[85,90]]
 
-ts_output.write_channels_to_file(file_target=os.path.join(os.path.dirname(__file__), '..', 'data/ap_10m_data.csv'))
+# Save some stats about the time series to a file
+basic_stats = ["mean", "sum", "std", "min", "max"]
+stat_dict = {"AP_X":basic_stats, "AP_Y":basic_stats, "AP_Z":basic_stats, "Vector magnitude":basic_stats, "Pitch":angle_levels+basic_stats, "Roll":angle_levels+basic_stats}
+#for channel in [x,y,z,vm,pitch,roll]:
+#	derived_channels = channel.piecewise_statistics( timedelta(minutes=10), statistics=stats )
+#	ts_output.add_channels(derived_channels)
+ts_output.add_channels(ts.piecewise_statistics( timedelta(minutes=10), stat_dict ))
+
+ts_output.write_channels_to_file(file_target=os.path.join(os.path.dirname(__file__), '..', 'data/ap_custom.csv'))
 
 end_time = start_time = datetime.now()
 duration = end_time - start_time

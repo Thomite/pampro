@@ -48,11 +48,6 @@ class Channel(object):
 
 	def get_window(self, datetime_start, datetime_end):
 
-		#indices = np.where((self.timestamps >= datetime_start) & (self.timestamps < datetime_end))
-		#print(indices)
-		#print(len(indices[0]))
-		#return indices[0]
-		# 7 mins 10 seconds
 		start = np.searchsorted(self.timestamps, datetime_start, 'left')
 		end = np.searchsorted(self.timestamps, datetime_end, 'right')
 		return np.arange(start, end-1)
@@ -63,7 +58,8 @@ class Channel(object):
 
 		pretty_timestamp = start_dts.strftime("%d/%m/%Y %H:%M:%S:%f")
 
-		output_row = [pretty_timestamp]
+		#output_row = [pretty_timestamp]
+		output_row = []
 		if (len(indices) > 0):
 			
 			for stat in statistics:
@@ -127,9 +123,9 @@ class Channel(object):
 		while start_dts < end:
 			
 			results = self.window_statistics(start_dts, end_dts, statistics)
-			for i in range(1,len(results)):
+			for i in range(len(results)):
 				
-				channel_list[i-1].append_data(start_dts, results[i])
+				channel_list[i].append_data(start_dts, results[i])
 
 			start_dts = start_dts + window
 			end_dts = end_dts + window
@@ -142,48 +138,11 @@ class Channel(object):
 		return channel_list
 
 
-	def channel_statistics(self, statistics=["mean"], file_target=False):
+	def summary_statistics(self, statistics=["mean"]):
 
-		start = self.timeframe[0]
-		end = self.timeframe[1]
+		results = self.window_statistics(self.timeframe[0], self.timeframe[1], statistics)
 
-		# ------------------------------
-		output = []
-		if not file_target == False:
-			file_output = open(file_target, 'w')
-
-			# Print the header
-			file_output.write("timestamp,")
-			for index,var in enumerate(statistics):
-				if not isinstance(var,list):
-					file_output.write(var)
-				else:
-					file_output.write("mte_"+str(var[0])+"_lte_"+str(var[1]))
-
-				if (index < len(statistics)-1):
-						file_output.write(",")
-				else:
-					file_output.write("\n")
-
-		if not file_target == False:
-			
-			results = self.window_statistics(start, end, statistics)
-			for index,var in enumerate(results):
-				file_output.write(str(var))
-				if (index < len(results)-1):
-					file_output.write(",")
-				else:
-					file_output.write("\n")
-			
-		else:
-			
-			output.append(self.window_statistics(start, end, statistics))
-
-
-		if not file_target == False:
-			file_output.close()
-		else:
-			return output
+		return results
 
 	def bouts(self, low, high, minimum_length=0, return_indices=False):
 
@@ -324,7 +283,7 @@ def load_channels(source, source_type):
 	elif (source_type == "activPAL"):
 
 		ap_timestamp, ap_x, ap_y, ap_z = np.loadtxt(source, delimiter=',', unpack=True, skiprows=5, dtype={'names':('ap_timestamp','ap_x','ap_y','ap_z'), 'formats':('S16','f8','f8','f8')})
-		print("A")
+		#print("A")
 		dt = datetime.strptime("30-Dec-1899", "%d-%b-%Y")
 
 		ap_timestamps = []
@@ -339,7 +298,7 @@ def load_channels(source, source_type):
 			ap_timestamps.append(finaltest)
 
 		ap_timestamps = np.array(ap_timestamps)
-		print("B")
+		#print("B")
 		x = Channel("AP_X")
 		y = Channel("AP_Y")
 		z = Channel("AP_Z")
@@ -351,7 +310,7 @@ def load_channels(source, source_type):
 		x.set_contents(np.array(ap_x, dtype=np.float64), ap_timestamps)
 		y.set_contents(np.array(ap_y, dtype=np.float64), ap_timestamps)
 		z.set_contents(np.array(ap_z, dtype=np.float64), ap_timestamps)
-		print("C")
+		#print("C")
 		return [x,y,z]
 
 	elif (source_type == "GeneActiv_CSV"):

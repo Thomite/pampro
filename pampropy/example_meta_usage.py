@@ -20,18 +20,31 @@ import channel_inference
 ts = Time_Series.Time_Series("AP")
 
 
-chans = Channel.load_channels(os.path.join(os.path.dirname(__file__), '..', 'data/ap_data_10m.csv'), "CSV")
+chans = Channel.load_channels(os.path.join(os.path.dirname(__file__), '..', 'data/ap_custom.csv'), "CSV")
 ts.add_channels(chans)
 
 
-stat_dict = {"ap_data_10m.csv - Vector magnitude_std":["mean", "std", [0,0.025]]}
-blah = ts.piecewise_statistics( timedelta(minutes=60), stat_dict)
-print(len(blah[0].name))
-
 ts_visualisation = Time_Series.Time_Series("Visualisation")
+ts_visualisation.add_channel(ts.get_channel("ap_custom.csv - Pitch_mean"))
 
-ts_visualisation.add_channel(ts.get_channel("ap_data_10m.csv - Vector magnitude_std"))
-ts_visualisation.add_channels(blah)
+
+
+
+angle_levels = [
+[-90,-85],[-85,-80],[-80,-75],[-75,-70],[-70,-65],[-65,-60],[-60,-55],[-55,-50],[-50,-45],[-45,-40],[-40,-35],[-35,-30],[-30,-25],[-25,-20],[-20,-15],[-15,-10],[-10,-05],[-05,0],
+[0,05],[05,10],[10,15],[15,20],[20,25],[25,30],[30,35],[35,40],[40,45],[45,50],[50,55],[55,60],[60,65],[65,70],[70,75],[75,80],[80,85],[85,90]]
+
+chan_stats = ts.get_channel("ap_custom.csv - Pitch_mean").channel_statistics(statistics=["mean"] + angle_levels)
+print(chan_stats)
+
+
+angle_levels = [[0,05],[10,15],[20,25],[30,35],[40,45],[50,55],[60,65],[70,75],[80,85],[85,90]]
+
+for combo in angle_levels:
+	name = "ap_custom.csv - Pitch_"+str(combo[0])+"_"+str(combo[1])
+
+	ts_visualisation.add_channel(ts.get_channel(name))
+
 
 #bouts = ts.get_channel("ap_data_10m.csv - Vector magnitude_std").bouts(0,0.025,18)
 #bouts2 = ts.get_channel("ap_data_10m.csv - Pitch_mean").bouts(-10,10,18)

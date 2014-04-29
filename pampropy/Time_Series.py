@@ -54,6 +54,16 @@ class Time_Series(object):
 			result_channels = result_channels + channels
 		return result_channels
 
+	def summary_statistics(self, statistics_dictionary):
+
+		results = []
+		
+		for channel_name,stats in statistics_dictionary.items():
+			
+			channel_results = self.get_channel(channel_name).summary_statistics(statistics=stats)
+			results = results + channel_results
+		return results
+	
 
 	def write_channels_to_file(self, file_target, channel_list=False):
 
