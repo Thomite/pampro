@@ -242,7 +242,7 @@ class Channel(object):
 		result.set_contents(np.abs(self.data), self.timestamps)
 		return result
 
-def load_channels(source, source_type):
+def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_column=0):
 
 	if (source_type == "Actiheart"):
 
@@ -363,13 +363,16 @@ def load_channels(source, source_type):
 		#print(data[:,0])
 
 		timestamps = []
-		for date_row in data[:,0]:
-			timestamps.append(datetime.strptime(date_row, "%d/%m/%Y %H:%M:%S:%f"))
+		for date_row in data[:,datetime_column]:
+			timestamps.append(datetime.strptime(date_row, datetime_format))
 		timestamps = np.array(timestamps)
 
+		data_columns = list(range(0,len(test)))
+		del data_columns[datetime_column]
+		print data_columns
 		channels = []
-		for col in range(1,len(test)):
-			
+		for col in data_columns:
+			print col
 			name = source_split[-1] + " - " + test[col]
 			c = Channel(name)
 			c.set_contents(np.array(data[:,col], dtype=np.float64), timestamps)
