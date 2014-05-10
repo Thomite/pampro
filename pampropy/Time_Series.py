@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 from datetime import datetime, date, time, timedelta
+import numpy as np
 
 class Time_Series(object):
 
@@ -160,6 +161,42 @@ class Time_Series(object):
 		fig.tight_layout()
 
 		plt.show()
+
+	def draw_without_missings(self, channels=False, time_period=False, file_target=False):
+
+		fig = plt.figure(figsize=(15,10))
+
+		channel_list = []
+		if channels==False:
+			channel_list = self.channels
+		else:
+			for c in channels:
+				channel_list.append(self.get_channel(c))
+
+		for index, channel in enumerate(channel_list):
+			ax = fig.add_subplot(len(channel_list), 1, 1+index)
+			
+			# Same as draw_separate except it skips the -1s
+			if time_period==False:
+				ax.plot(channel.timestamps[np.where(channel.data != -1)], channel.data[np.where(channel.data != -1)], label=channel.name, **channel.draw_properties)
+				ax.set_xlim(self.earliest, self.latest)
+			else:
+				indices = channel.get_window(time_period[0], time_period[1])
+				if (len(indices) > 0):
+					ax.plot(channel.timestamps[indices[0]:indices[-1]], channel.data[indices[0]:indices[-1]], label=channel.name, **channel.draw_properties)
+				ax.set_xlim(time_period[0], time_period[1])
+
+			for a in channel.annotations:
+				ax.axvspan(xmin=a.start_timestamp, xmax=a.end_timestamp, **a.draw_properties)
+				#print(a.start_timestamp)
+
+			legend = ax.legend(loc='upper right')
+		fig.tight_layout()
+
+		if file_target==False:
+			plt.show()
+		else:
+			plt.savefig(file_target, dpi=300, frameon=False)
 
 	def draw_separate(self, channels=False, time_period=False, file_target=False):
 

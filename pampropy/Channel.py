@@ -3,6 +3,16 @@ from datetime import datetime, date, time, timedelta
 import Annotation
 import copy
 
+from struct import *
+from math import *
+import time
+from datetime import datetime
+from urllib import unquote_plus
+import sys
+import io
+
+
+
 class Channel(object):
 
 	def __init__(self, name):
@@ -242,6 +252,100 @@ class Channel(object):
 		result.set_contents(np.abs(self.data), self.timestamps)
 		return result
 
+
+# Axivity import code adapted from source provided by Open Movement: https://code.google.com/p/openmovement/. Their license terms are reproduced here in full, and apply only to the Axivity related code:
+# Copyright (c) 2009-2014, Newcastle University, UK. All rights reserved.
+# Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+# 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+def byte(value):
+	return (value + 2 ** 7) % 2 ** 8 - 2 ** 7
+
+def ushort(value):
+	return value % 2 ** 16
+
+def short(value):
+	return (value + 2 ** 15) % 2 ** 16 - 2 ** 15
+
+def read_timestamp(stamp):
+	stamp = unpack('I', stamp)[0]
+	year = ((stamp >> 26) & 0x3f) + 2000
+	month = (stamp >> 22) & 0x0f
+	day   = (stamp >> 17) & 0x1f
+	hours = (stamp >> 12) & 0x1f
+	mins  = (stamp >>  6) & 0x3f
+	secs  = (stamp >>  0) & 0x3f
+	try:
+		t = datetime(year, month, day, hours, mins, secs)
+	except ValueError:
+		t = None
+	return t
+
+def read(fh, bytes):
+	data = fh.read(bytes)
+	if len(data) == bytes:
+		return data
+	else:
+		raise IOError
+
+def parse_header(fh):
+	blockSize = unpack('H', read(fh,2))[0]
+	performClear = unpack('B', read(fh,1))[0]
+	deviceId = unpack('H', read(fh,2))[0]
+	sessionId = unpack('I', read(fh,4))[0]
+	shippingMinLightLevel = unpack('H', read(fh,2))[0]
+	loggingStartTime = read(fh,4)
+	loggingEndTime = read(fh,4)
+	loggingCapacity = unpack('I', read(fh,4))[0]
+	allowStandby = unpack('B', read(fh,1))[0]
+	debuggingInfo = unpack('B', read(fh,1))[0]
+	batteryMinimumToLog = unpack('H', read(fh,2))[0]
+	batteryWarning = unpack('H', read(fh,2))[0]
+	enableSerial = unpack('B', read(fh,1))[0]
+	lastClearTime = read(fh,4)
+	samplingRate = unpack('B', read(fh,1))[0]
+	lastChangeTime = read(fh,4)
+	firmwareVersion = unpack('B', read(fh,1))[0]
+
+	reserved = read(fh,22)
+
+	annotationBlock = read(fh,448 + 512)
+   
+	if len(annotationBlock) < 448 + 512:
+		annotationBlock = ""
+
+	annotation = ""
+	for x in annotationBlock:
+		if ord(x) != 255 and x != ' ':
+			if x == '?':
+				x = '&'
+			annotation += x
+	annotation = annotation.strip()
+
+	annotationElements = annotation.split('&')
+	annotationNames = {'_c': 'studyCentre', '_s': 'studyCode', '_i': 'investigator', '_x': 'exerciseCode', '_v': 'volunteerNum', '_p': 'bodyLocation', '_so': 'setupOperator', '_n': 'notes', '_b': 'startTime', '_e': 'endTime', '_ro': 'recoveryOperator', '_r': 'retrievalTime',           '_co': 'comments'}
+	annotations = dict()
+	for element in annotationElements:
+		kv = element.split('=', 2)
+		if kv[0] in annotationNames:
+			annotations[annotationNames[kv[0]]] = unquote_plus(kv[1])
+
+	for x in ('startTime', 'endTime', 'retrievalTime'):
+		if x in annotations:
+			if '/' in annotations[x]:
+				annotations[x] = time.strptime(annotations[x], '%d/%m/%Y')
+			else:
+				annotations[x] = time.strptime(annotations[x], '%Y-%m-%d %H:%M:%S')
+
+	annotations = annotations
+	deviceId = deviceId
+	sessionId = sessionId
+	lastClearTime = read_timestamp(lastClearTime)
+	lastChangeTime = read_timestamp(lastChangeTime)
+	firmwareVersion = firmwareVersion if firmwareVersion != 255 else 0
+
 def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_column=0):
 
 	if (source_type == "Actiheart"):
@@ -379,3 +483,135 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 			channels.append(c)
 
 		return channels
+
+	elif (source_type == "Axivity"):
+
+		channel_x = Channel("X")
+		channel_y = Channel("Y")
+		channel_z = Channel("Z")
+
+		fh = open(source, 'rb')
+
+		n= 0
+
+		axivity_timestamps = []
+		axivity_x = []
+		axivity_y = []
+		axivity_z = []
+
+		try:
+			header = read(fh,2)
+			while len(header) == 2 and n < 10000:
+				
+				if header == 'MD':
+					print 'MD'
+					parse_header(fh)
+				elif header == 'UB':
+					print 'UB'
+					blockSize = unpack('H', read(fh,2))[0]
+				elif header == 'SI':
+					print 'SI'
+				elif header == 'AX':
+					packetLength = unpack('H', read(fh,2))[0]              
+					deviceId = unpack('H', read(fh,2))[0]
+					sessionId = unpack('I', read(fh,4))[0]
+					sequenceId = unpack('I', read(fh,4))[0]
+					sampleTime = read_timestamp(read(fh,4))
+					light = unpack('H', read(fh,2))[0]
+					temperature = unpack('H', read(fh,2))[0]
+					events = read(fh,1)
+					battery = unpack('B', read(fh,1))[0]
+					sampleRate = unpack('B', read(fh,1))[0]
+					numAxesBPS = unpack('B', read(fh,1))[0]
+					timestampOffset = unpack('h', read(fh,2))[0]
+					sampleCount = unpack('H', read(fh,2))[0]
+
+					sampleData = io.BytesIO(read(fh,480))
+					checksum = unpack('H', read(fh,2))[0]
+
+					if packetLength != 508:
+						continue
+
+					if sampleTime == None:
+						continue
+
+					if sampleRate == 0:
+						chksum = 0
+					else:
+						# rewind for checksum calculation
+						fh.seek(-packetLength - 4, 1)
+						# calculate checksum
+						chksum = 0
+						for x in range(packetLength / 2 + 2):
+							chksum += unpack('H', read(fh,2))[0]
+						chksum %= 2 ** 16
+
+					if chksum != 0:
+						continue
+
+					#if sessionId != self.sessionId:
+					#	print "x"
+					#	continue
+
+					if ((numAxesBPS >> 4) & 15) != 3:
+						print '[ERROR: num-axes not expected]'
+
+					if (numAxesBPS & 15) == 2:
+						bps = 6
+					elif (numAxesBPS & 15) == 0:
+						bps = 4
+
+					timestamp = sampleTime
+					freq = 3200 / (1 << (15 - sampleRate & 15))
+					if freq <= 0:
+						freq = 1
+					offsetStart = float(-timestampOffset) / float(freq)
+
+					#print freq
+
+					#print offsetStart
+					time0 = timestamp + timedelta(milliseconds=offsetStart)
+
+					#print "* - {}".format(sampleCount)
+					for sample in range(sampleCount):
+						
+						x,y,z,t = 0,0,0,0
+
+						if bps == 6:
+							x = unpack('h', sampleData.read(2))[0] / 256.0
+							y = unpack('h', sampleData.read(2))[0] / 256.0
+							z = unpack('h', sampleData.read(2))[0] / 256.0
+						elif bps == 4:
+							temp = unpack('I', sampleData.read(4))[0]
+							temp2 = (6 - byte(temp >> 30))
+							x = short(short((ushort(65472) & ushort(temp << 6))) >> temp2) / 256.0
+							y = short(short((ushort(65472) & ushort(temp >> 4))) >> temp2) / 256.0
+							z = short(short((ushort(65472) & ushort(temp >> 14))) >> temp2) / 256.0
+
+						t = timedelta(milliseconds=(float(sample) / float(freq))) + time0
+
+						axivity_timestamps.append(t)
+						axivity_x.append(x)
+						axivity_y.append(y)
+						axivity_z.append(z)
+
+				header = read(fh,2)
+
+				n=n+1
+		except IOError:
+			pass
+
+		print n
+
+		axivity_x = np.array(axivity_x)
+		axivity_y = np.array(axivity_y)
+		axivity_z = np.array(axivity_z)
+		axivity_timestamps = np.array(axivity_timestamps)
+
+		print(len(axivity_x))
+
+		channel_x.set_contents(axivity_x, axivity_timestamps)
+		channel_y.set_contents(axivity_y, axivity_timestamps)
+		channel_z.set_contents(axivity_z, axivity_timestamps)
+
+		return [channel_x,channel_y,channel_z]
