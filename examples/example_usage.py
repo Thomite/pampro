@@ -7,12 +7,13 @@ from scipy import stats
 import random
 import copy
 
-import Time_Series
-import Channel
-import Annotation
-import channel_inference
+#import Time_Series
+#import Channel
+#import Annotation
+#import channel_inference
 
-#from pampropy import Time_Series, Channel, Annotation, channel_inference
+from pampropy import Time_Series, Channel, Annotation, channel_inference
+
 execution_start = datetime.now()
 
 ts = Time_Series.Time_Series("Actiheart")

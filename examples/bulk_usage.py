@@ -8,12 +8,12 @@ import random
 import copy
 import time
 
-import Time_Series
-import Channel
-import Annotation
-import channel_inference
+#import Time_Series
+#import Channel
+#import Annotation
+#import channel_inference
 
-#from pampropy import Time_Series, Channel, Annotation, channel_inference
+from pampropy import Time_Series, Channel, Annotation, channel_inference
 
 basic_stats = ["mean", "sum", "std", "min", "max"]
 angle_levels = [

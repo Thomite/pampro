@@ -29,14 +29,22 @@ ts.add_channel(vm)
 chans = channel_inference.infer_pitch_roll(chans[0], chans[1], chans[2])
 ts.add_channels(chans)
 
-stats = {"Vector magnitude":["mean"],"Pitch":["mean"],"Roll":["mean"]}
+stats = {"Vector magnitude":["mean", "std"]}#,"Pitch":["mean", "std"],"Roll":["mean", "std"]}
+chans = ts.summary_statistics(stats)
+
+for c in chans:
+	print c
+
+#ts_output = Time_Series.Time_Series("Output")
+#ts_output.add_channels(chans)
+#ts_output.write_channels_to_file(os.path.join(os.path.dirname(__file__), '..', 'data/axivity_summary.csv'))
 #ts_visualisation = Time_Series.Time_Series("Visualisation")
 #simplified = ts.piecewise_statistics(timedelta(minutes=1), stats)
 #ts_visualisation.add_channels(simplified)
 
 
-blah = ts.summary_statistics(stats)
-print(blah)
+print(np.mean(vm.data))
+print(np.std(vm.data))
 
 print ts.earliest
 print ts.latest
