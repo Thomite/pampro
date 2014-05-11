@@ -269,7 +269,7 @@ def ushort(value):
 def short(value):
 	return (value + 2 ** 15) % 2 ** 16 - 2 ** 15
 
-def read_timestamp(stamp):
+def axivity_read_timestamp(stamp):
 	stamp = unpack('I', stamp)[0]
 	year = ((stamp >> 26) & 0x3f) + 2000
 	month = (stamp >> 22) & 0x0f
@@ -283,35 +283,35 @@ def read_timestamp(stamp):
 		t = None
 	return t
 
-def read(fh, bytes):
+def axivity_read(fh, bytes):
 	data = fh.read(bytes)
 	if len(data) == bytes:
 		return data
 	else:
 		raise IOError
 
-def parse_header(fh):
-	blockSize = unpack('H', read(fh,2))[0]
-	performClear = unpack('B', read(fh,1))[0]
-	deviceId = unpack('H', read(fh,2))[0]
-	sessionId = unpack('I', read(fh,4))[0]
-	shippingMinLightLevel = unpack('H', read(fh,2))[0]
-	loggingStartTime = read(fh,4)
-	loggingEndTime = read(fh,4)
-	loggingCapacity = unpack('I', read(fh,4))[0]
-	allowStandby = unpack('B', read(fh,1))[0]
-	debuggingInfo = unpack('B', read(fh,1))[0]
-	batteryMinimumToLog = unpack('H', read(fh,2))[0]
-	batteryWarning = unpack('H', read(fh,2))[0]
-	enableSerial = unpack('B', read(fh,1))[0]
-	lastClearTime = read(fh,4)
-	samplingRate = unpack('B', read(fh,1))[0]
-	lastChangeTime = read(fh,4)
-	firmwareVersion = unpack('B', read(fh,1))[0]
+def axivity_parse_header(fh):
+	blockSize = unpack('H', axivity_read(fh,2))[0]
+	performClear = unpack('B', axivity_read(fh,1))[0]
+	deviceId = unpack('H', axivity_read(fh,2))[0]
+	sessionId = unpack('I', axivity_read(fh,4))[0]
+	shippingMinLightLevel = unpack('H', axivity_read(fh,2))[0]
+	loggingStartTime = axivity_read(fh,4)
+	loggingEndTime = axivity_read(fh,4)
+	loggingCapacity = unpack('I', axivity_read(fh,4))[0]
+	allowStandby = unpack('B', axivity_read(fh,1))[0]
+	debuggingInfo = unpack('B', axivity_read(fh,1))[0]
+	batteryMinimumToLog = unpack('H', axivity_read(fh,2))[0]
+	batteryWarning = unpack('H', axivity_read(fh,2))[0]
+	enableSerial = unpack('B', axivity_read(fh,1))[0]
+	lastClearTime = axivity_read(fh,4)
+	samplingRate = unpack('B', axivity_read(fh,1))[0]
+	lastChangeTime = axivity_read(fh,4)
+	firmwareVersion = unpack('B', axivity_read(fh,1))[0]
 
-	reserved = read(fh,22)
+	reserved = axivity_read(fh,22)
 
-	annotationBlock = read(fh,448 + 512)
+	annotationBlock = axivity_read(fh,448 + 512)
    
 	if len(annotationBlock) < 448 + 512:
 		annotationBlock = ""
@@ -342,8 +342,8 @@ def parse_header(fh):
 	annotations = annotations
 	deviceId = deviceId
 	sessionId = sessionId
-	lastClearTime = read_timestamp(lastClearTime)
-	lastChangeTime = read_timestamp(lastChangeTime)
+	lastClearTime = axivity_read_timestamp(lastClearTime)
+	lastChangeTime = axivity_read_timestamp(lastChangeTime)
 	firmwareVersion = firmwareVersion if firmwareVersion != 255 else 0
 
 def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_column=0):
@@ -500,34 +500,34 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 		axivity_z = []
 
 		try:
-			header = read(fh,2)
-			while len(header) == 2 and n < 10000:
+			header = axivity_read(fh,2)
+			while len(header) == 2:
 				
 				if header == 'MD':
 					print 'MD'
-					parse_header(fh)
+					axivity_parse_header(fh)
 				elif header == 'UB':
 					print 'UB'
-					blockSize = unpack('H', read(fh,2))[0]
+					blockSize = unpack('H', axivity_read(fh,2))[0]
 				elif header == 'SI':
 					print 'SI'
 				elif header == 'AX':
-					packetLength = unpack('H', read(fh,2))[0]              
-					deviceId = unpack('H', read(fh,2))[0]
-					sessionId = unpack('I', read(fh,4))[0]
-					sequenceId = unpack('I', read(fh,4))[0]
-					sampleTime = read_timestamp(read(fh,4))
-					light = unpack('H', read(fh,2))[0]
-					temperature = unpack('H', read(fh,2))[0]
-					events = read(fh,1)
-					battery = unpack('B', read(fh,1))[0]
-					sampleRate = unpack('B', read(fh,1))[0]
-					numAxesBPS = unpack('B', read(fh,1))[0]
-					timestampOffset = unpack('h', read(fh,2))[0]
-					sampleCount = unpack('H', read(fh,2))[0]
+					packetLength = unpack('H', axivity_read(fh,2))[0]              
+					deviceId = unpack('H', axivity_read(fh,2))[0]
+					sessionId = unpack('I', axivity_read(fh,4))[0]
+					sequenceId = unpack('I', axivity_read(fh,4))[0]
+					sampleTime = axivity_read_timestamp(axivity_read(fh,4))
+					light = unpack('H', axivity_read(fh,2))[0]
+					temperature = unpack('H', axivity_read(fh,2))[0]
+					events = axivity_read(fh,1)
+					battery = unpack('B', axivity_read(fh,1))[0]
+					sampleRate = unpack('B', axivity_read(fh,1))[0]
+					numAxesBPS = unpack('B', axivity_read(fh,1))[0]
+					timestampOffset = unpack('h', axivity_read(fh,2))[0]
+					sampleCount = unpack('H', axivity_read(fh,2))[0]
 
-					sampleData = io.BytesIO(read(fh,480))
-					checksum = unpack('H', read(fh,2))[0]
+					sampleData = io.BytesIO(axivity_read(fh,480))
+					checksum = unpack('H', axivity_read(fh,2))[0]
 
 					if packetLength != 508:
 						continue
@@ -543,7 +543,7 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 						# calculate checksum
 						chksum = 0
 						for x in range(packetLength / 2 + 2):
-							chksum += unpack('H', read(fh,2))[0]
+							chksum += unpack('H', axivity_read(fh,2))[0]
 						chksum %= 2 ** 16
 
 					if chksum != 0:
@@ -571,7 +571,7 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 
 					#print offsetStart
 					time0 = timestamp + timedelta(milliseconds=offsetStart)
-
+					#print time0
 					#print "* - {}".format(sampleCount)
 					for sample in range(sampleCount):
 						
@@ -588,14 +588,15 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 							y = short(short((ushort(65472) & ushort(temp >> 4))) >> temp2) / 256.0
 							z = short(short((ushort(65472) & ushort(temp >> 14))) >> temp2) / 256.0
 
-						t = timedelta(milliseconds=(float(sample) / float(freq))) + time0
-
+						#t = timedelta(milliseconds=(float(sample) / float(freq))*8.64) + time0
+						t = sample*(timedelta(seconds=1) / 120) + time0
+						#print sample, "--", t
 						axivity_timestamps.append(t)
 						axivity_x.append(x)
 						axivity_y.append(y)
 						axivity_z.append(z)
 
-				header = read(fh,2)
+				header = axivity_read(fh,2)
 
 				n=n+1
 		except IOError:

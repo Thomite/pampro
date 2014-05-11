@@ -20,7 +20,7 @@ import channel_inference
 ts = Time_Series.Time_Series("Axivity")
 
 
-chans = Channel.load_channels('V:/Projects/Fitness/longitudinal_data.cwa', "Axivity")
+chans = Channel.load_channels(os.path.join(os.path.dirname(__file__), '..', 'data/nomovement.cwa'), "Axivity")
 ts.add_channels(chans)
 
 vm = channel_inference.infer_vector_magnitude(chans[0], chans[1], chans[2])
@@ -28,6 +28,15 @@ ts.add_channel(vm)
 
 chans = channel_inference.infer_pitch_roll(chans[0], chans[1], chans[2])
 ts.add_channels(chans)
+
+stats = {"Vector magnitude":["mean"],"Pitch":["mean"],"Roll":["mean"]}
+#ts_visualisation = Time_Series.Time_Series("Visualisation")
+#simplified = ts.piecewise_statistics(timedelta(minutes=1), stats)
+#ts_visualisation.add_channels(simplified)
+
+
+blah = ts.summary_statistics(stats)
+print(blah)
 
 print ts.earliest
 print ts.latest
@@ -39,6 +48,13 @@ tom_red = [0.78431,0.196,0.196]
 tom_green = [0.196,0.78431,0.196]
 tom_blue = [0.196,0.196,0.78431]
 
+start = datetime.strptime("11-May-2014 13:20", "%d-%b-%Y %H:%M")
+end = start + timedelta(seconds=1)
 
 ts.draw_separate()
+#ts_visualisation.draw_separate()
 
+#fig = plt.figure(figsize=(18,10))
+#ax = fig.add_subplot(1,1,1)
+#ax.scatter(simplified[1].data, simplified[2].data, lw=0, alpha=0.7, s=50)
+#plt.show()
