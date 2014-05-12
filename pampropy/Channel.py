@@ -205,6 +205,12 @@ class Channel(object):
 
 		return c
 
+	def restrict_timeframe(self, start, end):
+
+		indices = self.get_window(start,end)
+
+		self.set_contents(self.data[indices], self.timestamps[indices])
+
 	def moving_average(self, size):
 
 		averaged = []
@@ -345,7 +351,7 @@ def axivity_parse_header(fh):
 	lastChangeTime = axivity_read_timestamp(lastChangeTime)
 	firmwareVersion = firmwareVersion if firmwareVersion != 255 else 0
 
-def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_column=0):
+def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_column=0, use_columns=False):
 
 	if (source_type == "Actiheart"):
 

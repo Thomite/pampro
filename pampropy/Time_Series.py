@@ -66,6 +66,11 @@ class Time_Series(object):
 		return results
 	
 
+	def restrict_timeframe(self, start, end):
+
+		for channel in self.channels:
+			channel.restrict_timeframe(start,end)
+
 	def write_channels_to_file(self, file_target, channel_list=False):
 
 		channel_sources = []

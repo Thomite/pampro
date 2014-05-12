@@ -34,9 +34,10 @@ print("Finished reading in data")
 
 # Infer vector magnitude from three channels
 vm = channel_inference.infer_vector_magnitude(x,y,z)
+enmo = channel_inference.infer_enmo(vm)
 pitch, roll = channel_inference.infer_pitch_roll(x,y,z)
-ts.add_channels([x,y,z,vm,pitch,roll])
-print("Inferred VM, pitch and roll")
+ts.add_channels([x,y,z,vm,enmo,pitch,roll])
+print("Inferred VM, ENMO, pitch and roll")
 
 # Turn the bouts into annotations and highlight those sections in the signals
 #annotations = Annotation.annotations_from_bouts(bouts)
@@ -50,7 +51,7 @@ angle_levels = [
 
 # Save some stats about the time series to a file
 basic_stats = ["mean", "sum", "std", "min", "max"]
-stat_dict = {"AP_X":basic_stats, "AP_Y":basic_stats, "AP_Z":basic_stats, "Vector magnitude":basic_stats, "Pitch":angle_levels+basic_stats, "Roll":angle_levels+basic_stats}
+stat_dict = {"AP_X":basic_stats, "AP_Y":basic_stats, "AP_Z":basic_stats, "VM":basic_stats, "Pitch":angle_levels+basic_stats, "Roll":angle_levels+basic_stats, "ENMO":basic_stats+[[0,40],[40,80],[80,120],[120,160],[160,200],[240,280],[320,360],[360,400],[400,440],[440,480],[480,520],[520,560],[560,600],[600,640],[640,680],[680,720],[720,760],[760,800]]}
 #for channel in [x,y,z,vm,pitch,roll]:
 #	derived_channels = channel.piecewise_statistics( timedelta(minutes=10), statistics=stats )
 #	ts_output.add_channels(derived_channels)
@@ -58,12 +59,12 @@ ts_output.add_channels(ts.piecewise_statistics( timedelta(minutes=10), stat_dict
 
 ts_output.write_channels_to_file(file_target=os.path.join(os.path.dirname(__file__), '..', 'data/ap_custom.csv'))
 
-end_time = start_time = datetime.now()
+end_time = datetime.now()
 duration = end_time - start_time
 print(duration)
 
 
 
 # Define the appearance of the signals
-ts_output.draw_separate()
+#ts_output.draw_separate()
 

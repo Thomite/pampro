@@ -26,6 +26,10 @@ ts.add_channels(chans)
 chans2 = Channel.load_channels(os.path.join(os.path.dirname(__file__), '..', 'data/ah_data_10m.csv'), "CSV")
 ts.add_channels(chans2)
 
+chans3 = Channel.load_channels(os.path.join(os.path.dirname(__file__), '..', 'Q:/Data/CSVs for Tom/Parallel files/514538L_91_361_STVS_#514538L_top#_GPRProcessedFLData.CSV'), "CSV", datetime_column=1, datetime_format="%d-%m-%Y %H:%M:%S")
+
+ts.add_channels(chans3)
+
 
 awake_probability = Channel.Channel("Awake")
 
