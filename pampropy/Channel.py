@@ -154,7 +154,7 @@ class Channel(object):
 
 		return results
 
-	def bouts(self, low, high, minimum_length=0, return_indices=False):
+	def bouts(self, low, high, minimum_length=0):
 
 		state = 0
 		start_index = 0
@@ -181,10 +181,9 @@ class Channel(object):
 				
 					state = 0
 					if (end_index - start_index + 1 >= minimum_length):
-						if return_indices:
-							bouts.append([self.timestamps[start_index], self.timestamps[end_index], start_index, end_index])	
-						else:
-							bouts.append([self.timestamps[start_index], self.timestamps[end_index]])
+
+						bouts.append(Bout(self.timestamps[start_index], self.timestamps[end_index]))	
+						
 	
 		return bouts
 

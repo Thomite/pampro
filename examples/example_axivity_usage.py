@@ -8,12 +8,12 @@ import random
 import copy
 import time
 
-import Time_Series
-import Channel
-import Annotation
-import channel_inference
+#import Time_Series
+#import Channel
+#import Annotation
+#import channel_inference
 
-#from pampropy import Time_Series, Channel, Annotation, channel_inference
+from pampropy import Time_Series, Channel, Annotation, channel_inference
 
 
 
@@ -29,19 +29,19 @@ ts.add_channel(vm)
 chans = channel_inference.infer_pitch_roll(chans[0], chans[1], chans[2])
 ts.add_channels(chans)
 
-stats = {"Vector magnitude":["mean", "std"]}#,"Pitch":["mean", "std"],"Roll":["mean", "std"]}
+stats = {"X":["mean", "std"],"Y":["mean", "std"],"Z":["mean", "std"],"Vector magnitude":["mean", "std", "n"]}#,"Pitch":["mean", "std"],"Roll":["mean", "std"]}
 chans = ts.summary_statistics(stats)
+
+print len(chans)
 
 for c in chans:
 	print c
 
-#ts_output = Time_Series.Time_Series("Output")
-#ts_output.add_channels(chans)
-#ts_output.write_channels_to_file(os.path.join(os.path.dirname(__file__), '..', 'data/axivity_summary.csv'))
-#ts_visualisation = Time_Series.Time_Series("Visualisation")
-#simplified = ts.piecewise_statistics(timedelta(minutes=1), stats)
-#ts_visualisation.add_channels(simplified)
-
+ts_output = Time_Series.Time_Series("Output")
+ts_output = Time_Series.Time_Series("Visualisation")
+simplified = ts.piecewise_statistics(timedelta(minutes=1), stats)
+ts_output.add_channels(simplified)
+ts_output.write_channels_to_file(os.path.join(os.path.dirname(__file__), '..', 'data/axivity_summary.csv'))
 
 print(np.mean(vm.data))
 print(np.std(vm.data))
