@@ -196,6 +196,12 @@ class Channel(object):
 
 		return c
 
+	def restrict_timeframe(self, start, end):
+
+		indices = self.get_window(start,end)
+
+		self.set_contents(self.data[indices], self.timestamps[indices])
+
 	def moving_average(self, size):
 
 		averaged = []
@@ -242,7 +248,7 @@ class Channel(object):
 		result.set_contents(np.abs(self.data), self.timestamps)
 		return result
 
-def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_column=0):
+def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_column=0, use_columns=False):
 
 	if (source_type == "Actiheart"):
 

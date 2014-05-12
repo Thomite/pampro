@@ -23,7 +23,7 @@ def infer_sleep_actiheart(actiheart_activity, actiheart_ecg):
 
 def infer_vector_magnitude(x,y,z):
 
-	result = Channel.Channel("Vector magnitude")
+	result = Channel.Channel("VM")
 
 	result.set_contents( np.sqrt( np.multiply(x.data,x.data) + np.multiply(y.data,y.data) + np.multiply(z.data,z.data) ), x.timestamps )
 
@@ -41,3 +41,14 @@ def infer_pitch_roll(x,y,z):
 	roll.set_contents( roll_degrees, x.timestamps)
 
 	return [pitch, roll]
+
+def infer_enmo(vm):
+
+	result = Channel.Channel("ENMO")
+
+	result.set_contents( (vm.data - 1.0)*1000.0 , vm.timestamps )
+
+
+	result.data[np.where(result.data < 0)] = 0
+
+	return result
