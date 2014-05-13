@@ -1,6 +1,6 @@
 import numpy as np
 from datetime import datetime, date, time, timedelta
-import Annotation
+from pampropy import Bout
 import copy
 
 from struct import *
@@ -98,7 +98,31 @@ class Channel(object):
 
 		return output_row
 
-	
+	def build_statistics_channels(self, windows, statistics):
+
+		channel_list = []
+		for var in statistics:
+			name = self.name
+			if isinstance(var, list):
+				name = self.name + "_" + str(var[0]) + "_" + str(var[1])
+			else:
+				name = self.name + "_" + var
+			channel = Channel(name)
+			channel_list.append(channel)
+
+		for window in windows:
+
+			results = self.window_statistics(window.start_timestamp, window.end_timestamp, statistics)
+			for i in range(len(results)):
+				
+				channel_list[i].append_data(window.start_timestamp, results[i])
+
+		for channel in channel_list:
+			channel.calculate_timeframe()
+			channel.data = np.array(channel.data)
+			channel.timestamps = np.array(channel.timestamps)
+
+		return channel_list
 
 	def append_data(self, timestamp, data_row):
 		self.timestamps.append(timestamp)
@@ -112,47 +136,74 @@ class Channel(object):
 		else:
 			start = time_period[0]
 			end = time_period[1]
-		# ------------------------------
 
-		#print start , "---", end
+		print start, end
 
-		channel_list = []
-		for var in statistics:
-			name = self.name
-			if isinstance(var, list):
-				name = self.name + "_" + str(var[0]) + "_" + str(var[1])
-			else:
-				name = self.name + "_" + var
-			channel = Channel(name)
-			channel_list.append(channel)
+		windows = []
 
-		window = window_size
 		start_dts = start
-		end_dts = start + window
+		end_dts = start + window_size
 
 		while start_dts < end:
 			
-			results = self.window_statistics(start_dts, end_dts, statistics)
-			for i in range(len(results)):
+			window = Bout.Bout(start_dts, end_dts)
+			windows.append(window)
+
+			start_dts = start_dts + window_size
+			end_dts = end_dts + window_size
+			
+		return self.build_statistics_channels(windows, statistics)
+
+	# def piecewise_statistics(self, window_size, statistics=["mean"], time_period=False):
+
+		# if time_period == False:
+			# start = self.timeframe[0] - timedelta(hours=self.timeframe[0].hour, minutes=self.timeframe[0].minute, seconds=self.timeframe[0].second, microseconds=self.timeframe[0].microsecond)
+			# end = self.timeframe[1] + timedelta(hours=23-self.timeframe[1].hour, minutes=59-self.timeframe[1].minute, seconds=59-self.timeframe[1].second, microseconds=999999-self.timeframe[1].microsecond)
+		# else:
+			# start = time_period[0]
+			# end = time_period[1]
+		# # ------------------------------
+
+		# #print start , "---", end
+
+		# channel_list = []
+		# for var in statistics:
+			# name = self.name
+			# if isinstance(var, list):
+				# name = self.name + "_" + str(var[0]) + "_" + str(var[1])
+			# else:
+				# name = self.name + "_" + var
+			# channel = Channel(name)
+			# channel_list.append(channel)
+
+		# window = window_size
+		# start_dts = start
+		# end_dts = start + window
+
+		# while start_dts < end:
+			
+			# results = self.window_statistics(start_dts, end_dts, statistics)
+			# for i in range(len(results)):
 				
-				channel_list[i].append_data(start_dts, results[i])
+				# channel_list[i].append_data(start_dts, results[i])
 
-			start_dts = start_dts + window
-			end_dts = end_dts + window
+			# start_dts = start_dts + window
+			# end_dts = end_dts + window
 
-		for channel in channel_list:
-			channel.calculate_timeframe()
-			channel.data = np.array(channel.data)
-			channel.timestamps = np.array(channel.timestamps)
+		# for channel in channel_list:
+			# channel.calculate_timeframe()
+			# channel.data = np.array(channel.data)
+			# channel.timestamps = np.array(channel.timestamps)
 
-		return channel_list
+		# return channel_list
 
 
 	def summary_statistics(self, statistics=["mean"]):
 
-		results = self.window_statistics(self.timeframe[0], self.timeframe[1], statistics)
+		windows = [Bout.Bout(self.timeframe[0], self.timeframe[1])]
+		#results = self.window_statistics(self.timeframe[0], self.timeframe[1], statistics)
 
-		return results
+		return self.build_statistics_channels(windows, statistics)
 
 	def bouts(self, low, high, minimum_length=0):
 
@@ -182,7 +233,7 @@ class Channel(object):
 					state = 0
 					if (end_index - start_index + 1 >= minimum_length):
 
-						bouts.append(Bout(self.timestamps[start_index], self.timestamps[end_index]))	
+						bouts.append(Bout.Bout(self.timestamps[start_index], self.timestamps[end_index]))	
 						
 	
 		return bouts
@@ -359,20 +410,23 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 
 		first_lines = []
 		f = open(source, 'r')
-		for i in range(0,13):
+		for i in range(0,30):
 			s = f.readline().strip()
 			first_lines.append(s)
 		f.close()
 
+		time1 = datetime.strptime(first_lines[20].split(",")[0], "%H:%M:%S")
+		time2 = datetime.strptime(first_lines[21].split(",")[0], "%H:%M:%S")
+
 		line8 = first_lines[8]
 		test = line8.split(",")
 		dt = datetime.strptime(test[1], "%d-%b-%Y  %H:%M")
-		one_minute = timedelta(seconds=15)
+		delta = time2 - time1
 
 		timestamp_list = []
 		for i in range(0,len(activity)):
 			timestamp_list.append(dt)
-			dt = dt + one_minute
+			dt = dt + delta
 
 		timestamps = np.array(timestamp_list)
 
@@ -384,7 +438,7 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 		actiheart_activity = Channel("AH_Activity")
 		actiheart_activity.set_contents(activity, timestamps2)
 
-		actiheart_ecg = Channel("AH-ECG")
+		actiheart_ecg = Channel("AH_ECG")
 		actiheart_ecg.set_contents(ecg, timestamps2)
 
 		return [actiheart_activity, actiheart_ecg]
