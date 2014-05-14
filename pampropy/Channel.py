@@ -510,6 +510,55 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 
 		return [x,y,z,lux,event,temperature]
 
+	elif (source_type == "Actigraph"):
+
+		first_lines = []
+		f = open(source, 'r')
+		for i in range(0,10):
+			s = f.readline().strip()
+			first_lines.append(s)
+
+
+		line2 = first_lines[2]
+		test = line2.split(" ")
+		timeval = datetime.strptime(test[-1], "%H:%M:%S")
+		timeadd = timedelta(hours=timeval.hour, minutes=timeval.minute, seconds=timeval.second)
+	
+		line3 = first_lines[3]
+		test = line3.split(" ")
+		time = timeadd + datetime.strptime(test[-1], "%m-%d-%Y")
+
+		line4 = first_lines[4]
+		test = line4.split(" ")
+		delta = datetime.strptime(test[-1], "%H:%M:%S")
+		timeadd = timedelta(hours=delta.hour, minutes=delta.minute, seconds=delta.second)
+		
+		count_list = []
+		timestamp_list = []
+
+		line = f.readline().strip()
+		while (len(line) > 0):
+	
+			counts = line.split()
+			for c in counts:
+				count_list.append(int(c))
+				timestamp_list.append(time)
+				time = time + timeadd
+
+			line = f.readline().strip()
+		f.close()
+
+		timestamps = np.array(timestamp_list)
+		counts = np.array(count_list)
+		
+		print timestamps[0], timestamps[-1]
+		print sum(counts)
+
+		chan = Channel("AG_Counts")
+		chan.set_contents(counts, timestamps)
+
+		return [chan]
+
 	elif (source_type == "CSV"):
 
 		f = open(source, 'r')
