@@ -19,8 +19,8 @@ from pampropy import Time_Series, Channel, Annotation, channel_inference
 
 ts = Time_Series.Time_Series("Axivity")
 
-
-chans = Channel.load_channels(os.path.join(os.path.dirname(__file__), '..', 'data/nomovement.cwa'), "Axivity")
+chans = Channel.load_channels("C:/Users/Tom/Downloads/13064.cwa", "Axivity")
+#chans = Channel.load_channels(os.path.join(os.path.dirname(__file__), '..', 'data/nomovement.cwa'), "Axivity")
 ts.add_channels(chans)
 
 vm = channel_inference.infer_vector_magnitude(chans[0], chans[1], chans[2])
@@ -29,13 +29,13 @@ ts.add_channel(vm)
 chans = channel_inference.infer_pitch_roll(chans[0], chans[1], chans[2])
 ts.add_channels(chans)
 
-stats = {"X":["mean", "std"],"Y":["mean", "std"],"Z":["mean", "std"],"Vector magnitude":["mean", "std", "n"]}#,"Pitch":["mean", "std"],"Roll":["mean", "std"]}
-chans = ts.summary_statistics(stats)
+stats = {"X":["mean", "std"], "Y":["mean", "std"], "Z":["mean", "std"], "VM":["mean", "std", "n"], "Pitch":["mean", "std"], "Roll":["mean", "std"]}
+#chans = ts.summary_statistics(stats)
 
-print len(chans)
+#print len(chans)
 
-for c in chans:
-	print c
+#for c in chans:
+#	print c
 
 ts_output = Time_Series.Time_Series("Output")
 ts_output = Time_Series.Time_Series("Visualisation")
@@ -56,10 +56,10 @@ tom_red = [0.78431,0.196,0.196]
 tom_green = [0.196,0.78431,0.196]
 tom_blue = [0.196,0.196,0.78431]
 
-start = datetime.strptime("11-May-2014 13:20", "%d-%b-%Y %H:%M")
-end = start + timedelta(seconds=1)
+start = datetime.strptime("11-May-2014 23:40", "%d-%b-%Y %H:%M")
+end = datetime.strptime("13-May-2014 18:40", "%d-%b-%Y %H:%M")# start + timedelta(seconds=1)
 
-ts.draw_separate()
+ts_output.draw_separate(time_period=[start,end], channels=["VM_std", "Pitch_mean", "Pitch_std", "Roll_mean", "Roll_std"])
 #ts_visualisation.draw_separate()
 
 #fig = plt.figure(figsize=(18,10))
