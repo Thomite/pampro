@@ -238,18 +238,22 @@ class Channel(object):
 	
 		return bouts
 
-	def subset_using_bouts(self, bout_list, name):
+	def subset_using_bouts(self, bout_list, name, substitute_value=-1):
 		# Given a list of bouts, create a new channel from this taking only the data from inside those bouts
 		c = Channel(name)
 
-		c.set_contents(np.zeros(self.size), self.timestamps)
+		filled = np.empty(self.size)
+		filled.fill(substitute_value)
+		print(len(filled))
 
-		#print(self.data[2345])
+		c.set_contents(filled, self.timestamps)
+	
+		
 
 		for bout in bout_list:
 			#print(bout)
 
-			indices = self.get_window(bout[0], bout[1])
+			indices = self.get_window(bout.start_timestamp, bout.end_timestamp)
 
 			#c.data[bout[2]:bout[3]] = self.data[bout[2]:bout[3]]
 			c.data[indices] = self.data[indices]

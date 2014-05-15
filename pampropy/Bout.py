@@ -1,4 +1,5 @@
 import copy
+from datetime import datetime, date, time, timedelta
 
 class Bout(object):
 
@@ -22,6 +23,14 @@ class Bout(object):
 		return Bout(max(self.start_timestamp, other.start_timestamp), min(self.end_timestamp, other.end_timestamp))
 
 
+
+def total_time(bouts):
+
+	total = timedelta()
+	for bout in bouts:
+		total += bout.end_timestamp - bout.start_timestamp
+
+	return total
 
 def bout_list_intersection(bouts_a, bouts_b):
 

@@ -45,21 +45,21 @@ class Time_Series(object):
 		return self.channel_lookup[channel_name]
 
 
-	def piecewise_statistics(self, window_size, statistics_dictionary, time_period=False):
+	def piecewise_statistics(self, window_size, statistics, time_period=False):
 
 		result_channels = []
 		
-		for channel_name,stats in statistics_dictionary.items():
+		for channel_name,stats in statistics.items():
 			
 			channels = self.get_channel(channel_name).piecewise_statistics(window_size, statistics=stats, time_period=time_period)
 			result_channels = result_channels + channels
 		return result_channels
 
-	def summary_statistics(self, statistics_dictionary):
+	def summary_statistics(self, statistics):
 
 		results = []
 		
-		for channel_name,stats in statistics_dictionary.items():
+		for channel_name,stats in statistics.items():
 			
 			channel_results = self.get_channel(channel_name).summary_statistics(statistics=stats)
 			results = results + channel_results
