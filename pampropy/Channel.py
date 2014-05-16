@@ -244,12 +244,10 @@ class Channel(object):
 
 		filled = np.empty(self.size)
 		filled.fill(substitute_value)
-		print(len(filled))
+		#print(len(filled))
 
 		c.set_contents(filled, self.timestamps)
 	
-		
-
 		for bout in bout_list:
 			#print(bout)
 

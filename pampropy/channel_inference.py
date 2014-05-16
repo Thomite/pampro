@@ -1,5 +1,6 @@
 #from pampropy import Channel
 import Channel
+import Bout
 import numpy as np
 
 def infer_sleep_actiheart(actiheart_activity, actiheart_ecg):
@@ -52,3 +53,21 @@ def infer_enmo(vm):
 	result.data[np.where(result.data < 0)] = 0
 
 	return result
+
+def infer_nonwear_actigraph(counts, zero_minutes=60):
+
+	#nonwear = Channel.Channel("Nonwear")
+
+	nonwear_bouts = counts.bouts(0, 0, zero_minutes)
+	wear_bouts = Bout.time_period_minus_bouts([counts.timeframe[0], counts.timeframe[1]], nonwear_bouts)
+	
+	wear = counts.subset_using_bouts(wear_bouts, "Wear_only")
+
+
+	return [wear]
+
+
+
+
+
+

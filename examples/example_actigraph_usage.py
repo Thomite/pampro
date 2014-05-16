@@ -23,6 +23,7 @@ chans = Channel.load_channels(filename, "Actigraph")
 counts = chans[0]
 
 ts.add_channel(counts)
+ts.add_channels(channel_inference.infer_nonwear_actigraph(counts))
 
 lower = [0,0]#,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,00,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
 upper = [50,100]#,150,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000]
@@ -53,7 +54,10 @@ for cutpoint,time in zip(names,times):
 	#print vals
 	timestats[cutpoint] = [[int(vals[1]),int(vals[2])]]
 
+timestats = {}
 
+timestats["Wear_only"] = [[0,50]]
+timestats["AG_Counts"] = [[0,50]]
 # Open the output file and print the header
 file_output = open("V:/P5_PhysAct/People/Tom/pampropy/data/summary_ag_output.csv", "w")
 
@@ -78,10 +82,11 @@ output.write_channels_to_file(file_target=file_output)
 output.write_channels_to_file(file_target=file_output)
 #output.write_channels_to_file(file_target=os.path.join(os.path.dirname(__file__), '..', 'data/actigraph.csv'))
 file_output.close()
-#ts.draw_separate()
+
+
 
 execution_end = datetime.now()
 print("{} to {} = {}".format( execution_start, execution_end, execution_end - execution_start))
 
-
+ts.draw_separate()
 
