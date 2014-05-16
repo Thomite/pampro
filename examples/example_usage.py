@@ -9,7 +9,7 @@ import copy
 
 
 
-from pampropy import Time_Series, Channel, Annotation, channel_inference, Bout
+from pampropy import Time_Series, Channel, channel_inference, Bout
 
 execution_start = datetime.now()
 
@@ -84,6 +84,11 @@ output = Time_Series.Time_Series("Min bout output")
 output.add_channels(result_chans)
 output.write_channels_to_file(file_target=os.path.join(os.path.dirname(__file__), '..', 'data/10m_test.csv'))
 
+
+Bout.write_bouts_to_file(bouts, file_target=os.path.join(os.path.dirname(__file__), '..', 'data/bouts.csv'))
+bout_list = Bout.read_bouts(os.path.join(os.path.dirname(__file__), '..', 'data/bouts.csv'))
+for bout in bout_list:
+	print bout.start_timestamp, bout.end_timestamp
 
 #ecg_low = ecg.bouts(0,80,20)
 #intersection = Bout.bout_list_intersection(ecg_low, bouts)

@@ -1,5 +1,6 @@
 import copy
 from datetime import datetime, date, time, timedelta
+import numpy as np
 
 class Bout(object):
 
@@ -80,4 +81,26 @@ def time_period_minus_bouts(time_period, bouts):
 	#	r.draw_properties = {'lw':0, "alpha":0.75, "facecolor":[0.95,0.1,0.1]}
 
 	return results
+
+def write_bouts_to_file(bouts, file_target):
+
+	file_output = open(file_target,"w")
+
+	for bout in bouts:
+
+		pretty_start = str(bout.start_timestamp.strftime("%d/%m/%Y %H:%M:%S:%f"))
+		pretty_end = str(bout.end_timestamp.strftime("%d/%m/%Y %H:%M:%S:%f"))
+		file_output.write(pretty_start + "," + pretty_end + "\n")
+
+	file_output.close()
+
+def read_bouts(file_source):
+
+
+	data = np.loadtxt(file_source, delimiter=',', dtype='str')
+			
+	bouts = []
+	for start,end in zip(data[:,0],data[:,1]):
+		bouts.append(Bout(datetime.strptime(start, "%d/%m/%Y %H:%M:%S:%f"), datetime.strptime(end, "%d/%m/%Y %H:%M:%S:%f")))
 	
+	return bouts

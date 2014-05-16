@@ -81,22 +81,27 @@ class Time_Series(object):
 			for channel_name in channel_list:
 				channel_sources.append(self.get_channel(channel_name))
 
-		file_output = open(file_target, 'w')
+		file_output = False
+		if isinstance(file_target, str):
 
-		# Print the header
-		file_output.write("timestamp,")
-		for index,chan in enumerate(channel_sources):
-			file_output.write(chan.name)
-			if (index < len(channel_sources)-1):
-				file_output.write(",")
-			else:
-				file_output.write("\n")
+			file_output = open(file_target, 'w')
 
+			# Print the header
+			file_output.write("id,timestamp,")
+			for index,chan in enumerate(channel_sources):
+				file_output.write(chan.name)
+				if (index < len(channel_sources)-1):
+					file_output.write(",")
+				else:
+					file_output.write("\n")
+		else:
+	
+			file_output = file_target
 
 		for i in range(0,len(channel_sources[0].data)):
 
 			pretty_timestamp = channel_sources[0].timestamps[i].strftime("%d/%m/%Y %H:%M:%S:%f")
-			file_output.write(pretty_timestamp + ",")
+			file_output.write(self.name + "," + pretty_timestamp + ",")
 			
 			for n,chan in enumerate(channel_sources):
 
@@ -106,7 +111,8 @@ class Time_Series(object):
 				else:
 					file_output.write("\n")
 		
-		file_output.close()
+		if isinstance(file_target, str):
+			file_output.close()
 
 	def draw(self, channels=False, time_period=False):
 
