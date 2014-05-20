@@ -6,87 +6,98 @@ from datetime import datetime, date, time, timedelta
 from scipy import stats
 import random
 import copy
+import collections
 
 
 
 from pampropy import Time_Series, Channel, channel_inference, Bout
 
-execution_start = datetime.now()
-
-ts = Time_Series.Time_Series("Actigraph")
 
 
-# Load sample Actiheart data
-filename = os.path.join(os.path.dirname(__file__), '..', 'data/random.DAT')
 
-chans = Channel.load_channels(filename, "Actigraph")
-counts = chans[0]
+cutpoints = [ [0,49],[0,99],[0,150],[0,199],[0,299],[0,399],[0,499],[0,599],[0,699],[0,799],[0,899],[0,999],[0,1099],[0,1199],[0,1299],[0,1399],[0,1499],[0,1599],[0,1699],[0,1799],[0,1899],[0,1999],[0,2099],[0,2199],[0,2299],[0,2399],[0,2499],[0,2599],[0,2699],[0,2799],[0,2899],[0,2999],[0,3099],[0,3199],[0,3299],[0,3399],[0,3499],[0,3599],[0,3699],[0,3799],[0,3899],[0,3999],[0,4099],[0,4199],[0,4299],[0,4399],[0,4499],[0,4599],[0,4699],[0,4799],[0,4899],[0,4999],
+[50,99999],[100,99999],[150,99999],[200,99999],[300,99999],[400,99999],[500,99999],[600,99999],[700,99999],[800,99999],[900,99999],[1000,99999],[1100,99999],[1200,99999],[1300,99999],[1400,99999],[1500,99999],[1600,99999],[1700,99999],[1800,99999],[1900,99999],[2000,99999],[2100,99999],[2200,99999],[2300,99999],[2400,99999],[2500,99999],[2600,99999],[2700,99999],[2800,99999],[2900,99999],[3000,99999],[3100,99999],[3200,99999],[3300,99999],[3400,99999],[3500,99999],[3600,99999],[3700,99999],[3800,99999],[3900,99999],[4000,99999],[4100,99999],[4200,99999],[4300,99999],[4400,99999],[4500,99999],[4600,99999],[4700,99999],[4800,99999],[4900,99999],[5000,99999] ] 
+lengths = [1,2,3,4,5,6,7,8,9,10,15,20,25,30,40,50,60,70,80,90,100,110,120,150,180]
 
-ts.add_channel(counts)
-ts.add_channels(channel_inference.infer_nonwear_actigraph(counts))
+variable_names = []
 
-lower = [0,0]#,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,00,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
-upper = [50,100]#,150,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000]
-lengths = [1]#,2,3,4,5,6,7,8,9,10,15,20,25,30,40,50,60,70,80,90,100,110,120,150,180]
-names = []
-times = []
-
-for low,high in zip(lower,upper):
-	for length in lengths:
-		bouts = counts.bouts(low,high,length)
-
-		name = "_{}_{}_mt{}".format(low,high,length)
-		names.append(name)
-
-		total_time = Bout.total_time(bouts)
-		times.append(total_time)
-
-		subset = counts.subset_using_bouts(bouts, name, substitute_value=-1)
-		ts.add_channel(subset)
-		
-
-
-timestats = {}
-for cutpoint,time in zip(names,times):
-	print cutpoint, time
+for cutpoint in cutpoints:
 	
-	vals = cutpoint.split("_")
-	#print vals
-	timestats[cutpoint] = [[int(vals[1]),int(vals[2])]]
+	low, high = cutpoint[0], cutpoint[1]
+	for length in lengths:
+		name = "_{}_{}_mt{}".format(low,high,length)
+		variable_names.append(name)
 
-timestats = {}
 
-timestats["Wear_only"] = [[0,50]]
-timestats["AG_Counts"] = [[0,50]]
-# Open the output file and print the header
-file_output = open("V:/P5_PhysAct/People/Tom/pampropy/data/summary_ag_output.csv", "w")
+def write_summary_values(dict, file_target):
 
-# Formulate the file header based on the variables requested
-file_header = ""
-for k,v in timestats.items():
-	for stat in v:
-		if isinstance(stat, list):
-			variable_name = str(k) + "_" + str(stat[0]) + "_" + str(stat[1])
-		else:
-			variable_name = str(k) + "_" + str(stat)
+	for variable_name in variable_names:
+		output.write(str(dict[variable_name].total_seconds()/60) + ",")
+	output.write("\n")
+
+
+def actigraph_analysis(id):
+
+	ts = Time_Series.Time_Series("Actigraph")
+	values = collections.OrderedDict()
+
+	# Load Actigraph data
+	filename = os.path.join(os.path.dirname(__file__), '..', 'data/random.DAT')
+
+	chans = Channel.load_channels(filename, "Actigraph")
+	counts = chans[0]
+
+	ts.add_channel(counts)
+	wear_counts, wear_bouts, nonwear_bouts = channel_inference.infer_nonwear_actigraph(counts, zero_minutes=90)
+	ts.add_channel(wear_counts)
+
+	valid_only, valid_windows = channel_inference.infer_valid_days_only(wear_counts, wear_bouts, valid_criterion=timedelta(hours=13))
+	ts.add_channel(valid_only)
+
+	for cutpoint in cutpoints:
 		
-		file_header = file_header + "," + variable_name
-file_header = file_header[1:]
-file_output.write("id,timestamp," + file_header + "\n")
+		low, high = cutpoint[0], cutpoint[1]
 
-#result_chans = ts.summary_statistics(statistics=timestats )
-result_chans = ts.piecewise_statistics( timedelta(minutes=10), timestats )
-output = Time_Series.Time_Series("random.dat")
-output.add_channels(result_chans)
-output.write_channels_to_file(file_target=file_output)
-output.write_channels_to_file(file_target=file_output)
-#output.write_channels_to_file(file_target=os.path.join(os.path.dirname(__file__), '..', 'data/actigraph.csv'))
-file_output.close()
+		bouts = valid_only.bouts(low, high)
+
+		for length in lengths:
+
+			time_length = timedelta(minutes=length)
+
+			still_ok = []
+
+			# drop if bouts < length
+			for bout in bouts:
+				if bout.end_timestamp - bout.start_timestamp >= time_length:
+					still_ok.append(bout)
+
+			bouts = still_ok
+
+			name = "_{}_{}_mt{}".format(low,high,length)
+			total_time = Bout.total_time(bouts)
+
+			values[name] = total_time
+
+	write_summary_values(values, output)
+
+	counts.add_annotations(wear_bouts)
+
+	chan = Channel.channel_from_bouts(bouts=wear_bouts, time_period=[counts.timeframe[0],counts.timeframe[1]], channel_name="Wear", time_resolution=timedelta(minutes=1))
+	ts.add_channel(chan)
+
+	wear_counts.add_annotations(valid_windows)
+
+	ts.draw_separate()
 
 
 
-execution_end = datetime.now()
-print("{} to {} = {}".format( execution_start, execution_end, execution_end - execution_start))
+output = file("V:/P5_PhysAct/People/Tom/pampropy/data/summary_data.csv", "w")
+for var in variable_names:
+	output.write(var + ",")
+output.write("\n")
 
-ts.draw_separate()
+actigraph_analysis("test")
 
+
+
+output.close()

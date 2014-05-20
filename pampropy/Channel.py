@@ -310,6 +310,32 @@ class Channel(object):
 		result.set_contents(np.abs(self.data), self.timestamps)
 		return result
 
+	def fill(self, bout, fill_value=0):
+	
+		indices = self.get_window(bout.start_timestamp,bout.end_timestamp)
+
+		self.data[indices] = fill_value
+
+def channel_from_bouts(bouts, time_period, time_resolution, channel_name, in_value=1, out_value=0):
+
+	result = Channel(channel_name)
+
+	timestamps = []
+	timestamp = time_period[0]
+
+	while timestamp < time_period[1]:
+		timestamps.append(timestamp)
+		timestamp += time_resolution
+
+	filled = np.empty(len(timestamps))
+	filled.fill(out_value)
+
+	result.set_contents(filled, timestamps)
+
+	for bout in bouts:
+		result.fill(bout, in_value)
+	
+	return result
 
 # Axivity import code adapted from source provided by Open Movement: https://code.google.com/p/openmovement/. Their license terms are reproduced here in full, and apply only to the Axivity related code:
 # Copyright (c) 2009-2014, Newcastle University, UK. All rights reserved.

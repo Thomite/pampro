@@ -1,4 +1,5 @@
 #from pampropy import Channel
+from datetime import timedelta
 import Channel
 import Bout
 import numpy as np
@@ -64,8 +65,29 @@ def infer_nonwear_actigraph(counts, zero_minutes=60):
 	wear = counts.subset_using_bouts(wear_bouts, "Wear_only")
 
 
-	return [wear]
+	return [wear, wear_bouts, nonwear_bouts]
 
+def infer_valid_days_only(channel, wear_bouts, valid_criterion=timedelta(hours=10)):
+
+	#Generate 7 day-long windows
+	start = channel.timeframe[0] - timedelta(hours=channel.timeframe[0].hour, minutes=channel.timeframe[0].minute, seconds=channel.timeframe[0].second, microseconds=channel.timeframe[0].microsecond)
+	day_windows = []
+	while start < channel.timeframe[1]:
+		day_windows.append(Bout.Bout(start, start+timedelta(days=1)))
+		start += timedelta(days=1)
+
+	valid_windows = []
+	for window in day_windows:
+		#how much does all of wear_bouts intersect with window?
+		intersections = Bout.bout_list_intersection([window],wear_bouts)
+		total = Bout.total_time(intersections)
+		if total > valid_criterion:
+			#window.draw_properties={"lw":0, "facecolor":[1,0,0], "alpha":0.25}
+			valid_windows.append(window)
+		print total
+
+	valid_only = channel.subset_using_bouts(valid_windows, channel.name + "_valid_only")
+	return [valid_only, valid_windows]
 
 
 
