@@ -430,7 +430,7 @@ def axivity_parse_header(fh):
 	lastChangeTime = axivity_read_timestamp(lastChangeTime)
 	firmwareVersion = firmwareVersion if firmwareVersion != 255 else 0
 
-def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_column=0, use_columns=False):
+def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_column=0, use_columns=False, unique_names=False):
 
 	if (source_type == "Actiheart"):
 
@@ -613,7 +613,10 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 		channels = []
 		for col in data_columns:
 			print col
-			name = source_split[-1] + " - " + test[col]
+			if unique_names:
+				name = source_split[-1] + " - " + test[col]
+			else:
+				name = test[col]
 			c = Channel(name)
 			c.set_contents(np.array(data[:,col], dtype=np.float64), timestamps)
 			channels.append(c)
