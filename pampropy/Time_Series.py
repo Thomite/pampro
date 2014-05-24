@@ -71,6 +71,22 @@ class Time_Series(object):
 		for channel in self.channels:
 			channel.restrict_timeframe(start,end)
 
+
+	def append(self, time_series):
+
+		for channel in time_series.channels:
+
+			match = self.get_channel(channel.name)
+			match.append(channel)
+
+			tf = channel.timeframe
+
+			if self.earliest > tf[0]:
+				self.earliest = tf[0]
+			if self.latest < tf[1]:
+				self.latest = tf[1]
+
+
 	def write_channels_to_file(self, file_target, channel_list=False):
 
 		channel_sources = []

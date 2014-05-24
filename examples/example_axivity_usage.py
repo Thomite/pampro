@@ -13,38 +13,30 @@ import time
 #import Annotation
 #import channel_inference
 
-from pampropy import Time_Series, Channel, Annotation, channel_inference
+from pampropy import Time_Series, Channel, channel_inference
 
 
 
 ts = Time_Series.Time_Series("Axivity")
 
-chans = Channel.load_channels("C:/Users/Tom/Downloads/13064.cwa", "Axivity")
+chans = Channel.load_channels("C:/Data/13064_0000000003.cwa", "Axivity", average_over=timedelta(seconds=1))
 #chans = Channel.load_channels(os.path.join(os.path.dirname(__file__), '..', 'data/nomovement.cwa'), "Axivity")
 ts.add_channels(chans)
 
+ts.write_channels_to_file("C:/Data/3.csv")
+
+
 vm = channel_inference.infer_vector_magnitude(chans[0], chans[1], chans[2])
 ts.add_channel(vm)
+
+enmo = channel_inference.infer_enmo(vm)
+ts.add_channel(enmo)
 
 chans = channel_inference.infer_pitch_roll(chans[0], chans[1], chans[2])
 ts.add_channels(chans)
 
 stats = {"X":["mean", "std"], "Y":["mean", "std"], "Z":["mean", "std"], "VM":["mean", "std", "n"], "Pitch":["mean", "std"], "Roll":["mean", "std"]}
-#chans = ts.summary_statistics(stats)
 
-#print len(chans)
-
-#for c in chans:
-#	print c
-
-ts_output = Time_Series.Time_Series("Output")
-ts_output = Time_Series.Time_Series("Visualisation")
-simplified = ts.piecewise_statistics(timedelta(minutes=1), stats)
-ts_output.add_channels(simplified)
-ts_output.write_channels_to_file(os.path.join(os.path.dirname(__file__), '..', 'data/axivity_summary.csv'))
-
-print(np.mean(vm.data))
-print(np.std(vm.data))
 
 print ts.earliest
 print ts.latest
@@ -56,10 +48,9 @@ tom_red = [0.78431,0.196,0.196]
 tom_green = [0.196,0.78431,0.196]
 tom_blue = [0.196,0.196,0.78431]
 
-start = datetime.strptime("11-May-2014 23:40", "%d-%b-%Y %H:%M")
-end = datetime.strptime("13-May-2014 18:40", "%d-%b-%Y %H:%M")# start + timedelta(seconds=1)
 
-ts_output.draw_separate(time_period=[start,end], channels=["VM_std", "Pitch_mean", "Pitch_std", "Roll_mean", "Roll_std"])
+
+ts.draw_separate(channels=["VM", "Pitch", "Roll"])
 #ts_visualisation.draw_separate()
 
 #fig = plt.figure(figsize=(18,10))

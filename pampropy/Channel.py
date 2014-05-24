@@ -36,6 +36,21 @@ class Channel(object):
 
 		self.calculate_timeframe()
 
+	def append(self, other_channel):
+
+		print(self.name + " " + str(len(self.data)))
+		self.data = np.concatenate((self.data, other_channel.data))
+		self.timestamps = np.concatenate((self.timestamps, other_channel.timestamps))
+
+		indices = np.argsort(self.timestamps)
+
+		
+		self.timestamps = np.array(self.timestamps)[indices]
+		self.data = np.array(self.data)[indices]
+		print(self.name + " " + str(len(self.data)))
+		print("")
+		self.calculate_timeframe()
+
 	def calculate_timeframe(self):
 
 		self.size = len(self.data)
@@ -153,49 +168,6 @@ class Channel(object):
 			end_dts = end_dts + window_size
 			
 		return self.build_statistics_channels(windows, statistics)
-
-	# def piecewise_statistics(self, window_size, statistics=["mean"], time_period=False):
-
-		# if time_period == False:
-			# start = self.timeframe[0] - timedelta(hours=self.timeframe[0].hour, minutes=self.timeframe[0].minute, seconds=self.timeframe[0].second, microseconds=self.timeframe[0].microsecond)
-			# end = self.timeframe[1] + timedelta(hours=23-self.timeframe[1].hour, minutes=59-self.timeframe[1].minute, seconds=59-self.timeframe[1].second, microseconds=999999-self.timeframe[1].microsecond)
-		# else:
-			# start = time_period[0]
-			# end = time_period[1]
-		# # ------------------------------
-
-		# #print start , "---", end
-
-		# channel_list = []
-		# for var in statistics:
-			# name = self.name
-			# if isinstance(var, list):
-				# name = self.name + "_" + str(var[0]) + "_" + str(var[1])
-			# else:
-				# name = self.name + "_" + var
-			# channel = Channel(name)
-			# channel_list.append(channel)
-
-		# window = window_size
-		# start_dts = start
-		# end_dts = start + window
-
-		# while start_dts < end:
-			
-			# results = self.window_statistics(start_dts, end_dts, statistics)
-			# for i in range(len(results)):
-				
-				# channel_list[i].append_data(start_dts, results[i])
-
-			# start_dts = start_dts + window
-			# end_dts = end_dts + window
-
-		# for channel in channel_list:
-			# channel.calculate_timeframe()
-			# channel.data = np.array(channel.data)
-			# channel.timestamps = np.array(channel.timestamps)
-
-		# return channel_list
 
 
 	def summary_statistics(self, statistics=["mean"]):
@@ -430,7 +402,7 @@ def axivity_parse_header(fh):
 	lastChangeTime = axivity_read_timestamp(lastChangeTime)
 	firmwareVersion = firmwareVersion if firmwareVersion != 255 else 0
 
-def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_column=0, use_columns=False, unique_names=False):
+def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_column=0, ignore_columns=False, unique_names=False, average_over=False):
 
 	if (source_type == "Actiheart"):
 
@@ -597,10 +569,14 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 
 		source_split = source.split("/")
 		
+		
 		data = np.loadtxt(source, delimiter=',', skiprows=1, dtype='str')
 		
-		#print(data.shape)
+		print(data.shape)
 		#print(data[:,0])
+		#print(data[:,1])
+		#print(data[:,2])
+		#print(data[:,3])
 
 		timestamps = []
 		for date_row in data[:,datetime_column]:
@@ -609,7 +585,12 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 
 		data_columns = list(range(0,len(test)))
 		del data_columns[datetime_column]
+		
+		for ic in ignore_columns:
+			del data_columns[ic]
+
 		print data_columns
+
 		channels = []
 		for col in data_columns:
 			print col
@@ -637,9 +618,16 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 		axivity_x = []
 		axivity_y = []
 		axivity_z = []
+		last_time = False
 
 		try:
 			header = axivity_read(fh,2)
+
+			temp_x = []
+			temp_y = []
+			temp_z = []
+			temp_time = False
+
 			while len(header) == 2:
 				
 				if header == 'MD':
@@ -710,6 +698,10 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 
 					#print offsetStart
 					time0 = timestamp + timedelta(milliseconds=offsetStart)
+
+					if average_over != False and last_time == False:
+						last_time = time0
+
 					#print time0
 					#print "* - {}".format(sampleCount)
 					for sample in range(sampleCount):
@@ -730,10 +722,37 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 						#t = timedelta(milliseconds=(float(sample) / float(freq))*8.64) + time0
 						t = sample*(timedelta(seconds=1) / 120) + time0
 						#print sample, "--", t
-						axivity_timestamps.append(t)
-						axivity_x.append(x)
-						axivity_y.append(y)
-						axivity_z.append(z)
+						
+
+						if average_over != False:
+
+							temp_x.append(x)
+							temp_y.append(y)
+							temp_z.append(z)
+
+							if t - last_time >= average_over:
+
+								mean_x = np.mean(temp_x)
+								mean_y = np.mean(temp_y)
+								mean_z = np.mean(temp_z)
+								temp_x = []
+								temp_y = []
+								temp_z = []
+
+								#print last_time
+								axivity_timestamps.append(last_time)
+								axivity_x.append(mean_x)
+								axivity_y.append(mean_y)
+								axivity_z.append(mean_z)
+								last_time = t
+
+
+						else:
+							axivity_timestamps.append(t)
+							axivity_x.append(x)
+							axivity_y.append(y)
+							axivity_z.append(z)
+
 
 				header = axivity_read(fh,2)
 
