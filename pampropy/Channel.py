@@ -586,14 +586,15 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 		data_columns = list(range(0,len(test)))
 		del data_columns[datetime_column]
 		
-		for ic in ignore_columns:
-			del data_columns[ic]
+		if ignore_columns != False:
+			for ic in ignore_columns:
+				del data_columns[ic]
 
-		print data_columns
+		#print data_columns
 
 		channels = []
 		for col in data_columns:
-			print col
+			#print col
 			if unique_names:
 				name = source_split[-1] + " - " + test[col]
 			else:
