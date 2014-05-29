@@ -10,8 +10,9 @@ from datetime import datetime
 from urllib import unquote_plus
 import sys
 import io
+import re
 
-
+percentile_pattern = re.compile("\A([p])([0-9]*)")
 
 class Channel(object):
 
@@ -80,6 +81,7 @@ class Channel(object):
 	def window_statistics(self, start_dts, end_dts, statistics):
 
 		indices = self.get_window(start_dts, end_dts)
+		#print indices
 
 		pretty_timestamp = start_dts.strftime("%d/%m/%Y %H:%M:%S:%f")
 
@@ -104,6 +106,10 @@ class Channel(object):
 
 					indices2 = np.where((self.data[indices] >= stat[0]) & (self.data[indices] < stat[1]))[0]
 					output_row.append(len(indices2))
+				elif percentile_pattern.match(stat):
+					# for p25, p50, etc
+					percentile = int(percentile_pattern.match(stat).groups()[1])
+					output_row.append(np.percentile(self.data[indices],percentile))
 
 				else:
 					output_row.append(-1)

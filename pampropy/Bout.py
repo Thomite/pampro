@@ -82,6 +82,37 @@ def time_period_minus_bouts(time_period, bouts):
 
 	return results
 
+def bout_confusion_matrix(a1_bouts, b1_bouts, time_period):
+
+	#Calculate time spent in and out of bouts_a and bouts_b with respect to each other, within time_period
+
+
+	a0_bouts = time_period_minus_bouts(time_period, a1_bouts)
+	b0_bouts = time_period_minus_bouts(time_period, b1_bouts)
+	
+	a0_b0_bouts = bout_list_intersection(a0_bouts, b0_bouts)
+	a1_b0_bouts = bout_list_intersection(a1_bouts, b0_bouts)
+	a0_b1_bouts = bout_list_intersection(a0_bouts, b1_bouts)
+	a1_b1_bouts = bout_list_intersection(a1_bouts, b1_bouts)
+
+	a0_b0_time = total_time(a0_b0_bouts)
+	a1_b0_time = total_time(a1_b0_bouts)
+	a0_b1_time = total_time(a0_b1_bouts)
+	a1_b1_time = total_time(a1_b1_bouts)
+
+	results = {}
+	results["a0_b0_time"] = a0_b0_time
+	results["a1_b0_time"] = a1_b0_time
+	results["a0_b1_time"] = a0_b1_time
+	results["a1_b1_time"] = a1_b1_time
+	results["a0_b0_bouts"] = a0_b0_bouts
+	results["a1_b0_bouts"] = a1_b0_bouts
+	results["a0_b1_bouts"] = a0_b1_bouts
+	results["a1_b1_bouts"] = a1_b1_bouts
+	
+	return results
+
+
 def write_bouts_to_file(bouts, file_target):
 
 	file_output = open(file_target,"w")
@@ -94,13 +125,13 @@ def write_bouts_to_file(bouts, file_target):
 
 	file_output.close()
 
-def read_bouts(file_source):
+def read_bouts(file_source, date_format="%d/%m/%Y %H:%M:%S:%f"):
 
 
 	data = np.loadtxt(file_source, delimiter=',', dtype='str')
-			
+
 	bouts = []
 	for start,end in zip(data[:,0],data[:,1]):
-		bouts.append(Bout(datetime.strptime(start, "%d/%m/%Y %H:%M:%S:%f"), datetime.strptime(end, "%d/%m/%Y %H:%M:%S:%f")))
+		bouts.append(Bout(datetime.strptime(start, date_format), datetime.strptime(end, date_format)))
 	
 	return bouts
