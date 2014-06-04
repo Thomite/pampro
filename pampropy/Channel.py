@@ -11,6 +11,7 @@ from urllib import unquote_plus
 import sys
 import io
 import re
+import cProfile, pstats, StringIO
 
 percentile_pattern = re.compile("\A([p])([0-9]*)")
 
@@ -25,6 +26,7 @@ class Channel(object):
 		self.timestamps = []
 		self.annotations = []
 		self.draw_properties = {}
+		self.cached_indices = {}
 
 	def clone(self):
 
@@ -74,14 +76,36 @@ class Channel(object):
 
 	def get_window(self, datetime_start, datetime_end):
 
+		key_value = str(datetime_start) + "|" + str(datetime_end)
+		indices = [-1]
+
+		# If we already know what the indices are for this time range:
+		if key_value in self.cached_indices.keys():
+
+			indices = self.cached_indices[key_value]
+
+		else:
+			start = np.searchsorted(self.timestamps, datetime_start, 'left')
+			end = np.searchsorted(self.timestamps, datetime_end, 'right')
+			indices = np.arange(start, end-1)
+			
+			# Cache those for next time
+			self.cached_indices[key_value] = indices
+
+		return indices
+
+	# This is the old, uncached method
+	def get_window_old(self, datetime_start, datetime_end):
+
 		start = np.searchsorted(self.timestamps, datetime_start, 'left')
 		end = np.searchsorted(self.timestamps, datetime_end, 'right')
 		return np.arange(start, end-1)
 
+
 	def window_statistics(self, start_dts, end_dts, statistics):
 
+
 		indices = self.get_window(start_dts, end_dts)
-		#print indices
 
 		pretty_timestamp = start_dts.strftime("%d/%m/%Y %H:%M:%S:%f")
 
@@ -116,6 +140,7 @@ class Channel(object):
 		else:
 			for i in range(len(statistics)):
 				output_row.append(-1)	
+
 
 		return output_row
 
@@ -158,7 +183,7 @@ class Channel(object):
 			start = time_period[0]
 			end = time_period[1]
 
-		print start, end
+		print("Piecewise statistics: {}".format(self.name))
 
 		windows = []
 
@@ -296,14 +321,21 @@ class Channel(object):
 
 def channel_from_bouts(bouts, time_period, time_resolution, channel_name, in_value=1, out_value=0):
 
+
+
 	result = Channel(channel_name)
 
-	timestamps = []
-	timestamp = time_period[0]
+	#timestamps = []
+	#timestamp = time_period[0]
 
-	while timestamp < time_period[1]:
-		timestamps.append(timestamp)
-		timestamp += time_resolution
+	num_epochs = int(((time_period[1] - time_period[0]).total_seconds()) / time_resolution.total_seconds())
+
+	#while timestamp < time_period[1]:
+	
+	#	timestamps.append(timestamp)
+	#	timestamp += time_resolution
+
+	timestamps = [time_period[0] + time_resolution*x for x in range(num_epochs)]
 
 	filled = np.empty(len(timestamps))
 	filled.fill(out_value)
@@ -313,6 +345,8 @@ def channel_from_bouts(bouts, time_period, time_resolution, channel_name, in_val
 	for bout in bouts:
 		result.fill(bout, in_value)
 	
+	
+
 	return result
 
 # Axivity import code adapted from source provided by Open Movement: https://code.google.com/p/openmovement/. Their license terms are reproduced here in full, and apply only to the Axivity related code:

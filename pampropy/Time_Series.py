@@ -254,7 +254,7 @@ class Time_Series(object):
 				#print(a.start_timestamp)
 
 			legend = ax.legend(loc='upper right')
-		fig.tight_layout()
+		#fig.tight_layout()
 
 		if file_target==False:
 			plt.show()

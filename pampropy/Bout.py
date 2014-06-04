@@ -112,6 +112,16 @@ def bout_confusion_matrix(a1_bouts, b1_bouts, time_period):
 	
 	return results
 
+def limit_to_lengths(bouts, min_length, max_length):
+	
+	within_length = []
+	for bout in bouts:
+		bout_length = bout.end_timestamp - bout.start_timestamp
+		if bout_length >= min_length and bout_length <= max_length:
+			within_length.append(bout)
+	
+	return within_length
+
 
 def write_bouts_to_file(bouts, file_target):
 
