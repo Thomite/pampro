@@ -44,6 +44,12 @@ class Time_Series(object):
 
 		return self.channel_lookup[channel_name]
 
+	def rename_channel(self, current_name, desired_name):
+		
+		chan = self.get_channel(current_name)
+		chan.name = desired_name
+		self.channel_lookup.pop(current_name, None)
+		self.channel_lookup[desired_name] = chan
 
 	def piecewise_statistics(self, window_size, statistics, time_period=False):
 
@@ -260,3 +266,5 @@ class Time_Series(object):
 			plt.show()
 		else:
 			plt.savefig(file_target, dpi=300, frameon=False)
+
+		plt.clf()

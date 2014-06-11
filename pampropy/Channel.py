@@ -12,6 +12,7 @@ import sys
 import io
 import re
 import cProfile, pstats, StringIO
+import string
 
 percentile_pattern = re.compile("\A([p])([0-9]*)")
 
@@ -128,7 +129,7 @@ class Channel(object):
 					output_row.append(len(indices))
 				elif isinstance(stat, list):
 
-					indices2 = np.where((self.data[indices] >= stat[0]) & (self.data[indices] < stat[1]))[0]
+					indices2 = np.where((self.data[indices] >= stat[0]) & (self.data[indices] <= stat[1]))[0]
 					output_row.append(len(indices2))
 				elif percentile_pattern.match(stat):
 					# for p25, p50, etc
@@ -208,7 +209,7 @@ class Channel(object):
 
 		return self.build_statistics_channels(windows, statistics)
 
-	def bouts(self, low, high, minimum_length=0):
+	def bouts(self, low, high, minimum_length=timedelta(minutes=0)):
 
 		state = 0
 		start_index = 0
@@ -234,8 +235,7 @@ class Channel(object):
 				else:
 				
 					state = 0
-					if (end_index - start_index + 1 >= minimum_length):
-
+					if (self.timestamps[end_index] - self.timestamps[start_index] >= minimum_length):
 						bouts.append(Bout.Bout(self.timestamps[start_index], self.timestamps[end_index]))	
 						
 	
@@ -442,6 +442,39 @@ def axivity_parse_header(fh):
 	lastChangeTime = axivity_read_timestamp(lastChangeTime)
 	firmwareVersion = firmwareVersion if firmwareVersion != 255 else 0
 
+def parse_header(header, type):
+
+	header_info = {}
+
+	if type == "Actigraph":
+		
+		test = header[2].split(" ")
+		timeval = datetime.strptime(test[-1], "%H:%M:%S")
+		start_time = timedelta(hours=timeval.hour, minutes=timeval.minute, seconds=timeval.second)
+		header_info["start_time"] = start_time
+
+		test = header[3].split(" ")
+		start_date = string.replace(test[-1], "-", "/")
+		start_date = datetime.strptime(start_date, "%m/%d/%Y")
+		header_info["start_date"] = start_date
+
+		test = header[4].split(" ")
+		delta = datetime.strptime(test[-1], "%H:%M:%S")
+		epoch_length = timedelta(hours=delta.hour, minutes=delta.minute, seconds=delta.second)
+		header_info["epoch_length"] = epoch_length
+
+		start_datetime = start_date + start_time
+		header_info["start_datetime"] = start_datetime
+
+		mode = 0
+		splitup = header[8].split(" ")
+		if "Mode" in splitup:
+			index = splitup.index("Mode")
+			mode = splitup[index + 2]
+		header_info["mode"] = int(mode)
+
+	return header_info
+
 def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_column=0, ignore_columns=False, unique_names=False, average_over=False):
 
 	if (source_type == "Actiheart"):
@@ -470,7 +503,7 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 
 		timestamps = np.array(timestamp_list)
 
-		indices1 = np.where(ecg > 1)
+		indices1 = np.where(ecg > -1)
 		activity = activity[indices1]
 		ecg = ecg[indices1]
 		timestamps2 = timestamps[indices1]
@@ -559,20 +592,18 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 			first_lines.append(s)
 
 
-		line2 = first_lines[2]
-		test = line2.split(" ")
-		timeval = datetime.strptime(test[-1], "%H:%M:%S")
-		timeadd = timedelta(hours=timeval.hour, minutes=timeval.minute, seconds=timeval.second)
-	
-		line3 = first_lines[3]
-		test = line3.split(" ")
-		time = timeadd + datetime.strptime(test[-1], "%m-%d-%Y")
+		header_info = parse_header(first_lines, "Actigraph")
 
-		line4 = first_lines[4]
-		test = line4.split(" ")
-		delta = datetime.strptime(test[-1], "%H:%M:%S")
-		timeadd = timedelta(hours=delta.hour, minutes=delta.minute, seconds=delta.second)
-		
+		time = header_info["start_datetime"]
+		epoch_length = header_info["epoch_length"]
+		mode = header_info["mode"]
+
+		print("Epoch length:")
+		print(epoch_length)
+		print("Mode:")
+		print(mode)
+
+
 		count_list = []
 		timestamp_list = []
 
@@ -580,10 +611,16 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 		while (len(line) > 0):
 	
 			counts = line.split()
-			for c in counts:
-				count_list.append(int(c))
-				timestamp_list.append(time)
-				time = time + timeadd
+			for index, c in enumerate(counts):
+			#	print index, index % 2
+				if mode == 0 or mode == 4 or (mode == 1 and index % 2 == 0) or (mode == 3 and index % 2 == 0):
+					#print("eh?")
+					count_list.append(int(c))
+					timestamp_list.append(time)
+					time = time + epoch_length
+				#else:
+					#print("eh?")
+
 
 			line = f.readline().strip()
 		f.close()
@@ -591,13 +628,15 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 		timestamps = np.array(timestamp_list)
 		counts = np.array(count_list)
 		
-		print timestamps[0], timestamps[-1]
-		print sum(counts)
+		#print timestamps[0], timestamps[-1]
+		#print sum(counts)
+
+
 
 		chan = Channel("AG_Counts")
 		chan.set_contents(counts, timestamps)
 
-		return [chan]
+		return [chan, header_info]
 
 	elif (source_type == "CSV"):
 

@@ -55,7 +55,7 @@ def infer_enmo(vm):
 
 	return result
 
-def infer_nonwear_actigraph(counts, zero_minutes=60):
+def infer_nonwear_actigraph(counts, zero_minutes=timedelta(minutes=60)):
 
 	#nonwear = Channel.Channel("Nonwear")
 
@@ -84,7 +84,7 @@ def infer_valid_days_only(channel, wear_bouts, valid_criterion=timedelta(hours=1
 		if total > valid_criterion:
 			#window.draw_properties={"lw":0, "facecolor":[1,0,0], "alpha":0.25}
 			valid_windows.append(window)
-		print total
+		#print total
 
 	valid_only = channel.subset_using_bouts(valid_windows, channel.name + "_valid_only")
 	return [valid_only, valid_windows]
