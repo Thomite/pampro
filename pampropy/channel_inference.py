@@ -4,6 +4,7 @@ import Channel
 import Bout
 import numpy as np
 
+
 def infer_sleep_actiheart(actiheart_activity, actiheart_ecg):
 
 	ecg_ma = actiheart_ecg.moving_average(15)
@@ -62,7 +63,7 @@ def infer_nonwear_actigraph(counts, zero_minutes=timedelta(minutes=60)):
 	nonwear_bouts = counts.bouts(0, 0, zero_minutes)
 	wear_bouts = Bout.time_period_minus_bouts([counts.timeframe[0], counts.timeframe[1]], nonwear_bouts)
 	
-	wear = counts.subset_using_bouts(wear_bouts, "Wear_only")
+	wear = counts.subset_using_bouts(wear_bouts, "Wear_only", substitute_value=0)
 
 
 	return [wear, wear_bouts, nonwear_bouts]
@@ -86,8 +87,15 @@ def infer_valid_days_only(channel, wear_bouts, valid_criterion=timedelta(hours=1
 			valid_windows.append(window)
 		#print total
 
-	valid_only = channel.subset_using_bouts(valid_windows, channel.name + "_valid_only")
-	return [valid_only, valid_windows]
+
+	
+	valid_only = channel.subset_using_bouts(valid_windows, channel.name + "_valid_only", substitute_value=0)
+	
+	# Create a binary channel
+	approx_epoch = channel.timestamps[1] - channel.timestamps[0] 
+	valid_binary = Channel.channel_from_bouts(valid_windows, [channel.timeframe[0], channel.timeframe[1]], approx_epoch, "valid")
+
+	return [valid_only, valid_binary, valid_windows]
 
 
 

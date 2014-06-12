@@ -1,4 +1,5 @@
 import numpy as np
+import scipy as sp
 from datetime import datetime, date, time, timedelta
 from pampropy import Bout
 import copy
@@ -113,7 +114,7 @@ class Channel(object):
 		#output_row = [pretty_timestamp]
 		output_row = []
 		if (len(indices) > 0):
-			
+
 			for stat in statistics:
 				if stat == "mean":
 					output_row.append(np.mean(self.data[indices]))
@@ -473,6 +474,34 @@ def parse_header(header, type):
 			mode = splitup[index + 2]
 		header_info["mode"] = int(mode)
 
+	elif type == "GT3X+_CSV":
+	
+		test = header[2].split(" ")
+		timeval = datetime.strptime(test[-1], "%H:%M:%S")
+		start_time = timedelta(hours=timeval.hour, minutes=timeval.minute, seconds=timeval.second)
+		header_info["start_time"] = start_time
+
+		test = header[0].split(" ")
+		if "Hz" in test:
+			index = test.index("Hz")
+			hz = int(test[index-1])
+			epoch_length = timedelta(seconds=1) / hz
+			header_info["epoch_length"] = epoch_length
+
+		if "format" in test:
+			index = test.index("format")
+			format = test[index+1]
+			format = string.replace(format, "dd", "%d")
+			format = string.replace(format, "MM", "%m")
+			format = string.replace(format, "yyyy", "%Y")
+
+			start_date = datetime.strptime(header[3].split(" ")[2], format)
+			header_info["start_date"] = start_date
+
+		start_datetime = start_date + start_time
+		header_info["start_datetime"] = start_datetime
+
+
 	return header_info
 
 def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_column=0, ignore_columns=False, unique_names=False, average_over=False):
@@ -598,12 +627,6 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 		epoch_length = header_info["epoch_length"]
 		mode = header_info["mode"]
 
-		print("Epoch length:")
-		print(epoch_length)
-		print("Mode:")
-		print(mode)
-
-
 		count_list = []
 		timestamp_list = []
 
@@ -637,6 +660,38 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 		chan.set_contents(counts, timestamps)
 
 		return [chan, header_info]
+
+	elif (source_type == "GT3X+_CSV"):
+
+		first_lines = []
+		f = open(source, 'r')
+		for i in range(0,10):
+			s = f.readline().strip()
+			first_lines.append(s)
+		f.close()
+
+		header_info = parse_header(first_lines, "GT3X+_CSV")
+
+		time = header_info["start_datetime"]
+		epoch_length = header_info["epoch_length"]
+
+		x, y, z = np.genfromtxt(source, delimiter=',', unpack=True, skip_header=10, dtype=np.float64)
+
+		timestamps = []
+		for i in range(len(x)):
+			timestamps.append(time)
+			time += epoch_length
+		timestamps = np.array(timestamps)
+
+		x_chan = Channel("X")
+		y_chan = Channel("Y")
+		z_chan = Channel("Z")
+
+		x_chan.set_contents(x, timestamps)
+		y_chan.set_contents(y, timestamps)
+		z_chan.set_contents(z, timestamps)
+
+		return [x_chan,y_chan,z_chan]
 
 	elif (source_type == "CSV"):
 
