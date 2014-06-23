@@ -236,8 +236,14 @@ class Channel(object):
 				else:
 				
 					state = 0
-					if (self.timestamps[end_index] - self.timestamps[start_index] >= minimum_length):
-						bouts.append(Bout.Bout(self.timestamps[start_index], self.timestamps[end_index]))	
+
+					start_time =  self.timestamps[start_index]
+					end_time = self.timestamps[end_index]
+					if end_index+1 < self.size:
+						end_time = self.timestamps[end_index+1]
+
+					if (end_time - start_time >= minimum_length):
+						bouts.append(Bout.Bout(start_time, end_time))	
 						
 	
 		return bouts
