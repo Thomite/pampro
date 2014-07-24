@@ -7,8 +7,8 @@ import numpy as np
 
 def infer_sleep_actiheart(actiheart_activity, actiheart_ecg):
 
-	ecg_ma = actiheart_ecg.moving_average(15)
-	activity_ma = actiheart_activity.moving_average(15)
+	ecg_ma = actiheart_ecg.moving_average(30)
+	activity_ma = actiheart_activity.moving_average(30)
 
 	ecg_norm = ecg_ma.clone()
 	ecg_norm.normalise()
@@ -63,10 +63,20 @@ def infer_nonwear_actigraph(counts, zero_minutes=timedelta(minutes=60)):
 	nonwear_bouts = counts.bouts(0, 0, zero_minutes)
 	wear_bouts = Bout.time_period_minus_bouts([counts.timeframe[0], counts.timeframe[1]], nonwear_bouts)
 	
-	wear = counts.subset_using_bouts(wear_bouts, "Wear_only", substitute_value=0)
+	wear = counts.subset_using_bouts(wear_bouts, "Wear_only", substitute_value=-1)
+	#wear.delete_windows(nonwear_bouts)
+
+	print(len(wear.data))
+	bad_indices = np.where(wear.data == -1)
+	print(len(bad_indices[0]))
+	wear.data = np.delete(wear.data, bad_indices[0], None)
+	wear.timestamps = np.delete(wear.timestamps, bad_indices[0], None)
+	wear.calculate_timeframe()
+
+	wear_with_missings = counts.subset_using_bouts(wear_bouts, "Wear_minuses", substitute_value=-1)
 
 
-	return [wear, wear_bouts, nonwear_bouts]
+	return [wear, wear_with_missings, wear_bouts, nonwear_bouts]
 
 def infer_nonwear_triaxial(x,y,z):
 	
@@ -95,7 +105,7 @@ def infer_nonwear_triaxial(x,y,z):
 	wear_only_y = y.subset_using_bouts(wear_bouts, "y_wear_only", substitute_value=0)
 	wear_only_z = z.subset_using_bouts(wear_bouts, "z_wear_only", substitute_value=0)
 
-def infer_valid_days_only(channel, wear_bouts, valid_criterion=timedelta(hours=10)):
+def infer_valid_days(channel, wear_bouts, epoch_length=False, valid_criterion=timedelta(hours=10)):
 
 	#Generate 7 day-long windows
 	start = channel.timeframe[0] - timedelta(hours=channel.timeframe[0].hour, minutes=channel.timeframe[0].minute, seconds=channel.timeframe[0].second, microseconds=channel.timeframe[0].microsecond)
@@ -116,13 +126,17 @@ def infer_valid_days_only(channel, wear_bouts, valid_criterion=timedelta(hours=1
 
 
 	
-	valid_only = channel.subset_using_bouts(valid_windows, channel.name + "_valid_only", substitute_value=0)
-	
+	valid_zeroes = channel.subset_using_bouts(valid_windows, channel.name + "_valid_zeroes", substitute_value=0)
+	valid_missings = channel.subset_using_bouts(valid_windows, channel.name + "_valid_missings", substitute_value=-1)
 	# Create a binary channel
-	approx_epoch = channel.timestamps[1] - channel.timestamps[0] 
-	valid_binary = Channel.channel_from_bouts(valid_windows, [channel.timeframe[0], channel.timeframe[1]], approx_epoch, "valid")
+	if epoch_length == False:
+		epoch_length = channel.timestamps[1] - channel.timestamps[0] 
+	
+	valid_binary = Channel.channel_from_bouts(valid_windows, [channel.timeframe[0], channel.timeframe[1]], epoch_length, "valid")
+	
 
-	return [valid_only, valid_binary, valid_windows]
+
+	return [valid_zeroes, valid_missings, valid_binary, valid_windows]
 
 
 

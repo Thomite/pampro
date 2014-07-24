@@ -82,11 +82,12 @@ class Channel(object):
 		indices = [-1]
 
 		# If we already know what the indices are for this time range:
-		if key_value in self.cached_indices.keys():
-
+		#if key_value in self.cached_indices.keys():
+		try:
 			indices = self.cached_indices[key_value]
 
-		else:
+		except:
+		#else:
 			start = np.searchsorted(self.timestamps, datetime_start, 'left')
 			end = np.searchsorted(self.timestamps, datetime_end, 'right')
 			indices = np.arange(start, end-1)
@@ -176,6 +177,29 @@ class Channel(object):
 		self.timestamps.append(timestamp)
 		self.data.append(data_row)
 
+	def sliding_statistics(self, window_size, statistics=["mean"], time_period=False):
+
+		if time_period == False:
+			start = self.timeframe[0] - timedelta(hours=self.timeframe[0].hour, minutes=self.timeframe[0].minute, seconds=self.timeframe[0].second, microseconds=self.timeframe[0].microsecond)
+			end = self.timeframe[1] + timedelta(hours=23-self.timeframe[1].hour, minutes=59-self.timeframe[1].minute, seconds=59-self.timeframe[1].second, microseconds=999999-self.timeframe[1].microsecond)
+		else:
+			start = time_period[0]
+			end = time_period[1]
+
+		print("Sliding statistics: {}".format(self.name))
+
+		windows = []
+
+		for timestamp in self.timestamps:
+
+			start_dts = timestamp - (window_size/2.0)
+			end_dts = timestamp + (window_size/2.0)
+
+			windows.append(Bout.Bout(start_dts, end_dts))
+			
+		return self.build_statistics_channels(windows, statistics)
+
+
 	def piecewise_statistics(self, window_size, statistics=["mean"], time_period=False):
 
 		if time_period == False:
@@ -246,6 +270,12 @@ class Channel(object):
 						bouts.append(Bout.Bout(start_time, end_time))	
 						
 	
+		if state == 1:
+			start_time =  self.timestamps[start_index]
+			end_time = self.timestamps[end_index]
+			if (end_time - start_time >= minimum_length):
+				bouts.append(Bout.Bout(start_time, end_time))	
+
 		return bouts
 
 	def subset_using_bouts(self, bout_list, name, substitute_value=-1):
@@ -267,6 +297,18 @@ class Channel(object):
 			c.data[indices] = self.data[indices]
 
 		return c
+
+	def delete_windows(self, windows):
+		
+		for window in windows:
+			indices = self.get_window(window.start_timestamp, window.end_timestamp)
+
+			self.data = np.delete(self.data, indices, None)
+			self.timestamps = np.delete(self.timestamps, indices, None)
+
+		self.calculate_timeframe()
+			#del self.data[indices[0]:indices[-1]] 
+			#del self.timestamps[indices[0]:indices[-1]] 
 
 	def restrict_timeframe(self, start, end):
 
@@ -326,28 +368,35 @@ class Channel(object):
 
 		self.data[indices] = fill_value
 
-def channel_from_bouts(bouts, time_period, time_resolution, channel_name, in_value=1, out_value=0):
+def channel_from_bouts(bouts, time_period, time_resolution, channel_name, skeleton=False, in_value=1, out_value=0):
 
+	result = False
+	if skeleton==False:
+		result = Channel(channel_name)
 
+		#timestamps = []
+		#timestamp = time_period[0]
 
-	result = Channel(channel_name)
+		num_epochs = int(((time_period[1] - time_period[0]).total_seconds()) / time_resolution.total_seconds())
 
-	#timestamps = []
-	#timestamp = time_period[0]
+		#while timestamp < time_period[1]:
+		
+		#	timestamps.append(timestamp)
+		#	timestamp += time_resolution
 
-	num_epochs = int(((time_period[1] - time_period[0]).total_seconds()) / time_resolution.total_seconds())
+		timestamps = [time_period[0] + time_resolution*x for x in range(num_epochs)]
 
-	#while timestamp < time_period[1]:
-	
-	#	timestamps.append(timestamp)
-	#	timestamp += time_resolution
+		filled = np.empty(len(timestamps))
+		filled.fill(out_value)
 
-	timestamps = [time_period[0] + time_resolution*x for x in range(num_epochs)]
+		print time_period
+		print("Length of timestamps:" + str(len(timestamps)))
+		print("Length of filled:" + str(len(filled)))
 
-	filled = np.empty(len(timestamps))
-	filled.fill(out_value)
-
-	result.set_contents(filled, timestamps)
+		result.set_contents(filled, timestamps)
+	else:
+		result = skeleton
+		result.name = channel_name
 
 	for bout in bouts:
 		result.fill(bout, in_value)
@@ -449,11 +498,36 @@ def axivity_parse_header(fh):
 	lastChangeTime = axivity_read_timestamp(lastChangeTime)
 	firmwareVersion = firmwareVersion if firmwareVersion != 255 else 0
 
-def parse_header(header, type):
+def parse_header(header, type, datetime_format):
 
 	header_info = {}
 
-	if type == "Actigraph":
+	if type == "Actiheart":
+
+		for i,row in enumerate(header):
+			try:
+				values = row.split(",")
+				header_info[values[0]] = values[1]
+			except:
+				pass
+
+		time1 = datetime.strptime(header[-2].split(",")[0], "%H:%M:%S")
+		time2 = datetime.strptime(header[-1].split(",")[0], "%H:%M:%S")
+		header_info["epoch_length"] = time2 - time1
+
+		header_info["start_date"] = datetime.strptime(header_info["Started"], "%d-%b-%Y  %H:%M")
+		
+		if "Start trimmed to" in header_info:
+			header_info["Start trimmed to"] = datetime.strptime(header_info["Start trimmed to"], "%Y-%m-%d %H:%M")
+
+
+		for i,row in enumerate(header):
+	
+			if row.split(",")[0] == "Time":
+				header_info["data_start"] = i+1
+				break
+
+	elif type == "Actigraph":
 		
 		test = header[2].split(" ")
 		timeval = datetime.strptime(test[-1], "%H:%M:%S")
@@ -462,7 +536,11 @@ def parse_header(header, type):
 
 		test = header[3].split(" ")
 		start_date = string.replace(test[-1], "-", "/")
-		start_date = datetime.strptime(start_date, "%m/%d/%Y")
+
+		try:
+			start_date = datetime.strptime(start_date, datetime_format)
+		except:
+			start_date = datetime.strptime(start_date, "%d/%m/%Y")
 		header_info["start_date"] = start_date
 
 		test = header[4].split(" ")
@@ -514,7 +592,7 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 
 	if (source_type == "Actiheart"):
 
-		activity, ecg  = np.loadtxt(source, delimiter=',', unpack=True, skiprows=15, usecols=[1,2])
+		
 
 		first_lines = []
 		f = open(source, 'r')
@@ -523,22 +601,29 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 			first_lines.append(s)
 		f.close()
 
-		time1 = datetime.strptime(first_lines[20].split(",")[0], "%H:%M:%S")
-		time2 = datetime.strptime(first_lines[21].split(",")[0], "%H:%M:%S")
+		header_info = parse_header(first_lines, "Actiheart", "%d-%b-%Y  %H:%M")
 
-		line8 = first_lines[8]
-		test = line8.split(",")
-		dt = datetime.strptime(test[1], "%d-%b-%Y  %H:%M")
-		delta = time2 - time1
+		start_date = header_info["start_date"]
+		epoch_length = header_info["epoch_length"]
+		data_start = header_info["data_start"]
+		#timestamp_list = []
+		#for i in range(0,len(activity)):
+		#	timestamp_list.append(start_date)
+		#	start_date = start_date + epoch_length
 
-		timestamp_list = []
-		for i in range(0,len(activity)):
-			timestamp_list.append(dt)
-			dt = dt + delta
+		activity, ecg  = np.loadtxt(source, delimiter=',', unpack=True, skiprows=data_start, usecols=[1,2])
 
+		timestamp_list = [start_date+i*epoch_length for i in range(len(activity))]
 		timestamps = np.array(timestamp_list)
 
-		indices1 = np.where(ecg > -1)
+		
+		indices1 = []
+
+		if "Start trimmed to" in header_info:
+			indices1 = np.where((ecg > 0) & (timestamps > header_info["Start trimmed to"]))
+		else:
+			indices1 = np.where(ecg > 0)
+
 		activity = activity[indices1]
 		ecg = ecg[indices1]
 		timestamps2 = timestamps[indices1]
@@ -627,7 +712,7 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 			first_lines.append(s)
 
 
-		header_info = parse_header(first_lines, "Actigraph")
+		header_info = parse_header(first_lines, "Actigraph", datetime_format)
 
 		time = header_info["start_datetime"]
 		epoch_length = header_info["epoch_length"]

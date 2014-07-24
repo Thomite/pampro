@@ -120,6 +120,11 @@ class Time_Series(object):
 	
 			file_output = file_target
 
+		#for chan in channel_sources:
+		#	print(chan.name)
+		#	print(len(chan.data))
+		#	print(len(chan.timestamps))
+
 		for i in range(0,len(channel_sources[0].data)):
 
 			pretty_timestamp = channel_sources[0].timestamps[i].strftime("%d/%m/%Y %H:%M:%S:%f")

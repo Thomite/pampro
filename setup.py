@@ -8,7 +8,7 @@ def read(fname):
 setup(
     name = "pampropy",
     packages = ["pampropy"],
-    version = "0.0.1",
+    version = "0.1",
     author = "Tom White",
     author_email = "thomite@gmail.com",
     description = ("Physical Activity Monitoring Processing in Python"),
