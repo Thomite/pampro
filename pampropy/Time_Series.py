@@ -238,7 +238,7 @@ class Time_Series(object):
 
 	def draw_separate(self, channels=False, time_period=False, file_target=False):
 
-		fig = plt.figure(figsize=(15,10))
+		fig = plt.figure(figsize=(15,10), frameon=False)
 
 		channel_list = []
 		if channels==False:
@@ -265,7 +265,10 @@ class Time_Series(object):
 				#print(a.start_timestamp)
 
 			legend = ax.legend(loc='upper right')
-		#fig.tight_layout()
+			legend.get_frame().set_alpha(0.5)
+			legend.draw_frame(False)
+
+		fig.tight_layout()
 
 		if file_target==False:
 			plt.show()
