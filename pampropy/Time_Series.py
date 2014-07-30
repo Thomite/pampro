@@ -32,7 +32,7 @@ class Time_Series(object):
 
 		self.channel_lookup[channel.name] = channel
 
-		print("Added channel {} to time series {}.".format(channel.name, self.name))
+		#print("Added channel {} to time series {}.".format(channel.name, self.name))
 		#print("Earliest: {}, latest: {}".format(self.earliest, self.latest))
 
 	def add_channels(self, new_channels):

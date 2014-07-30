@@ -186,7 +186,7 @@ class Channel(object):
 			start = time_period[0]
 			end = time_period[1]
 
-		print("Sliding statistics: {}".format(self.name))
+		#print("Sliding statistics: {}".format(self.name))
 
 		windows = []
 
@@ -209,7 +209,7 @@ class Channel(object):
 			start = time_period[0]
 			end = time_period[1]
 
-		print("Piecewise statistics: {}".format(self.name))
+		#print("Piecewise statistics: {}".format(self.name))
 
 		windows = []
 

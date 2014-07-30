@@ -5,6 +5,26 @@ import Bout
 import numpy as np
 
 
+def produce_binary_channels(bouts, lengths, skeleton_channel):
+	
+	Bout.cache_lengths(bouts)
+	bouts.sort(key=lambda x: x.length, reverse=True)
+
+	channels = []
+	for length in lengths:
+
+		# Drop bouts from list if their length is less than x minutes
+		bouts = Bout.limit_to_lengths(bouts, min_length=length, sorted=True)
+
+		channel_name = "{}_mt{}".format(skeleton_channel.name,length)
+
+		# Clone the blank channel, set data to 1 where time is inside any of the bouts
+		skeleton_copy = copy.deepcopy(skeleton_channel)
+		chan = Channel.channel_from_bouts(bouts, False, False, channel_name, skeleton=skeleton_copy)
+		channels.append(chan)
+
+	return channels
+
 def infer_sleep_actiheart(actiheart_activity, actiheart_ecg):
 
 	ecg_ma = actiheart_ecg.moving_average(30)
@@ -66,9 +86,9 @@ def infer_nonwear_actigraph(counts, zero_minutes=timedelta(minutes=60)):
 	wear = counts.subset_using_bouts(wear_bouts, "Wear_only", substitute_value=-1)
 	#wear.delete_windows(nonwear_bouts)
 
-	print(len(wear.data))
+	#print(len(wear.data))
 	bad_indices = np.where(wear.data == -1)
-	print(len(bad_indices[0]))
+	#print(len(bad_indices[0]))
 	wear.data = np.delete(wear.data, bad_indices[0], None)
 	wear.timestamps = np.delete(wear.timestamps, bad_indices[0], None)
 	wear.calculate_timeframe()
