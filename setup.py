@@ -6,12 +6,12 @@ def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 setup(
-    name = "pampropy",
-    packages = ["pampropy"],
+    name = "pampro",
+    packages = ["pampro"],
     version = "0.1",
     author = "Tom White",
     author_email = "thomite@gmail.com",
-    description = ("Physical Activity Monitoring Processing in Python"),
-    url = "https://github.com/Thomite/pampropy"
+    description = ("Physical Activity Monitoring Processing"),
+    url = "https://github.com/Thomite/pampro"
 )
 

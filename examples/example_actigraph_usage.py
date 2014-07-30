@@ -10,7 +10,7 @@ import collections
 
 
 
-from pampropy import Time_Series, Channel, channel_inference, Bout
+from pampro import Time_Series, Channel, channel_inference, Bout
 
 
 stats = ["

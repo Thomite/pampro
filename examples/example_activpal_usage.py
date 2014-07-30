@@ -13,7 +13,7 @@ import time
 #import Annotation
 #import channel_inference
 
-from pampropy import Time_Series, Channel, Annotation, channel_inference
+from pampro import Time_Series, Channel, Annotation, channel_inference
 
 start_time = datetime.now()
 

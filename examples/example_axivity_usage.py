@@ -8,12 +8,7 @@ import random
 import copy
 import time
 
-#import Time_Series
-#import Channel
-#import Annotation
-#import channel_inference
-
-from pampropy import Time_Series, Channel, channel_inference
+from pampro import Time_Series, Channel, channel_inference
 
 
 

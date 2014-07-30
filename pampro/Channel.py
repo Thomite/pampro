@@ -1,7 +1,7 @@
 import numpy as np
 import scipy as sp
 from datetime import datetime, date, time, timedelta
-from pampropy import Bout
+from pampro import Bout
 import copy
 
 from struct import *

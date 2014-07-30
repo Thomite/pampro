@@ -9,7 +9,7 @@ import copy
 
 
 
-from pampropy import Time_Series, Channel, channel_inference, Bout
+from pampro import Time_Series, Channel, channel_inference, Bout
 
 execution_start = datetime.now()
 

@@ -1,6 +1,6 @@
-# PAMPROPY
+# PAMPRO
 
-## Physical Activity Monitor Processing in Python
+## Physical Activity Monitor Processing
 
 ### Features:
 
