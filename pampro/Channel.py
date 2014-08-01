@@ -76,6 +76,44 @@ class Channel(object):
 		min_value = min(self.data)
 		self.data = ((ceil - floor) * (self.data - min_value))/(max_value - min_value) + floor
 
+
+	def collapse_auto(self, bins=10):
+
+		max_value = max(self.data)
+		min_value = min(self.data)
+		increment = float(max_value - min_value)/float(bins)
+
+		print min_value, max_value
+
+		ranges = []
+		low = min_value
+		for i in range(bins):
+
+			if i == bins-1:
+				high = max_value
+			else:
+				high = low+increment
+				
+			ranges.append((low, high, i))
+			low += increment
+
+		print ranges
+
+		return self.collapse(ranges)
+
+	def collapse(self, ranges):
+
+		# Each range is a tuple: (>= low, <= high, replacement)
+
+		clone = self.clone()
+
+		for low, high, replacement in ranges:
+
+			indices = np.where((self.data >= low) & (self.data <= high))[0]
+			clone.data[indices] = replacement
+
+		return clone
+
 	def get_window(self, datetime_start, datetime_end):
 
 		key_value = str(datetime_start) + "|" + str(datetime_end)
