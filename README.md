@@ -1,16 +1,35 @@
-# PAMPRO
+# PAMPRO - Physical Activity Monitor Processing
 
-## Physical Activity Monitor Processing
+### Introduction
 
-### Features:
+PAMPRO is a software project for the systematic analysis of physical activity data collected in epidemiological studies. The ultimate goal is to provide a turn-key solution for physical activity data analysis, replicating published methodologies in a monitor-agnostic framework.
 
-* Import channels of time series data from a variety of monitors. 
+
+### Features
+
+* Import channels of time series data from a variety of common monitors. 
 	* ActiHeart (.txt)
 	* Axivity binary (.cwa)
-	* Any timestamped CSV
 	* Actigraph (.dat) 
-* Derive signals and treat them as new channels of data.
+	* Any timestamped data (.csv)
 * Output piecewise summary statistics for any length of time from any data channel.
-* Visualise any combination of channels in various ways.
+* Visualise the time series data.
+* Quantify bouts of activity in specified ranges.
 
-See /examples for usage instructions.
+
+### Usage
+
+See /examples for demonstrations of various features.
+
+
+### Installation
+
+In your terminal, navigate to the desired installation directory and enter the following:
+
+```
+git clone https://github.com/Thomite/pampro.git
+cd pampro
+py setup.py install
+```
+
+This will clone the latest version of this repository and run the Python script to install it on your system.
