@@ -93,7 +93,7 @@ class Channel(object):
 				high = max_value
 			else:
 				high = low+increment
-				
+
 			ranges.append((low, high, i))
 			low += increment
 
@@ -113,6 +113,25 @@ class Channel(object):
 			clone.data[indices] = replacement
 
 		return clone
+
+
+	def bigrams(self):
+
+		unique_values = np.unique(self.data)
+	    
+		# Create a dictionary to count each permutation of unique_value -> unique_value
+		pairs = {}
+		for val1 in unique_values:
+			pairs[val1] = {}
+			for val2 in unique_values:
+				pairs[val1][val2] = 0
+	            
+		# Count transitions from each unique value to the next
+		for val1, val2 in zip(self.data, self.data[1:]):
+			pairs[val1][val2] += 1
+	    
+		return pairs
+
 
 	def get_window(self, datetime_start, datetime_end):
 
