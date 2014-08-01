@@ -1,4 +1,4 @@
-# PAMPRO - Physical Activity Monitor Processing
+## PAMPRO - Physical Activity Monitor Processing
 
 ### Introduction
 
