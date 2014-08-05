@@ -3,7 +3,7 @@ from datetime import timedelta
 import Channel
 import Bout
 import numpy as np
-
+import copy
 
 def produce_binary_channels(bouts, lengths, skeleton_channel):
 	

@@ -59,7 +59,7 @@ class Channel(object):
 	def calculate_timeframe(self):
 
 		self.size = len(self.data)
-		self.timeframe = self.timestamps[0], self.timestamps[self.size-1], (self.timestamps[self.size-1]-self.timestamps[0]), self.size
+		self.timeframe = self.timestamps[0], self.timestamps[-1]#, (self.timestamps[-1]-self.timestamps[0]), self.size
 
 	def add_annotation(self, annotation):
 
@@ -369,7 +369,7 @@ class Channel(object):
 
 	def restrict_timeframe(self, start, end):
 
-		indices = self.get_window(start,end)
+		indices = self.get_window(start, end)
 
 		self.set_contents(self.data[indices], self.timestamps[indices])
 

@@ -18,17 +18,7 @@ class Time_Series(object):
 		self.number_of_channels = self.number_of_channels + 1
 		self.channels.append(channel)
 
-		tf = channel.timeframe
-
-		if (self.number_of_channels == 1):
-			self.earliest = tf[0]
-			self.latest = tf[1]
-
-		else:
-			if self.earliest > tf[0]:
-				self.earliest = tf[0]
-			if self.latest < tf[1]:
-				self.latest = tf[1]
+		self.calculate_timeframe()
 
 		self.channel_lookup[channel.name] = channel
 
@@ -44,6 +34,19 @@ class Time_Series(object):
 
 		return self.channel_lookup[channel_name]
 
+	def calculate_timeframe(self):
+
+		chan = self.channels[0]
+		self.earliest, self.latest = chan.timeframe
+
+		for chan in self.channels[1:]:
+			
+			tf = chan.timeframe
+			if tf[0] < self.earliest:
+				self.earliest = tf[0]
+			if tf[1] > self.latest:
+				self.latest = tf[1]
+
 	def rename_channel(self, current_name, desired_name):
 		
 		chan = self.get_channel(current_name)
@@ -56,9 +59,11 @@ class Time_Series(object):
 		result_channels = []
 		
 		for channel_name,stats in statistics.items():
-			
-			channels = self.get_channel(channel_name).piecewise_statistics(window_size, statistics=stats, time_period=time_period)
-			result_channels = result_channels + channels
+			if channel_name in self.channel_lookup.keys():
+				channels = self.get_channel(channel_name).piecewise_statistics(window_size, statistics=stats, time_period=time_period)
+				result_channels = result_channels + channels
+			else:
+				print("Warning: {} not in {}".format(channel_name, self.name))
 		return result_channels
 
 	def summary_statistics(self, statistics):
@@ -66,9 +71,11 @@ class Time_Series(object):
 		results = []
 		
 		for channel_name,stats in statistics.items():
-			
-			channel_results = self.get_channel(channel_name).summary_statistics(statistics=stats)
-			results = results + channel_results
+			if channel_name in self.channel_lookup.keys():
+				channel_results = self.get_channel(channel_name).summary_statistics(statistics=stats)
+				results = results + channel_results
+			else:
+				print("Warning: {} not in {}".format(channel_name, self.name))
 		return results
 	
 
@@ -76,6 +83,8 @@ class Time_Series(object):
 
 		for channel in self.channels:
 			channel.restrict_timeframe(start,end)
+
+		self.calculate_timeframe()
 
 
 	def append(self, time_series):
