@@ -56,9 +56,11 @@ class Time_Series(object):
 		result_channels = []
 		
 		for channel_name,stats in statistics.items():
-			
-			channels = self.get_channel(channel_name).piecewise_statistics(window_size, statistics=stats, time_period=time_period)
-			result_channels = result_channels + channels
+			if channel_name in self.channel_lookup.keys():
+				channels = self.get_channel(channel_name).piecewise_statistics(window_size, statistics=stats, time_period=time_period)
+				result_channels = result_channels + channels
+			else:
+				print("Warning: {} not in {}".format(channel_name, self.name))
 		return result_channels
 
 	def summary_statistics(self, statistics):
@@ -66,9 +68,11 @@ class Time_Series(object):
 		results = []
 		
 		for channel_name,stats in statistics.items():
-			
-			channel_results = self.get_channel(channel_name).summary_statistics(statistics=stats)
-			results = results + channel_results
+			if channel_name in self.channel_lookup.keys():
+				channel_results = self.get_channel(channel_name).summary_statistics(statistics=stats)
+				results = results + channel_results
+			else:
+				print("Warning: {} not in {}".format(channel_name, self.name))
 		return results
 	
 

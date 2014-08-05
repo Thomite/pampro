@@ -1,6 +1,8 @@
 import collections
 import math
 import numpy as np
+import sys
+from datetime import datetime
 
 def job_indices(n, num_jobs, job_list_size):
 
@@ -37,19 +39,34 @@ def load_job_details(job_file):
 
 def batch_process(analysis_function, job_file, job_num, num_jobs):
 
+	batch_start_time = datetime.now()
+
 	job_details = load_job_details(job_file)
 
 	job_section = job_indices(job_num, num_jobs, len(job_details))
 
 	my_jobs = job_details.keys()[job_section[0]:job_section[1]]
 
-	for job in my_jobs:
+	for n, job in enumerate(my_jobs):
+
+		print("Job {}/{}: {}\n".format(n+1, len(my_jobs), job))
+		job_start_time = datetime.now()
+		
+		#try:
 		analysis_function( job_details[job] )
-	
+		#except:
+		#	print "Exception:", sys.exc_info()[0]
 
-def generic_analysis(id):
-	for k,v in id.items():
-		print k,v
+		job_end_time = datetime.now()
+		job_duration = job_end_time - job_start_time
+		print("\nJob run time: " + str(job_duration))
 
-batch_process(generic_analysis, "/pa/data/STVS/_documents/sources.csv", 1, 10)
-	
+		batch_duration = job_end_time - batch_start_time
+		batch_remaining = (len(my_jobs)-n)*job_duration
+		print("Batch run time: " + str(batch_duration))
+		print("Time remaining: " + str(batch_remaining) + "\n")
+
+	batch_end_time = datetime.now()
+	batch_duration = batch_end_time - batch_start_time
+	print("Batch run time: " + str(batch_duration))
+
