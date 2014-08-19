@@ -47,15 +47,18 @@ def batch_process(analysis_function, job_file, job_num, num_jobs):
 
 	my_jobs = job_details.keys()[job_section[0]:job_section[1]]
 
+	output_log = open(job_file + "_log_{}.csv".format(job_num), "w")
+
 	for n, job in enumerate(my_jobs):
 
 		print("Job {}/{}: {}\n".format(n+1, len(my_jobs), job))
 		job_start_time = datetime.now()
 		
-		#try:
-		analysis_function( job_details[job] )
-		#except:
-		#	print "Exception:", sys.exc_info()[0]
+		try:
+			analysis_function( job_details[job] )
+		except:
+			print "Exception:", sys.exc_info()[0]
+			output_log.write("Exception:" + sys.exc_info()[0] + "\n")
 
 		job_end_time = datetime.now()
 		job_duration = job_end_time - job_start_time
@@ -70,3 +73,4 @@ def batch_process(analysis_function, job_file, job_num, num_jobs):
 	batch_duration = batch_end_time - batch_start_time
 	print("Batch run time: " + str(batch_duration))
 
+	output_log.close()
