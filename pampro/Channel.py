@@ -425,6 +425,10 @@ class Channel(object):
 
 		self.data[indices] = fill_value
 
+	def draw_experimental(self, axis):
+		
+		axis.plot(self.timestamps, self.data, label=self.name, **self.draw_properties)
+
 def channel_from_bouts(bouts, time_period, time_resolution, channel_name, skeleton=False, in_value=1, out_value=0):
 
 	result = False

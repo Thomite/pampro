@@ -285,3 +285,29 @@ class Time_Series(object):
 			plt.savefig(file_target, dpi=300, frameon=False)
 
 		plt.clf()
+
+	def draw_experimental(self, channel_combinations, file_target=False):
+
+		fig = plt.figure(figsize=(15,10), frameon=False)
+		
+		axes = [fig.add_subplot(len(channel_combinations), 1, 1+index) for index in range(len(channel_combinations))]
+
+		for channels, axis in zip(channel_combinations, axes):
+
+			axis.set_xlim(self.earliest, self.latest)
+
+			for c in channels:
+				self.get_channel(c).draw_experimental(axis)
+
+			legend = axis.legend(loc='upper right')
+			legend.get_frame().set_alpha(0.5)
+			legend.draw_frame(False)
+
+		fig.tight_layout()
+
+		if file_target==False:
+			plt.show()
+		else:
+			plt.savefig(file_target, dpi=300, frameon=False)
+
+		plt.clf()
