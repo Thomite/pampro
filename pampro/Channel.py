@@ -425,9 +425,23 @@ class Channel(object):
 
 		self.data[indices] = fill_value
 
+	def fft(self):
+
+		return np.fft.fft(self.data)
+
+
 	def draw_experimental(self, axis):
 		
 		axis.plot(self.timestamps, self.data, label=self.name, **self.draw_properties)
+
+
+def channel_from_coefficients(coefs, timestamps):
+    chan = Channel.Channel("Recreated")
+    
+    recreated = np.fft.ifft(coefs, n=len(timestamps))
+    chan.set_contents(recreated, timestamps)
+    
+    return chan
 
 def channel_from_bouts(bouts, time_period, time_resolution, channel_name, skeleton=False, in_value=1, out_value=0):
 
