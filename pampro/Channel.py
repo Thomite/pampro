@@ -436,7 +436,7 @@ class Channel(object):
 
 
 def channel_from_coefficients(coefs, timestamps):
-    chan = Channel.Channel("Recreated")
+    chan = Channel("Recreated")
     
     recreated = np.fft.ifft(coefs, n=len(timestamps))
     chan.set_contents(recreated, timestamps)
