@@ -286,7 +286,7 @@ class Time_Series(object):
 
 		plt.clf()
 
-	def draw_experimental(self, channel_combinations, file_target=False):
+	def draw_experimental(self, channel_combinations, time_period=False, file_target=False):
 
 		fig = plt.figure(figsize=(15,10), frameon=False)
 		
@@ -294,7 +294,10 @@ class Time_Series(object):
 
 		for channels, axis in zip(channel_combinations, axes):
 
-			axis.set_xlim(self.earliest, self.latest)
+			if time_period == False:
+				axis.set_xlim(self.earliest, self.latest)
+			else:
+				axis.set_xlim(time_period[0], time_period[1])
 
 			for c in channels:
 				self.get_channel(c).draw_experimental(axis)

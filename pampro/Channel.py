@@ -472,6 +472,8 @@ def channel_from_bouts(bouts, time_period, time_resolution, channel_name, skelet
 	else:
 		result = skeleton
 		result.name = channel_name
+		result.data.fill(out_value)
+
 
 	for bout in bouts:
 		result.fill(bout, in_value)
