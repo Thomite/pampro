@@ -20,7 +20,8 @@ PAMPRO is a software project for the systematic analysis of physical activity da
 
 ### Usage
 
-See [/examples](https://github.com/Thomite/pampro/tree/master/examples) for example scripts demonstrating various features. 
+Click [here](http://nbviewer.ipython.org/github/Thomite/pampro/blob/master/examples/pampro_introduction.ipynb) for a walkthrough of PAMPRO's most basic features.
+See [/examples](https://github.com/Thomite/pampro/tree/master/examples) for example scripts demonstrating various more advanced features. 
 
 
 ### Installation
