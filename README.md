@@ -15,11 +15,12 @@ PAMPRO is a software project for the systematic analysis of physical activity da
 * Output piecewise summary statistics for any length of time from any data channel.
 * Visualise the time series data.
 * Quantify bouts of activity in specified ranges.
+* Nonwear detection.
 
 
 ### Usage
 
-See /examples for demonstrations of various features.
+See [/examples](https://github.com/Thomite/pampro/tree/master/examples) for example scripts demonstrating various features. 
 
 
 ### Installation
@@ -32,4 +33,4 @@ cd pampro
 py setup.py install
 ```
 
-This will clone the latest version of this repository and run the Python script to install it on your system.
+This will clone the latest version of this repository and run the Python script to install it on your system. This requires both [Git](http://git-scm.com) and [Python](https://store.continuum.io/cshop/anaconda/) to be installed already. 
