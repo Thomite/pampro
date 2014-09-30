@@ -5,6 +5,7 @@ import Bout
 import numpy as np
 import copy
 import Time_Series
+import time_utilities
 
 def produce_binary_channels(bouts, lengths, skeleton_channel):
 	
@@ -83,20 +84,26 @@ def infer_nonwear_actigraph(counts, zero_minutes=timedelta(minutes=60)):
 	#nonwear = Channel.Channel("Nonwear")
 
 	nonwear_bouts = counts.bouts(0, 0, zero_minutes)
+
+	print("Num nonwear bouts: ")
+	print(len(nonwear_bouts))
 	wear_bouts = Bout.time_period_minus_bouts([counts.timeframe[0], counts.timeframe[1]], nonwear_bouts)
 	
 	wear = counts.subset_using_bouts(wear_bouts, "Wear_only", substitute_value=-1)
 	#wear.delete_windows(nonwear_bouts)
 
-	#print(len(wear.data))
+	print("wear.data length: " + str(len(wear.data)))
 	bad_indices = np.where(wear.data == -1)
-	#print(len(bad_indices[0]))
+	print("Bad indices length:")
+	print(len(bad_indices[0]))
 	wear.data = np.delete(wear.data, bad_indices[0], None)
 	wear.timestamps = np.delete(wear.timestamps, bad_indices[0], None)
+	print("Here")
 	wear.calculate_timeframe()
 
+	print("Calculated timeframe")
 	wear_with_missings = counts.subset_using_bouts(wear_bouts, "Wear_minuses", substitute_value=-1)
-
+	print("Done infer_nonwear")
 
 	return [wear, wear_with_missings, wear_bouts, nonwear_bouts]
 
@@ -116,9 +123,9 @@ def infer_nonwear_triaxial(x,y,z):
 	z_std = results.get_channel(z.name + "_std")
 
 	# Find bouts where monitor was still for long periods
-	x_bouts = x_std.bouts(0, 0.05, timedelta(minutes=10))
-	y_bouts = y_std.bouts(0, 0.05, timedelta(minutes=10))
-	z_bouts = z_std.bouts(0, 0.05, timedelta(minutes=10))
+	x_bouts = x_std.bouts(0, 0.05, timedelta(minutes=30))
+	y_bouts = y_std.bouts(0, 0.05, timedelta(minutes=30))
+	z_bouts = z_std.bouts(0, 0.05, timedelta(minutes=30))
 	
 	# Get the times where those bouts overlap
 	x_intersect_y = Bout.bout_list_intersection(x_bouts, y_bouts)
@@ -139,18 +146,20 @@ def infer_nonwear_triaxial(x,y,z):
 
 def infer_valid_days(channel, wear_bouts, epoch_length=False, valid_criterion=timedelta(hours=10)):
 
-	#Generate 7 day-long windows
-	start = channel.timeframe[0] - timedelta(hours=channel.timeframe[0].hour, minutes=channel.timeframe[0].minute, seconds=channel.timeframe[0].second, microseconds=channel.timeframe[0].microsecond)
+	#Generate day-long windows
+	start = time_utilities.start_of_day(channel.timestamps[0])
 	day_windows = []
 	while start < channel.timeframe[1]:
 		day_windows.append(Bout.Bout(start, start+timedelta(days=1)))
 		start += timedelta(days=1)
-
+	
 	valid_windows = []
 	for window in day_windows:
 		#how much does all of wear_bouts intersect with window?
-		intersections = Bout.bout_list_intersection([window],wear_bouts)
+		intersections = Bout.bout_list_intersection([window], wear_bouts)
+
 		total = Bout.total_time(intersections)
+
 		if total > valid_criterion:
 			#window.draw_properties={"lw":0, "facecolor":[1,0,0], "alpha":0.25}
 			valid_windows.append(window)
@@ -164,9 +173,7 @@ def infer_valid_days(channel, wear_bouts, epoch_length=False, valid_criterion=ti
 	if epoch_length == False:
 		epoch_length = channel.timestamps[1] - channel.timestamps[0] 
 	
-	valid_binary = Channel.channel_from_bouts(valid_windows, [channel.timeframe[0], channel.timeframe[1]], epoch_length, "valid")
-	
-
+	valid_binary = Channel.channel_from_bouts(valid_windows, [channel.timeframe[0], channel.timeframe[1]], epoch_length, "valid", skeleton=channel)
 
 	return [valid_zeroes, valid_missings, valid_binary, valid_windows]
 

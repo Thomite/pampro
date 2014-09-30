@@ -59,7 +59,11 @@ class Channel(object):
 	def calculate_timeframe(self):
 
 		self.size = len(self.data)
-		self.timeframe = self.timestamps[0], self.timestamps[-1]#, (self.timestamps[-1]-self.timestamps[0]), self.size
+
+		if self.size > 0:
+			self.timeframe = self.timestamps[0], self.timestamps[-1]
+		else:
+			self.timeframe = False,False
 
 	def add_annotation(self, annotation):
 

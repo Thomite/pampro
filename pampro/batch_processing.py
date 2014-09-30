@@ -4,6 +4,7 @@ import numpy as np
 import sys
 from datetime import datetime
 
+'''
 def job_indices(n, num_jobs, job_list_size):
 
 	n = n-1
@@ -22,7 +23,22 @@ def job_indices(n, num_jobs, job_list_size):
 		if i == n:
 			return (start_index,end_index)
 		start_index = end_index
+'''
 
+def job_indices(n, num_jobs, job_list_size):
+
+    n = n-1
+
+    job_size = int(math.ceil(job_list_size/num_jobs))+1
+
+    start_index = 0
+    for i in range(n+1):
+
+        end_index = min( job_list_size, start_index + job_size )
+
+        if i == n:
+            return (start_index, end_index)
+        start_index = end_index
 def load_job_details(job_file):
     
     data = np.genfromtxt(job_file, delimiter=',', dtype='str', skiprows=0)
@@ -57,8 +73,8 @@ def batch_process(analysis_function, job_file, job_num, num_jobs):
 		try:
 			analysis_function( job_details[job] )
 		except:
-			print "Exception:", sys.exc_info()[0]
-			output_log.write("Exception:" + sys.exc_info()[0] + "\n")
+			print("Exception:" + str(sys.exc_info()[0]))
+			output_log.write("Exception:" + str(sys.exc_info()[0]) + "\n")
 
 		job_end_time = datetime.now()
 		job_duration = job_end_time - job_start_time
