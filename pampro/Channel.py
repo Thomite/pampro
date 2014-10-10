@@ -437,7 +437,8 @@ class Channel(object):
 	def draw_experimental(self, axis):
 		
 		axis.plot(self.timestamps, self.data, label=self.name, **self.draw_properties)
-
+		for a in self.annotations:
+			axis.axvspan(xmin=a.start_timestamp, xmax=a.end_timestamp, **a.draw_properties)
 
 def channel_from_coefficients(coefs, timestamps):
     chan = Channel("Recreated")
@@ -938,13 +939,13 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 			while len(header) == 2:
 				
 				if header == 'MD':
-					print 'MD'
+					#print 'MD'
 					axivity_parse_header(fh)
 				elif header == 'UB':
-					print 'UB'
+					#print 'UB'
 					blockSize = unpack('H', axivity_read(fh,2))[0]
 				elif header == 'SI':
-					print 'SI'
+					#print 'SI'
 				elif header == 'AX':
 					packetLength = unpack('H', axivity_read(fh,2))[0]              
 					deviceId = unpack('H', axivity_read(fh,2))[0]
