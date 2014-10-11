@@ -27,7 +27,7 @@ class Bout(object):
 
 def total_time(bouts):
 
-	total = timedelta()
+	total = timedelta(minutes=0)
 	for bout in bouts:
 		total += bout.end_timestamp - bout.start_timestamp
 
@@ -37,14 +37,15 @@ def bout_list_intersection(bouts_a, bouts_b):
 
 	intersection = []
 
-	for bout_a in bouts_a:
-		for bout_b in bouts_b:
+	if len(bouts_a) > 0 and len(bouts_b) > 0:
+		for bout_a in bouts_a:
+			for bout_b in bouts_b:
 
-			if bout_a.overlaps(bout_b):
+				if bout_a.overlaps(bout_b):
 
-				bout_c = bout_a.intersection(bout_b)
-				#print bout_a.start_timestamp, bout_a.end_timestamp, "overlaps", bout_b.start_timestamp, bout_b.end_timestamp, "=", bout_c.start_timestamp, bout_c.end_timestamp
-				intersection.append(bout_c)
+					bout_c = bout_a.intersection(bout_b)
+					#print bout_a.start_timestamp, bout_a.end_timestamp, "overlaps", bout_b.start_timestamp, bout_b.end_timestamp, "=", bout_c.start_timestamp, bout_c.end_timestamp
+					intersection.append(bout_c)
 		
 	#print "Bouts a", len(bouts_a)
 	#print "Bouts b", len(bouts_b)
