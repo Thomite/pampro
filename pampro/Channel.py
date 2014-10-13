@@ -14,6 +14,7 @@ import io
 import re
 import cProfile, pstats, StringIO
 import string
+from scipy.io.wavfile import write
 
 percentile_pattern = re.compile("\A([p])([0-9]*)")
 
@@ -433,6 +434,21 @@ class Channel(object):
 
 		return np.fft.fft(self.data)
 
+
+	def output_as_tone(self, filename, note_duration=0.15, volume=10000):
+    
+		rate = 1378.125
+	    
+		self.normalise(floor=83,ceil=880)
+		tone = np.array([], dtype=np.int16)
+	    
+		for note in self.data:
+	        
+			t = np.linspace(0,note_duration,note_duration*rate)
+			data = np.array(np.sin(2.0*np.pi*note*t)*volume, dtype=np.int16)
+			tone = np.append(tone, data)
+	    
+		write(filename, rate, tone) 
 
 	def draw_experimental(self, axis):
 		
