@@ -962,6 +962,7 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 					blockSize = unpack('H', axivity_read(fh,2))[0]
 				elif header == 'SI':
 					#print 'SI'
+					pass
 				elif header == 'AX':
 					packetLength = unpack('H', axivity_read(fh,2))[0]              
 					deviceId = unpack('H', axivity_read(fh,2))[0]
