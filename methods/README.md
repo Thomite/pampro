@@ -14,4 +14,6 @@ Under the defensible assumption that missingness in objective physical activity 
 
 ## Autocalibration of triaxial data
 
-[here](http://nbviewer.ipython.org/github/Thomite/pampro/blob/master/methods/autocalibration_triaxial.ipynb)
+[van Hees, Vincent T., et al. "Autocalibration of accelerometer data for free-living physical activity assessment using local gravity and temperature: an evaluation on four continents." Journal of Applied Physiology 117.7 (2014): 738-744.](http://jap.physiology.org/content/117/7/738)
+
+[Our implementation is described here.](http://nbviewer.ipython.org/github/Thomite/pampro/blob/master/methods/Autocalibration.ipynb)
