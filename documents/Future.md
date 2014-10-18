@@ -2,8 +2,11 @@
 
 ## Upcoming features
 
+### Monitor support
+- GeneActiv binary
+- activPAL binary
+
 ### Fourier transform related
-- FFT of channel data
 - Signal compression using Fourier coefficients 
 - Low, high and bandpass filters
 - Spectral analysis of signals
@@ -19,7 +22,6 @@
 ### User interface
 - Expose functionality via API
 - Graphical user interface to use API
-- Friendly framework for batch analysis 
 
 ### Meta
 - Post-processing recommendations
