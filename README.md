@@ -7,21 +7,24 @@ PAMPRO is a software project for the systematic analysis of physical activity da
 
 ### Features
 
-* Import channels of time series data from a variety of common monitors. 
+* Import channels of time series data from a variety of common monitors: 
 	* ActiHeart (.txt)
 	* Axivity binary (.cwa)
 	* Actigraph (.dat) 
 	* Any timestamped data (.csv)
-* Output piecewise summary statistics for any length of time from any data channel.
+* Output piecewise summary statistics of any data channel, over any size time window:
+	* Time spent in any cutpoint.
+	* Sum, mean, percentiles, min, max.
 * Visualise the time series data.
-* Quantify bouts of activity in specified ranges.
-* Nonwear detection.
+* Extract bouts of activity in any cutpoint.
+* Various triaxial acceleration methodologies:
+	* Nonwear detection.
+	* Autocalibration.
 
 
 ### Usage
 
-Click [here](http://nbviewer.ipython.org/github/Thomite/pampro/blob/master/examples/pampro_introduction.ipynb) for a walkthrough of PAMPRO's most basic features.
-See [/examples](https://github.com/Thomite/pampro/tree/master/examples) for example scripts demonstrating various more advanced features. 
+Click [here](http://nbviewer.ipython.org/github/Thomite/pampro/blob/master/examples/pampro_introduction.ipynb) for a walkthrough of PAMPRO's most basic features. See [/examples](https://github.com/Thomite/pampro/tree/master/examples) for example scripts demonstrating various more advanced features. The growing [/methods](https://github.com/Thomite/pampro/tree/master/methods) section provides detailed explanations of the methods implemented in PAMPRO, linking to the relevant literature where appropriate.
 
 
 ### Installation
