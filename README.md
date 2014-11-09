@@ -7,10 +7,10 @@ PAMPRO is a software project for the systematic analysis of physical activity da
 
 ### Features
 
-* Import channels of time series data from a variety of common monitors: 
+* Import channels of time series data from a variety of common monitors:
 	* ActiHeart (.txt)
 	* Axivity binary (.cwa)
-	* Actigraph (.dat) 
+	* Actigraph (.dat)
 	* Any timestamped data (.csv)
 * Output piecewise summary statistics of any data channel, over any size time window:
 	* Time spent in any cutpoint.
@@ -37,4 +37,4 @@ cd pampro
 py setup.py install
 ```
 
-This will clone the latest version of this repository and run the Python script to install it on your system. This requires both [Git](http://git-scm.com) and [Python](https://store.continuum.io/cshop/anaconda/) to be installed already. 
+This will clone the latest version of this repository and run the Python script to install it on your system. This requires both [Git](http://git-scm.com) and [Python](https://store.continuum.io/cshop/anaconda/) to be installed already.
