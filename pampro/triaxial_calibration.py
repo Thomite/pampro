@@ -216,7 +216,6 @@ def mutate_solution(solution):
 		# low =  0.00000025
 		# high = 0.0000025
 
-   
 	# Perturb the value at the random index using a random Gaussian value with mutation_value delta.
     mutant.values[index] = mutant.values[index] + (random.gauss(0.0, mutation_value ))
     
