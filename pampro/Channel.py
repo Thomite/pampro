@@ -14,13 +14,14 @@ import io
 import re
 import cProfile, pstats, StringIO
 import string
+from scipy.io.wavfile import write
 
 percentile_pattern = re.compile("\A([p])([0-9]*)")
 
 class Channel(object):
 
 	def __init__(self, name):
-		
+
 		self.name = name
 		self.size = 0
 		self.timeframe = 0
@@ -35,7 +36,7 @@ class Channel(object):
 		return copy.deepcopy(self)
 
 	def set_contents(self, data, timestamps):
-		
+
 		self.data = data
 		self.timestamps = timestamps
 
@@ -49,7 +50,7 @@ class Channel(object):
 
 		indices = np.argsort(self.timestamps)
 
-		
+
 		self.timestamps = np.array(self.timestamps)[indices]
 		self.data = np.array(self.data)[indices]
 		print(self.name + " " + str(len(self.data)))
@@ -122,18 +123,18 @@ class Channel(object):
 	def bigrams(self):
 
 		unique_values = np.unique(self.data)
-	    
+
 		# Create a dictionary to count each permutation of unique_value -> unique_value
 		pairs = {}
 		for val1 in unique_values:
 			pairs[val1] = {}
 			for val2 in unique_values:
 				pairs[val1][val2] = 0
-	            
+
 		# Count transitions from each unique value to the next
 		for val1, val2 in zip(self.data, self.data[1:]):
 			pairs[val1][val2] += 1
-	    
+
 		return pairs
 
 
@@ -152,7 +153,7 @@ class Channel(object):
 			start = np.searchsorted(self.timestamps, datetime_start, 'left')
 			end = np.searchsorted(self.timestamps, datetime_end, 'right')
 			indices = np.arange(start, end-1)
-			
+
 			# Cache those for next time
 			self.cached_indices[key_value] = indices
 
@@ -171,9 +172,9 @@ class Channel(object):
 
 		indices = self.get_window(start_dts, end_dts)
 
-		pretty_timestamp = start_dts.strftime("%d/%m/%Y %H:%M:%S:%f")
-
+		#pretty_timestamp = start_dts.strftime("%d/%m/%Y %H:%M:%S:%f")
 		#output_row = [pretty_timestamp]
+
 		output_row = []
 		if (len(indices) > 0):
 
@@ -199,11 +200,41 @@ class Channel(object):
 					percentile = int(percentile_pattern.match(stat).groups()[1])
 					output_row.append(np.percentile(self.data[indices],percentile))
 
+				elif stat == "bigrams":
+
+
+					unique_values = np.unique(self.data)
+
+					# 1 channel for each permutation of unique_value -> unique_value
+					pairs = {}
+					for val1 in unique_values:
+						pairs[val1] = {}
+						for val2 in unique_values:
+							pairs[val1][val2] = 0
+
+					# Count transitions from each unique value to the next
+					for val1, val2 in zip(self.data[indices], self.data[indices[1:]]):
+						pairs[val1][val2] += 1
+
+					for val1 in unique_values:
+						for val2 in unique_values:
+							output_row.append(pairs[val1][val2])
+
 				else:
 					output_row.append(-1)
 		else:
-			for i in range(len(statistics)):
-				output_row.append(-1)	
+
+			num_missings = len(statistics)
+
+			# len(statistics) doesn't work for bigrams
+			if "bigrams" in statistics:
+				unique_values = np.unique(self.data)
+				possible_transitions = len(unique_values)**2
+				num_missings = num_missings -1 + possible_transitions
+
+			for i in range(num_missings):
+
+				output_row.append(-1)
 
 
 		return output_row
@@ -215,16 +246,30 @@ class Channel(object):
 			name = self.name
 			if isinstance(var, list):
 				name = self.name + "_" + str(var[0]) + "_" + str(var[1])
+				channel = Channel(name)
+				channel_list.append(channel)
+
+			elif var == "bigrams":
+				unique_values = np.unique(self.data)
+
+				# 1 channel for each permutation of unique_value -> unique_value
+				for val1 in unique_values:
+					for val2 in unique_values:
+						name = self.name + "_" + str(val1) + "tr" + str(val2)
+
+						channel = Channel(name)
+						channel_list.append(channel)
+
 			else:
 				name = self.name + "_" + var
-			channel = Channel(name)
-			channel_list.append(channel)
+				channel = Channel(name)
+				channel_list.append(channel)
 
 		for window in windows:
 
 			results = self.window_statistics(window.start_timestamp, window.end_timestamp, statistics)
 			for i in range(len(results)):
-				
+				#print len(results)
 				channel_list[i].append_data(window.start_timestamp, results[i])
 
 		for channel in channel_list:
@@ -257,7 +302,7 @@ class Channel(object):
 			end_dts = timestamp + (window_size/2.0)
 
 			windows.append(Bout.Bout(start_dts, end_dts))
-			
+
 		return self.build_statistics_channels(windows, statistics)
 
 
@@ -278,13 +323,13 @@ class Channel(object):
 		end_dts = start + window_size
 
 		while start_dts < end:
-			
+
 			window = Bout.Bout(start_dts, end_dts)
 			windows.append(window)
 
 			start_dts = start_dts + window_size
 			end_dts = end_dts + window_size
-			
+
 		return self.build_statistics_channels(windows, statistics)
 
 
@@ -319,7 +364,7 @@ class Channel(object):
 					end_index = i
 
 				else:
-				
+
 					state = 0
 
 					start_time =  self.timestamps[start_index]
@@ -328,14 +373,14 @@ class Channel(object):
 						end_time = self.timestamps[end_index+1]
 
 					if (end_time - start_time >= minimum_length):
-						bouts.append(Bout.Bout(start_time, end_time))	
-						
-	
+						bouts.append(Bout.Bout(start_time, end_time))
+
+
 		if state == 1:
 			start_time =  self.timestamps[start_index]
 			end_time = self.timestamps[end_index]
 			if (end_time - start_time >= minimum_length):
-				bouts.append(Bout.Bout(start_time, end_time))	
+				bouts.append(Bout.Bout(start_time, end_time))
 
 		return bouts
 
@@ -348,7 +393,7 @@ class Channel(object):
 		#print(len(filled))
 
 		c.set_contents(filled, self.timestamps)
-	
+
 		for bout in bout_list:
 			#print(bout)
 
@@ -360,7 +405,7 @@ class Channel(object):
 		return c
 
 	def delete_windows(self, windows):
-		
+
 		for window in windows:
 			indices = self.get_window(window.start_timestamp, window.end_timestamp)
 
@@ -368,8 +413,8 @@ class Channel(object):
 			self.timestamps = np.delete(self.timestamps, indices, None)
 
 		self.calculate_timeframe()
-			#del self.data[indices[0]:indices[-1]] 
-			#del self.timestamps[indices[0]:indices[-1]] 
+			#del self.data[indices[0]:indices[-1]]
+			#del self.timestamps[indices[0]:indices[-1]]
 
 	def restrict_timeframe(self, start, end):
 
@@ -404,7 +449,7 @@ class Channel(object):
 
 			low = max(0,i-half)
 			high = min(self.size,i+half)
-			
+
 			averaged.append(np.std(self.data[low:high]))
 
 		result = Channel(self.name + "_mstd")
@@ -412,7 +457,7 @@ class Channel(object):
 		return result
 
 	def time_derivative(self):
-		
+
 		result = Channel(self.name + "_td")
 		result.set_contents(np.diff(self.data), self.timestamps[:-1])
 		return result
@@ -424,7 +469,7 @@ class Channel(object):
 		return result
 
 	def fill(self, bout, fill_value=0):
-	
+
 		indices = self.get_window(bout.start_timestamp,bout.end_timestamp)
 
 		self.data[indices] = fill_value
@@ -434,18 +479,33 @@ class Channel(object):
 		return np.fft.fft(self.data)
 
 
+	def output_as_tone(self, filename, note_duration=0.15, volume=10000):
+
+		rate = 1378.125
+
+		self.normalise(floor=83,ceil=880)
+		tone = np.array([], dtype=np.int16)
+
+		for note in self.data:
+
+			t = np.linspace(0,note_duration,note_duration*rate)
+			data = np.array(np.sin(2.0*np.pi*note*t)*volume, dtype=np.int16)
+			tone = np.append(tone, data)
+
+		write(filename, rate, tone)
+
 	def draw_experimental(self, axis):
-		
+
 		axis.plot(self.timestamps, self.data, label=self.name, **self.draw_properties)
 		for a in self.annotations:
 			axis.axvspan(xmin=a.start_timestamp, xmax=a.end_timestamp, **a.draw_properties)
 
 def channel_from_coefficients(coefs, timestamps):
     chan = Channel("Recreated")
-    
+
     recreated = np.fft.ifft(coefs, n=len(timestamps))
     chan.set_contents(recreated, timestamps)
-    
+
     return chan
 
 def channel_from_bouts(bouts, time_period, time_resolution, channel_name, skeleton=False, in_value=1, out_value=0):
@@ -460,7 +520,7 @@ def channel_from_bouts(bouts, time_period, time_resolution, channel_name, skelet
 		num_epochs = int(((time_period[1] - time_period[0]).total_seconds()) / time_resolution.total_seconds())
 
 		#while timestamp < time_period[1]:
-		
+
 		#	timestamps.append(timestamp)
 		#	timestamp += time_resolution
 
@@ -482,8 +542,8 @@ def channel_from_bouts(bouts, time_period, time_resolution, channel_name, skelet
 
 	for bout in bouts:
 		result.fill(bout, in_value)
-	
-	
+
+
 
 	return result
 
@@ -546,7 +606,7 @@ def axivity_parse_header(fh):
 	reserved = axivity_read(fh,22)
 
 	annotationBlock = axivity_read(fh,448 + 512)
-   
+
 	if len(annotationBlock) < 448 + 512:
 		annotationBlock = ""
 
@@ -598,19 +658,19 @@ def parse_header(header, type, datetime_format):
 		header_info["epoch_length"] = time2 - time1
 
 		header_info["start_date"] = datetime.strptime(header_info["Started"], "%d-%b-%Y  %H:%M")
-		
+
 		if "Start trimmed to" in header_info:
 			header_info["Start trimmed to"] = datetime.strptime(header_info["Start trimmed to"], "%Y-%m-%d %H:%M")
 
 
 		for i,row in enumerate(header):
-	
+
 			if row.split(",")[0] == "Time":
 				header_info["data_start"] = i+1
 				break
 
 	elif type == "Actigraph":
-		
+
 		test = header[2].split(" ")
 		timeval = datetime.strptime(test[-1], "%H:%M:%S")
 		start_time = timedelta(hours=timeval.hour, minutes=timeval.minute, seconds=timeval.second)
@@ -641,7 +701,7 @@ def parse_header(header, type, datetime_format):
 		header_info["mode"] = int(mode)
 
 	elif type == "GT3X+_CSV":
-	
+
 		test = header[2].split(" ")
 		timeval = datetime.strptime(test[-1], "%H:%M:%S")
 		start_time = timedelta(hours=timeval.hour, minutes=timeval.minute, seconds=timeval.second)
@@ -674,7 +734,7 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 
 	if (source_type == "Actiheart"):
 
-		
+
 
 		first_lines = []
 		f = open(source, 'r')
@@ -698,7 +758,7 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 		timestamp_list = [start_date+i*epoch_length for i in range(len(activity))]
 		timestamps = np.array(timestamp_list)
 
-		
+
 		indices1 = []
 
 		if "Start trimmed to" in header_info:
@@ -805,7 +865,7 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 
 		line = f.readline().strip()
 		while (len(line) > 0):
-	
+
 			counts = line.split()
 			for index, c in enumerate(counts):
 			#	print index, index % 2
@@ -823,7 +883,7 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 
 		timestamps = np.array(timestamp_list)
 		counts = np.array(count_list)
-		
+
 		#print timestamps[0], timestamps[-1]
 		#print sum(counts)
 
@@ -875,10 +935,10 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 		test = s.split(",")
 
 		source_split = source.split("/")
-		
-		
+
+
 		data = np.loadtxt(source, delimiter=',', skiprows=1, dtype='str')
-		
+
 		print(data.shape)
 		#print(data[:,0])
 		#print(data[:,1])
@@ -892,7 +952,7 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 
 		data_columns = list(range(0,len(test)))
 		del data_columns[datetime_column]
-		
+
 		if ignore_columns != False:
 			for ic in ignore_columns:
 				del data_columns[ic]
@@ -934,17 +994,18 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 			temp_time = False
 
 			while len(header) == 2:
-				
+
 				if header == 'MD':
-					print 'MD'
+					#print 'MD'
 					axivity_parse_header(fh)
 				elif header == 'UB':
-					print 'UB'
+					#print 'UB'
 					blockSize = unpack('H', axivity_read(fh,2))[0]
 				elif header == 'SI':
-					print 'SI'
+					#print 'SI'
+					pass
 				elif header == 'AX':
-					packetLength = unpack('H', axivity_read(fh,2))[0]              
+					packetLength = unpack('H', axivity_read(fh,2))[0]
 					deviceId = unpack('H', axivity_read(fh,2))[0]
 					sessionId = unpack('I', axivity_read(fh,4))[0]
 					sequenceId = unpack('I', axivity_read(fh,4))[0]
@@ -1007,7 +1068,7 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 					#print time0
 					#print "* - {}".format(sampleCount)
 					for sample in range(sampleCount):
-						
+
 						x,y,z,t = 0,0,0,0
 
 						if bps == 6:
@@ -1024,7 +1085,7 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 						#t = timedelta(milliseconds=(float(sample) / float(freq))*8.64) + time0
 						t = sample*(timedelta(seconds=1) / sampleCount) + time0
 						#print sample, "--", t
-						
+
 
 
 						axivity_timestamps.append(t)

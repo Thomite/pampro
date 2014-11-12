@@ -43,6 +43,7 @@ def calibrate(x,y,z, allow_overwrite=True, budget=7500, noise_cutoff_mg=13):
 	still_y.name = "still_y"
 	still_z.name = "still_z"
 
+
 	still_x_std.name = "still_x_std"
 	still_y_std.name = "still_y_std"
 	still_z_std.name = "still_z_std"
@@ -51,6 +52,7 @@ def calibrate(x,y,z, allow_overwrite=True, budget=7500, noise_cutoff_mg=13):
 
 	#print("calibrate E")
 	ts_still.add_channels([still_x, still_y, still_z,still_x_std, still_y_std, still_z_std, num_samples])
+
 
 	# Piecewise statistics currently throws -1s when no data matches the query
 	# This is a temporary workaround
@@ -61,7 +63,9 @@ def calibrate(x,y,z, allow_overwrite=True, budget=7500, noise_cutoff_mg=13):
 	still_x_std.data = still_x_std.data[bad_x]
 	still_y_std.data = still_y_std.data[bad_x]
 	still_z_std.data = still_z_std.data[bad_x]
+
 	num_samples.data = num_samples.data[bad_x]
+
 
 	bad_y = still_y_std.data != -1.
 	still_x.data = still_x.data[bad_y]
@@ -70,7 +74,9 @@ def calibrate(x,y,z, allow_overwrite=True, budget=7500, noise_cutoff_mg=13):
 	still_x_std.data = still_x_std.data[bad_y]
 	still_y_std.data = still_y_std.data[bad_y]
 	still_z_std.data = still_z_std.data[bad_y]
+
 	num_samples.data = num_samples.data[bad_y]
+
 
 	bad_z = still_z_std.data != -1.
 	still_x.data = still_x.data[bad_z]
@@ -79,7 +85,9 @@ def calibrate(x,y,z, allow_overwrite=True, budget=7500, noise_cutoff_mg=13):
 	still_x_std.data = still_x_std.data[bad_z]
 	still_y_std.data = still_y_std.data[bad_z]
 	still_z_std.data = still_z_std.data[bad_z]
+
 	num_samples.data = num_samples.data[bad_z]
+
 
 	#print("calibrate F")
 	# These are settings optipy uses to customise the optimisation procedure
@@ -161,15 +169,19 @@ def evaluate_solution_2(solution):
 	# Temporarily adjust the time series object called ts_still which has collapsed x,y,z values
     do_calibration(ts_still.get_channel("still_x"),ts_still.get_channel("still_y"),ts_still.get_channel("still_z"),solution.values)
     
+
     x,y,z,num_samples = ts_still.get_channel("still_x"),ts_still.get_channel("still_y"),ts_still.get_channel("still_z"),ts_still.get_channel("n")
+
     
 	# Get the VM of the calibrated channel
     vm = channel_inference.infer_vector_magnitude(x,y,z)     
     
 	# Root mean standard error
     se = 0.0
+
     for vm_val,n in zip(vm.data, num_samples.data):
         se += (abs(1.0 - vm_val)*n)**2
+
     
     mse = se / len(vm.data)
     rmse = math.sqrt(mse) 
@@ -199,9 +211,12 @@ def mutate_solution(solution):
     if index in [0,2,4]:
         mutation_value = 0.0005
     else:
+
         mutation_value = 0.0000025
 		# low =  0.00000025
 		# high = 0.0000025
+
+   
 	# Perturb the value at the random index using a random Gaussian value with mutation_value delta.
     mutant.values[index] = mutant.values[index] + (random.gauss(0.0, mutation_value ))
     
