@@ -59,8 +59,8 @@ def infer_pitch_roll(x,y,z):
 	pitch = Channel.Channel("Pitch")
 	roll = Channel.Channel("Roll")
 
-	pitch_degrees = np.arctan(x.data/np.sqrt((y.data*y.data) + (z.data*z.data))) * 180.0/np.pi * -1.0
-	roll_degrees = np.arctan(y.data/np.sqrt((x.data*x.data) + (z.data*z.data))) * 180.0/np.pi * -1.0
+	pitch_degrees = np.arctan(x.data/np.sqrt((y.data*y.data) + (z.data*z.data))) * 180.0/np.pi
+	roll_degrees = np.arctan(y.data/np.sqrt((x.data*x.data) + (z.data*z.data))) * 180.0/np.pi
 	# Remove the -1s here?
 
 	pitch.set_contents( pitch_degrees, x.timestamps)
@@ -76,6 +76,14 @@ def infer_enmo(vm):
 
 
 	result.data[np.where(result.data < 0)] = 0
+
+	return result
+
+def infer_enmo_a(vm):
+
+	result = Channel.Channel("ENMOa")
+
+	result.set_contents( np.absolute((vm.data - 1.0)*1000.0) , vm.timestamps )
 
 	return result
 
@@ -107,32 +115,32 @@ def infer_nonwear_actigraph(counts, zero_minutes=timedelta(minutes=60)):
 
 	return [wear, wear_with_missings, wear_bouts, nonwear_bouts]
 
-def infer_nonwear_triaxial(x,y,z):
+def infer_nonwear_triaxial(x,y,z, noise_cutoff_mg=13):
 	
 	''' Use the 3 channels of triaxial acceleration to infer periods of nonwear '''
 	
 	stats = {x.name:["std"], y.name:["std"], z.name:["std"]}
 
 	results = Time_Series.Time_Series("Results")
-	results.add_channels(x.piecewise_statistics(timedelta(minutes=10), statistics=["std"]))
-	results.add_channels(y.piecewise_statistics(timedelta(minutes=10), statistics=["std"]))
-	results.add_channels(z.piecewise_statistics(timedelta(minutes=10), statistics=["std"]))
+	results.add_channels(x.piecewise_statistics(timedelta(minutes=30), statistics=["std"], time_period=(time_utilities.start_of_hour(x.timeframe[0]), time_utilities.end_of_hour(x.timeframe[1]))))
+	results.add_channels(y.piecewise_statistics(timedelta(minutes=30), statistics=["std"], time_period=(time_utilities.start_of_hour(x.timeframe[0]), time_utilities.end_of_hour(x.timeframe[1]))))
+	results.add_channels(z.piecewise_statistics(timedelta(minutes=30), statistics=["std"], time_period=(time_utilities.start_of_hour(x.timeframe[0]), time_utilities.end_of_hour(x.timeframe[1]))))
 
 	x_std = results.get_channel(x.name + "_std")
 	y_std = results.get_channel(y.name + "_std")
 	z_std = results.get_channel(z.name + "_std")
 
 	# Find bouts where monitor was still for long periods
-	x_bouts = x_std.bouts(0, 0.05, timedelta(minutes=30))
-	y_bouts = y_std.bouts(0, 0.05, timedelta(minutes=30))
-	z_bouts = z_std.bouts(0, 0.05, timedelta(minutes=30))
+	x_bouts = x_std.bouts(0, float(noise_cutoff_mg)/1000.0, timedelta(minutes=30))
+	y_bouts = y_std.bouts(0, float(noise_cutoff_mg)/1000.0, timedelta(minutes=30))
+	z_bouts = z_std.bouts(0, float(noise_cutoff_mg)/1000.0, timedelta(minutes=30))
 	
 	# Get the times where those bouts overlap
 	x_intersect_y = Bout.bout_list_intersection(x_bouts, y_bouts)
 	x_intersect_y_intersect_z = Bout.bout_list_intersection(x_intersect_y, z_bouts)
 	
 	# Create a parallel, binary channel indicating if that time point was in or out of wear
-	nonwear_binary = Channel.channel_from_bouts(x_intersect_y_intersect_z, [x.timeframe[0], x.timeframe[1]], False, "nonwear", skeleton=x_std)
+	nonwear_binary = Channel.channel_from_bouts(x_intersect_y_intersect_z, x.timeframe, False, "nonwear", skeleton=x)
 
 	# Invert the nonwear bouts, clipping to the time region of the original channels, to get wear bouts
 	#wear_bouts = Bout.time_period_minus_bouts([x.timeframe[0],x.timeframe[1]], x_intersect_y_intersect_z)

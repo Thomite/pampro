@@ -437,7 +437,8 @@ class Channel(object):
 	def draw_experimental(self, axis):
 		
 		axis.plot(self.timestamps, self.data, label=self.name, **self.draw_properties)
-
+		for a in self.annotations:
+			axis.axvspan(xmin=a.start_timestamp, xmax=a.end_timestamp, **a.draw_properties)
 
 def channel_from_coefficients(coefs, timestamps):
     chan = Channel("Recreated")
@@ -669,7 +670,7 @@ def parse_header(header, type, datetime_format):
 
 	return header_info
 
-def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_column=0, ignore_columns=False, unique_names=False, average_over=False):
+def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_column=0, ignore_columns=False, unique_names=False):
 
 	if (source_type == "Actiheart"):
 
@@ -925,14 +926,11 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 		axivity_x = []
 		axivity_y = []
 		axivity_z = []
-		last_time = False
 
 		try:
 			header = axivity_read(fh,2)
 
-			temp_x = []
-			temp_y = []
-			temp_z = []
+
 			temp_time = False
 
 			while len(header) == 2:
@@ -1006,9 +1004,6 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 					#print offsetStart
 					time0 = timestamp + timedelta(milliseconds=offsetStart)
 
-					if average_over != False and last_time == False:
-						last_time = time0
-
 					#print time0
 					#print "* - {}".format(sampleCount)
 					for sample in range(sampleCount):
@@ -1027,38 +1022,15 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 							z = short(short((ushort(65472) & ushort(temp >> 14))) >> temp2) / 256.0
 
 						#t = timedelta(milliseconds=(float(sample) / float(freq))*8.64) + time0
-						t = sample*(timedelta(seconds=1) / 120) + time0
+						t = sample*(timedelta(seconds=1) / sampleCount) + time0
 						#print sample, "--", t
 						
 
-						if average_over != False:
 
-							temp_x.append(x)
-							temp_y.append(y)
-							temp_z.append(z)
-
-							if t - last_time >= average_over:
-
-								mean_x = np.mean(temp_x)
-								mean_y = np.mean(temp_y)
-								mean_z = np.mean(temp_z)
-								temp_x = []
-								temp_y = []
-								temp_z = []
-
-								#print last_time
-								axivity_timestamps.append(last_time)
-								axivity_x.append(mean_x)
-								axivity_y.append(mean_y)
-								axivity_z.append(mean_z)
-								last_time = t
-
-
-						else:
-							axivity_timestamps.append(t)
-							axivity_x.append(x)
-							axivity_y.append(y)
-							axivity_z.append(z)
+						axivity_timestamps.append(t)
+						axivity_x.append(x)
+						axivity_y.append(y)
+						axivity_z.append(z)
 
 
 				header = axivity_read(fh,2)

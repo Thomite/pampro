@@ -3,7 +3,7 @@ import math
 import numpy as np
 import sys
 from datetime import datetime
-
+import json
 '''
 def job_indices(n, num_jobs, job_list_size):
 
@@ -25,6 +25,20 @@ def job_indices(n, num_jobs, job_list_size):
 		start_index = end_index
 '''
 
+def get_feedback(filename):
+	
+	file = open(filename, "r")
+	feedback = json.loads(file.read())
+	file.close()
+	return feedback
+
+def write_feedback(feedback, filename):
+	
+	file = open(filename, "w")
+	file.write(json.dumps(feedback))
+	file.flush()
+	file.close()
+
 def job_indices(n, num_jobs, job_list_size):
 
     n = n-1
@@ -39,6 +53,7 @@ def job_indices(n, num_jobs, job_list_size):
         if i == n:
             return (start_index, end_index)
         start_index = end_index
+
 def load_job_details(job_file):
     
     data = np.genfromtxt(job_file, delimiter=',', dtype='str', skiprows=0)
@@ -53,17 +68,23 @@ def load_job_details(job_file):
     return master_dictionary
 
 
-def batch_process(analysis_function, job_file, job_num, num_jobs):
+def batch_process(analysis_function, job_file, job_num, num_jobs, live_feedback=False):
 
 	batch_start_time = datetime.now()
-
+	
+	# Load the document listing all the files to be processed
 	job_details = load_job_details(job_file)
 
+	# Using job_num and num_jobs, calculate which files this process should handle
 	job_section = job_indices(job_num, num_jobs, len(job_details))
-
 	my_jobs = job_details.keys()[job_section[0]:job_section[1]]
 
 	output_log = open(job_file + "_log_{}.csv".format(job_num), "w")
+
+	if live_feedback:
+		# Create a JSON file to store progress information in
+		feedback_filename = job_file + "_{}_status.json".format(job_num)
+		write_feedback({"job":job_num, "num_jobs":len(job_details), "progress":1, "complete":0}, feedback_filename)
 
 	for n, job in enumerate(my_jobs):
 
@@ -71,10 +92,14 @@ def batch_process(analysis_function, job_file, job_num, num_jobs):
 		job_start_time = datetime.now()
 		
 		try:
-			analysis_function( job_details[job] )
+			if live_feedback:
+				analysis_function( job_details[job], feedback_filename )
+			else:
+				analysis_function( job_details[job] )
+	
 		except:
-			print("Exception:" + str(sys.exc_info()[0]))
-			output_log.write("Exception:" + str(sys.exc_info()[0]) + "\n")
+			print("Exception:" + str(sys.exc_info()))
+			output_log.write("Exception:" + str(sys.exc_info()) + "\n")
 
 		job_end_time = datetime.now()
 		job_duration = job_end_time - job_start_time
@@ -83,10 +108,21 @@ def batch_process(analysis_function, job_file, job_num, num_jobs):
 		batch_duration = job_end_time - batch_start_time
 		batch_remaining = (len(my_jobs)-n)*job_duration
 		print("Batch run time: " + str(batch_duration))
-		print("Time remaining: " + str(batch_remaining) + "\n")
+		print("Time remaining: " + str(batch_remaining))
+		print("Predicted completion time:" + str((batch_remaining + datetime.now())) + "\n")
+
+		if live_feedback:
+			feedback = get_feedback(feedback_filename)
+			feedback["progress"] += 1
+			write_feedback(feedback, feedback_filename)
 
 	batch_end_time = datetime.now()
 	batch_duration = batch_end_time - batch_start_time
 	print("Batch run time: " + str(batch_duration))
+
+	if live_feedback:
+		feedback = get_feedback(feedback_filename)
+		feedback["complete"] = 1
+		write_feedback(feedback, feedback_filename)
 
 	output_log.close()
