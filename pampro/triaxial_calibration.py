@@ -189,7 +189,7 @@ def mutate_solution(solution):
     if index in [0,2,4]:
         mutation_value = 0.0005
     else:
-        mutation_value = 0.00000025
+        mutation_value = 0.0000025
     
 	# Perturb the value at the random index using a random Gaussian value with mutation_value delta.
     mutant.values[index] = mutant.values[index] + (random.gauss(0.0, mutation_value ))
