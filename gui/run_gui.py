@@ -161,15 +161,18 @@ class GUI(QtGui.QMainWindow):
 			for i in range(1, num_jobs+1):
 				command = "sge ~/anaconda/bin/ipython --matplotlib=None " + script + " " + job_file + " " + str(i) + " " + str(num_jobs)
 				print command
+
 				os.system(str(command))
 				time.sleep(0.5)
+
+
 		else:
 			print "Single process"
 
 			command = "sge ~/anaconda/bin/ipython --matplotlib=None " + script + " " + job_file + " 1 1"
 			print command
+
 			os.system(str(command))
-		
 
 		
 

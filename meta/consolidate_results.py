@@ -15,7 +15,9 @@ prefix = sys.argv[2]
 # List all matching files
 files = glob.glob(folder + "/" + prefix + "*.csv")
 
+
 print("Found {} files matching {}/{}*.csv".format(len(files),folder,prefix))
+
 
 # Create the output file
 output = open(folder + "/" + prefix + "_all.csv", "w")
@@ -25,7 +27,6 @@ first_file = open(files[0], "r")
 output.write(first_file.read())
 first_file.close()
 
-print files[0]
 
 for filename in files:
 
