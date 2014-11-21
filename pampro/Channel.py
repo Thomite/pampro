@@ -553,6 +553,11 @@ def channel_from_bouts(bouts, time_period, time_resolution, channel_name, skelet
 # 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
 # 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+def twos_comp(val, bits):
+
+	if( (val&(1<<(bits-1))) != 0 ):
+		val = val - (1<<bits)
+	return val
 
 def byte(value):
 	return (value + 2 ** 7) % 2 ** 8 - 2 ** 7
@@ -727,6 +732,28 @@ def parse_header(header, type, datetime_format):
 		start_datetime = start_date + start_time
 		header_info["start_datetime"] = start_datetime
 
+	elif type == "GeneActiv":
+
+		header_info["start_datetime"] = header[21][11:]
+
+		header_info["start_datetime_python"] = datetime.strptime(header_info["start_datetime"], "%Y-%m-%d %H:%M:%S:%f")
+
+		header_info["device_id"] = header[1].split(":")[1]
+		header_info["firmware"] = header[4][24:]
+		header_info["calibration_date"] = header[5][17:]
+		header_info["frequency"] = float(header[19].split(":")[1].replace(" Hz", ""))
+		header_info["epoch"] = timedelta(seconds=1) / int(header_info["frequency"])
+
+		header_info["x_gain"] = float(header[47].split(":")[1])
+		header_info["x_offset"] = float(header[48].split(":")[1])
+		header_info["y_gain"] = float(header[49].split(":")[1])
+		header_info["y_offset"] = float(header[50].split(":")[1])
+		header_info["z_gain"] = float(header[51].split(":")[1])
+		header_info["z_offset"] = float(header[52].split(":")[1])
+
+		header_info["number_pages"] = int(header[57].split(":")[1])
+
+		return header_info
 
 	return header_info
 
@@ -1114,3 +1141,66 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 		channel_z.set_contents(axivity_z, axivity_timestamps)
 
 		return [channel_x,channel_y,channel_z]
+
+	elif (source_type == "GeneActiv"):
+
+		f = open(source, "rb")
+		data = io.BytesIO(f.read())
+		#print("File read in")
+
+		first_lines = [data.readline().strip() for i in range(59)]
+		header_info = parse_header(first_lines, "GeneActiv", "")
+		#print header_info
+
+		n = header_info["number_pages"]
+		obs_num = 0
+		num = 300
+		x_values = np.empty(num*n)
+		y_values = np.empty(num*n)
+		z_values = np.empty(num*n)
+		time_values = np.array([header_info["start_datetime_python"]])
+		time_values = np.resize(time_values, num*n)
+
+		# For each page
+		for i in range(n):
+			
+			#xs,ys,zs,times = read_block(data, header_info)
+			lines = [data.readline().strip() for i in range(9)]
+			page_time = datetime.strptime(lines[3][10:29], "%Y-%m-%d %H:%M:%S") + timedelta(microseconds=int(lines[3][30:])*1000)
+	
+			# For each 12 byte measurement in page (300 of them)
+			for j in range(num):
+				
+				time = page_time + (j * header_info["epoch"])
+
+				block = data.read(12)
+				
+				x = int(block[0:3], 16)
+				y = int(block[3:6], 16)
+				z = int(block[6:9], 16)
+			
+				x, y, z = twos_comp(x, 12), twos_comp(y, 12), twos_comp(z, 12)
+
+				x_values[obs_num] = x
+				y_values[obs_num] = y
+				z_values[obs_num] = z
+				time_values[obs_num] = time
+				obs_num += 1
+
+
+			excess = data.read(2)
+		
+
+		x_values = np.array([(x * 100.0 - header_info["x_offset"]) / header_info["x_gain"] for x in x_values])
+		y_values = np.array([(y * 100.0 - header_info["y_offset"]) / header_info["y_gain"] for y in y_values])
+		z_values = np.array([(z * 100.0 - header_info["z_offset"]) / header_info["z_gain"] for z in z_values])
+
+		x_channel = Channel("X")
+		y_channel = Channel("Y")
+		z_channel = Channel("Z")
+		
+		x_channel.set_contents(x_values, time_values)
+		y_channel.set_contents(y_values, time_values)
+		z_channel.set_contents(z_values, time_values)
+
+		return [x_channel, y_channel, z_channel]

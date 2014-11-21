@@ -27,6 +27,84 @@ def produce_binary_channels(bouts, lengths, skeleton_channel):
 
 	return channels
 
+
+def infer_sleep_triaxial_wrist(vm,enmo,pitch,roll):
+
+
+
+	print "A"
+	result = Channel.Channel("Sleep")
+	enmo_prob = enmo.piecewise_statistics(timedelta(minutes=10), statistics=["sum"], time_period=enmo.timeframe)[0]
+	pitch_prob = pitch.piecewise_statistics(timedelta(minutes=10), statistics=["std"], time_period=pitch.timeframe)[0]
+	roll_prob = roll.piecewise_statistics(timedelta(minutes=10), statistics=["std"], time_period=roll.timeframe)[0]
+	print "C"
+	pitch_prob.normalise()
+	roll_prob.normalise()
+	enmo_prob.normalise()
+	print "D"
+	product = np.multiply(np.multiply(pitch_prob.data, roll_prob.data), enmo_prob.data)
+	print "E"
+	result.set_contents(product, pitch_prob.timestamps)
+	print "F"
+
+	return result
+
+
+
+def activpal_classification(pitch):
+
+	transition_sit_stand = 32 # Sit -> Stand if angle >= 32
+	transition_stand_sit = 22 # Stand -> Sit if angle <= 22
+	ten_seconds_in_samples = 200 #20Hz
+
+	classification = copy.deepcopy(pitch)
+	classification.name = "activPAL_class"
+	classification.data.fill(0)
+
+	current_classification = 0 # 0 = sitting, 1 = standing, 2 = stepping
+	bout_length = 0
+	bout_index = 0
+	for index,value in enumerate(pitch.data):
+		
+		classification[index] = current_classification
+
+		if current_classification == 0:
+
+			if value >= transition_sit_stand:
+				
+				if bout_length == 0:
+					bout_length = 1
+					bout_index = index
+
+				else:
+					bout_length += 1
+					if bout_length >= ten_seconds_in_samples:
+						current_classification = 1
+						classification.data[bout_index:index] = 1
+
+			else:
+				bout_length = 0
+				bout_index = index
+
+		elif current_classification == 1:
+			if value <= transition_stand_sit:
+			
+				if bout_length == 0:
+					bout_length = 1
+					bout_index = index
+
+				else:
+					bout_length += 1
+					if bout_length >= ten_seconds_in_samples:
+						current_classification = 0
+						classification.data[bout_index:index] = 0
+
+			else:
+				bout_length = 0
+				bout_index = index
+
+	return classification
+
 def infer_sleep_actiheart(actiheart_activity, actiheart_ecg):
 
 	ecg_ma = actiheart_ecg.moving_average(30)
@@ -122,18 +200,18 @@ def infer_nonwear_triaxial(x,y,z, noise_cutoff_mg=13):
 	stats = {x.name:["std"], y.name:["std"], z.name:["std"]}
 
 	results = Time_Series.Time_Series("Results")
-	results.add_channels(x.piecewise_statistics(timedelta(minutes=30), statistics=["std"], time_period=(time_utilities.start_of_hour(x.timeframe[0]), time_utilities.end_of_hour(x.timeframe[1]))))
-	results.add_channels(y.piecewise_statistics(timedelta(minutes=30), statistics=["std"], time_period=(time_utilities.start_of_hour(x.timeframe[0]), time_utilities.end_of_hour(x.timeframe[1]))))
-	results.add_channels(z.piecewise_statistics(timedelta(minutes=30), statistics=["std"], time_period=(time_utilities.start_of_hour(x.timeframe[0]), time_utilities.end_of_hour(x.timeframe[1]))))
+	results.add_channels(x.piecewise_statistics(timedelta(minutes=10), statistics=["std"], time_period=(time_utilities.start_of_hour(x.timeframe[0]), time_utilities.end_of_hour(x.timeframe[1]))))
+	results.add_channels(y.piecewise_statistics(timedelta(minutes=10), statistics=["std"], time_period=(time_utilities.start_of_hour(x.timeframe[0]), time_utilities.end_of_hour(x.timeframe[1]))))
+	results.add_channels(z.piecewise_statistics(timedelta(minutes=10), statistics=["std"], time_period=(time_utilities.start_of_hour(x.timeframe[0]), time_utilities.end_of_hour(x.timeframe[1]))))
 
 	x_std = results.get_channel(x.name + "_std")
 	y_std = results.get_channel(y.name + "_std")
 	z_std = results.get_channel(z.name + "_std")
 
 	# Find bouts where monitor was still for long periods
-	x_bouts = x_std.bouts(0, float(noise_cutoff_mg)/1000.0, timedelta(minutes=30))
-	y_bouts = y_std.bouts(0, float(noise_cutoff_mg)/1000.0, timedelta(minutes=30))
-	z_bouts = z_std.bouts(0, float(noise_cutoff_mg)/1000.0, timedelta(minutes=30))
+	x_bouts = x_std.bouts(0, float(noise_cutoff_mg)/1000.0, timedelta(minutes=60))
+	y_bouts = y_std.bouts(0, float(noise_cutoff_mg)/1000.0, timedelta(minutes=60))
+	z_bouts = z_std.bouts(0, float(noise_cutoff_mg)/1000.0, timedelta(minutes=60))
 	
 	# Get the times where those bouts overlap
 	x_intersect_y = Bout.bout_list_intersection(x_bouts, y_bouts)
