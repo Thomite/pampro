@@ -10,6 +10,7 @@ PAMPRO is a software project for the systematic analysis of physical activity da
 * Import channels of time series data from a variety of common monitors:
 	* ActiHeart (.txt)
 	* Axivity binary (.cwa)
+	* GeneActiv (.bin)
 	* Actigraph (.dat)
 	* Any timestamped data (.csv)
 * Output piecewise summary statistics of any data channel, over any size time window:
