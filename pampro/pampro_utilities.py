@@ -21,7 +21,7 @@ def design_file_header(statistics):
 			
 			file_header = file_header + "," + variable_name
 
-	print file_header
+	#print(file_header)
 	return file_header
 
 def design_data_dictionary(statistics_dictionary):

@@ -102,12 +102,12 @@ def calibrate(x,y,z, allow_overwrite=True, budget=7500, noise_cutoff_mg=13):
 	# First calculate how "uncalibrated" the data currently is
 	nothing = optipy.Solution([0.0,1.0,0.0,1.0,0.0,1.0])
 	evaluate_solution_2(nothing)
-	print nothing.fitness, nothing.values
+	print(str(nothing.fitness) + " " + str(nothing.values))
 	#print("calibrate H")
 	# Perform the actual optimisation procedure and return the best solution
 	best_solution, diagnostics = optipy.perform_optimisation ("SA", generic_optimisation_functions, generic_optimisation_parameters, specific_optimisation_functions, specific_optimisation_parameters)
 	#print("calibrate I")
-	print best_solution.fitness, best_solution.values
+	print(str(best_solution.fitness) + " " + str(best_solution.values))
 
 	if allow_overwrite:
 		# If we do not need to preserve the original x,y,z values, we can just calibrate that data

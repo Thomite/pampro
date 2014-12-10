@@ -32,20 +32,20 @@ def infer_sleep_triaxial_wrist(vm,enmo,pitch,roll):
 
 
 
-	print "A"
+	print("A")
 	result = Channel.Channel("Sleep")
 	enmo_prob = enmo.piecewise_statistics(timedelta(minutes=10), statistics=["sum"], time_period=enmo.timeframe)[0]
 	pitch_prob = pitch.piecewise_statistics(timedelta(minutes=10), statistics=["std"], time_period=pitch.timeframe)[0]
 	roll_prob = roll.piecewise_statistics(timedelta(minutes=10), statistics=["std"], time_period=roll.timeframe)[0]
-	print "C"
+	print("C")
 	pitch_prob.normalise()
 	roll_prob.normalise()
 	enmo_prob.normalise()
-	print "D"
+	print("D")
 	product = np.multiply(np.multiply(pitch_prob.data, roll_prob.data), enmo_prob.data)
-	print "E"
+	print("E")
 	result.set_contents(product, pitch_prob.timestamps)
-	print "F"
+	print("F")
 
 	return result
 

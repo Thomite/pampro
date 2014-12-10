@@ -88,7 +88,8 @@ class Channel(object):
 		min_value = min(self.data)
 		increment = float(max_value - min_value)/float(bins)
 
-		print min_value, max_value
+		print(min_value) 
+        print(max_value)
 
 		ranges = []
 		low = min_value
@@ -102,7 +103,7 @@ class Channel(object):
 			ranges.append((low, high, i))
 			low += increment
 
-		print ranges
+		print(str(ranges))
 
 		return self.collapse(ranges)
 
@@ -413,8 +414,8 @@ class Channel(object):
 			self.timestamps = np.delete(self.timestamps, indices, None)
 
 		self.calculate_timeframe()
-			#del self.data[indices[0]:indices[-1]]
-			#del self.timestamps[indices[0]:indices[-1]]
+
+        self.cached_indices = {}
 
 	def restrict_timeframe(self, start, end):
 
@@ -529,7 +530,7 @@ def channel_from_bouts(bouts, time_period, time_resolution, channel_name, skelet
 		filled = np.empty(len(timestamps))
 		filled.fill(out_value)
 
-		print time_period
+		print(time_period)
 		print("Length of timestamps:" + str(len(timestamps)))
 		print("Length of filled:" + str(len(filled)))
 
@@ -1074,7 +1075,7 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 					#	continue
 
 					if ((numAxesBPS >> 4) & 15) != 3:
-						print '[ERROR: num-axes not expected]'
+						print('[ERROR: num-axes not expected]')
 
 					if (numAxesBPS & 15) == 2:
 						bps = 6
@@ -1127,7 +1128,7 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 		except IOError:
 			pass
 
-		print n
+		print(n)
 
 		axivity_x = np.array(axivity_x)
 		axivity_y = np.array(axivity_y)
