@@ -30,14 +30,20 @@ def calibrate(x,y,z, allow_overwrite=True, budget=7500, noise_cutoff_mg=13):
 	still_bouts = Bout.bout_list_intersection(x_y_bouts, z_bouts)
 
 	
-	#print(len(still_bouts))
-	#print(Bout.total_time(still_bouts))
+	print("Num still bouts", len(still_bouts))
+	print("Total still time", Bout.total_time(still_bouts).total_seconds())
 
 
 	# Get the average X,Y,Z for each still bout (inside which, by definition, XYZ should not change)
 	still_x, still_x_std, num_samples = x.build_statistics_channels(still_bouts, ["mean", "std", "n"])
 	still_y, still_y_std = y.build_statistics_channels(still_bouts, ["mean", "std"])
 	still_z, still_z_std = z.build_statistics_channels(still_bouts, ["mean", "std"])
+
+	#print(still_x_std.data)
+	#print(still_y_std.data)
+	#print(still_z_std.data)
+    
+
 
 	still_x.name = "still_x"
 	still_y.name = "still_y"
@@ -95,7 +101,7 @@ def calibrate(x,y,z, allow_overwrite=True, budget=7500, noise_cutoff_mg=13):
 	generic_optimisation_parameters = {"evaluations":budget, "minimise":True }
 	generic_optimisation_functions = {"evaluation_function":evaluate_solution_2, "generator_function":random_solution}
 
-	specific_optimisation_parameters = {}
+	specific_optimisation_parameters = {"elitism":0, "selection_strategy":"proportional", "population_size":40}
 	specific_optimisation_functions = {"mutation_function":mutate_solution}
 	#print("calibrate G")
 	#---------------------------------------------------------------------
@@ -103,11 +109,13 @@ def calibrate(x,y,z, allow_overwrite=True, budget=7500, noise_cutoff_mg=13):
 	nothing = optipy.Solution([0.0,1.0,0.0,1.0,0.0,1.0])
 	evaluate_solution_2(nothing)
 	print(str(nothing.fitness) + " " + str(nothing.values))
-	#print("calibrate H")
+	
 	# Perform the actual optimisation procedure and return the best solution
 	best_solution, diagnostics = optipy.perform_optimisation ("SA", generic_optimisation_functions, generic_optimisation_parameters, specific_optimisation_functions, specific_optimisation_parameters)
-	#print("calibrate I")
+	
 	print(str(best_solution.fitness) + " " + str(best_solution.values))
+
+	print(diagnostics)
 
 	if allow_overwrite:
 		# If we do not need to preserve the original x,y,z values, we can just calibrate that data
@@ -138,28 +146,16 @@ def calibrate(x,y,z, allow_overwrite=True, budget=7500, noise_cutoff_mg=13):
 
 def do_calibration(x,y,z,values):
     
-    #global ts_still
-    
-    #x = ts_still.get_channel("still_x")
-    #y = ts_still.get_channel("still_y")
-    #z = ts_still.get_channel("still_z")
-    
-    x.data = (values[0]) + (x.data * values[1])
-    y.data = (values[2]) + (y.data * values[3])
-    z.data = (values[4]) + (z.data * values[5])
+    x.data = values[0] + (x.data * values[1])
+    y.data = values[2] + (y.data * values[3])
+    z.data = values[4] + (z.data * values[5])
 
 
 def undo_calibration(x,y,z,values):
     
-    #global ts_still
-    
-    #x = ts_still.get_channel("still_x")
-    #y = ts_still.get_channel("still_y")
-    #z = ts_still.get_channel("still_z")
-    
-    x.data = (x.data- values[0]) / values[1]
-    y.data = (y.data- values[2]) / values[3]
-    z.data = (z.data- values[4]) / values[5]
+    x.data = -values[0] + (x.data / values[1])
+    y.data = -values[2] + (y.data / values[3])
+    z.data = -values[4] + (z.data / values[5])
 
 
 def evaluate_solution_2(solution):
@@ -176,22 +172,22 @@ def evaluate_solution_2(solution):
 	# Get the VM of the calibrated channel
     vm = channel_inference.infer_vector_magnitude(x,y,z)     
     
-	# Root mean standard error
+	# se = sum error
     se = 0.0
 
     for vm_val,n in zip(vm.data, num_samples.data):
-        se += (abs(1.0 - vm_val)*n)**2
+        se += (abs(1.0 - vm_val)**2)*n
 
     
-    mse = se / len(vm.data)
-    rmse = math.sqrt(mse) 
+    #mse = se / len(vm.data)
+    #rmse = math.sqrt(mse) 
         
-    solution.fitness = rmse
+    solution.fitness = se
     
 	# Undo the temporary calibration
     undo_calibration(ts_still.get_channel("still_x"),ts_still.get_channel("still_y"),ts_still.get_channel("still_z"),solution.values)
     
-    return rmse
+    return se
 
 
 
@@ -204,19 +200,20 @@ def mutate_solution(solution):
 
     mutant = copy.deepcopy(solution)
 
-	# Randomly pick a value to change
-    index = random.randint(0, len(mutant.values)-1)
-    
-	# The scale values are at indices 0,2 and 4. Since they change the data much more significantly, we adjust these values much less than the offset values.
-    if index in [0,2,4]:
-        mutation_value = 0.0005
+	# Pick a value to change - 90% of the time, change an offset parameter rather than a scale
+    if random.random() < 0.9:
+        index = random.choice([0,2,4])
     else:
+        index = random.choice([1,3,5])
 
-        mutation_value = 0.0000025
-		# low =  0.00000025
-		# high = 0.0000025
+	# The scale values are at indices 1,3 and 5. Since they change the data much more significantly, we adjust these values much less than the offset values.
+    if index in [0,2,4]:
+        mutation_value = 0.00025
+    else:
+        mutation_value = 0.00000025
 
-	# Perturb the value at the random index using a random Gaussian value with mutation_value delta.
+	# Perturb the value at the random index using a random Cauchy value with mutation_value delta.
     mutant.values[index] = mutant.values[index] + (random.gauss(0.0, mutation_value ))
     
+
     return mutant

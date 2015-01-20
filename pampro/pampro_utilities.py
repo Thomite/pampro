@@ -3,26 +3,38 @@ import collections
 
 def design_variable_name(signal, statistic):
 
-	variable_name = "error"
-	if isinstance(statistic, list):
-		variable_name = str(signal) + "_" + str(statistic[0]) + "_" + str(statistic[1])
-	else:
-		variable_name = str(signal) + "_" + str(statistic)
+    variable_name = "error"
+    if isinstance(statistic, list):
 
-	return variable_name
+        if statistic[0] == "bigrams":
+
+            variable_name = ""
+            for val1 in statistic[1]:
+                for val2 in statistic[1]:
+
+                    variable_name += str(signal) + "_" + str(val1) + "tr" + str(val2) + ","
+    
+            variable_name = variable_name[:-1]
+    
+        else:
+            variable_name = str(signal) + "_" + str(statistic[0]) + "_" + str(statistic[1])
+    else:
+        variable_name = str(signal) + "_" + str(statistic)
+
+    return variable_name
 
 def design_file_header(statistics):
-	
-	file_header = "id,timestamp"
-	for k,v in statistics.items():
-		for stat in v:
+    
+    file_header = "id,timestamp"
+    for k,v in statistics.items():
+        for stat in v:
 
-			variable_name = design_variable_name(k,stat)
-			
-			file_header = file_header + "," + variable_name
+            variable_name = design_variable_name(k,stat)
+            
+            file_header = file_header + "," + variable_name
 
-	#print(file_header)
-	return file_header
+    #print(file_header)
+    return file_header
 
 def design_data_dictionary(statistics_dictionary):
     
@@ -54,8 +66,15 @@ def design_data_dictionary(statistics_dictionary):
                 sans_n = variable_name[:-2]
                 data_dictionary[variable_name] = "Number of observations in {}".format(sans_n)
             elif isinstance(stat, list):
-                sans_limits = variable_name.replace("_{}_{}".format(stat[0], stat[1]), "")
-                data_dictionary[variable_name] = "Number of values in {} at >= {} & <= {}".format(sans_limits, stat[0], stat[1])
+
+                if stat[0] == "bigrams":
+                
+                    pass
+
+                else:
+
+                    sans_limits = variable_name.replace("_{}_{}".format(stat[0], stat[1]), "")
+                    data_dictionary[variable_name] = "Number of values in {} at >= {} & <= {}".format(sans_limits, stat[0], stat[1])
             elif percentile_pattern.match(stat):
                 match_value = percentile_pattern.match(stat).groups()[1]
                 percentile = int(match_value)
