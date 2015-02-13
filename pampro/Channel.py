@@ -966,10 +966,10 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 		first_lines = []
 		for i in range(0,10):
 			s = file_handle.readline().strip().decode("utf-8")
-			print(s)
+			#print(s)
 			first_lines.append(s)
 
-		print(first_lines)
+		#print(first_lines)
 
 		header_info = parse_header(first_lines, "GT3X+_CSV", "")
 
