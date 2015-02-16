@@ -1,11 +1,8 @@
 
 from datetime import timedelta
-import Channel
-import Bout
+from pampro import Channel, Bout, Time_Series, time_utilities
 import numpy as np
 import copy
-import Time_Series
-import time_utilities
 
 def produce_binary_channels(bouts, lengths, skeleton_channel):
 	

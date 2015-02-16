@@ -13,6 +13,6 @@ setup(
     author_email = "thomite@gmail.com",
     description = ("Physical Activity Monitoring Processing"),
     url = "https://github.com/Thomite/pampro",
-    install_requires = ['numpy', 'scipy', 'matplotlib', 'optipy']
+    install_requires = ['numpy', 'scipy', 'matplotlib']
 )
 

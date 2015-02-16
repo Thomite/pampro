@@ -28,7 +28,7 @@ output.write(first_file.read())
 first_file.close()
 
 
-for filename in files:
+for filename in files[1:]:
 
 	# Copy the data of every other file, excluding the header
 	fh = open(filename, "r")

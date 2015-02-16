@@ -148,7 +148,7 @@ def write_bouts_to_file(bouts, file_target):
 def read_bouts(file_source, date_format="%d/%m/%Y %H:%M:%S:%f"):
 
 
-	data = np.loadtxt(file_source, delimiter=',', dtype='str')
+	data = np.loadtxt(file_source, delimiter=',', dtype='S').astype("U")
 
 	bouts = []
 	for start,end in zip(data[:,0],data[:,1]):

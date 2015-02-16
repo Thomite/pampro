@@ -1,11 +1,8 @@
 
 from datetime import timedelta
-import Channel
-import Bout
+from pampro import Channel, Bout, signal_comparison
 import numpy as np
 import copy
-import signal_comparison
-
 
 def axis_scatter_a_vs_b(ax, channel1, channel2):
 
