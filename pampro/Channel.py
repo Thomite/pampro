@@ -197,44 +197,50 @@ class Channel(object):
                     output_row.append(len(indices))
                 elif isinstance(stat, list):
 
-                    indices2 = np.where((self.data[indices] >= stat[0]) & (self.data[indices] <= stat[1]))[0]
-                    output_row.append(len(indices2))
+                    if stat[0] == "bigrams":
+
+                        unique_values = stat[1]
+                        # 1 channel for each permutation of unique_value -> unique_value
+                        pairs = {}
+                        for val1 in unique_values:
+                            pairs[val1] = {}
+                            for val2 in unique_values:
+                                pairs[val1][val2] = 0
+
+                        # Count transitions from each unique value to the next
+                        for val1, val2 in zip(self.data[indices], self.data[indices[1:]]):
+                            pairs[val1][val2] += 1
+
+                        for val1 in unique_values:
+                            for val2 in unique_values:
+                                output_row.append(pairs[val1][val2])
+
+                    else:
+                        indices2 = np.where((self.data[indices] >= stat[0]) & (self.data[indices] <= stat[1]))[0]
+                        output_row.append(len(indices2))
+
                 elif percentile_pattern.match(stat):
                     # for p25, p50, etc
                     percentile = int(percentile_pattern.match(stat).groups()[1])
                     output_row.append(np.percentile(self.data[indices],percentile))
-
-                elif stat == "bigrams":
-
-
-                    unique_values = np.unique(self.data)
-
-                    # 1 channel for each permutation of unique_value -> unique_value
-                    pairs = {}
-                    for val1 in unique_values:
-                        pairs[val1] = {}
-                        for val2 in unique_values:
-                            pairs[val1][val2] = 0
-
-                    # Count transitions from each unique value to the next
-                    for val1, val2 in zip(self.data[indices], self.data[indices[1:]]):
-                        pairs[val1][val2] += 1
-
-                    for val1 in unique_values:
-                        for val2 in unique_values:
-                            output_row.append(pairs[val1][val2])
-
+                   
                 else:
                     output_row.append(-1)
         else:
 
-            num_missings = len(statistics)
+            num_missings = 0
 
             # len(statistics) doesn't work for bigrams
-            if "bigrams" in statistics:
-                unique_values = np.unique(self.data)
-                possible_transitions = len(unique_values)**2
-                num_missings = num_missings -1 + possible_transitions
+            for stat in statistics:
+                if isinstance(stat, list):
+                    if stat[0] == "bigrams":
+
+                        possible_transitions = len(stat[1])**2
+                        num_missings += possible_transitions
+                    else:
+                        num_missings += 1
+                else:
+                    num_missings +=1
 
             for i in range(num_missings):
 
@@ -249,29 +255,32 @@ class Channel(object):
         for var in statistics:
             name = self.name
             if isinstance(var, list):
-                name = self.name + "_" + str(var[0]) + "_" + str(var[1])
-                channel = Channel(name)
-                channel_list.append(channel)
 
-            elif var == "bigrams":
-                unique_values = np.unique(self.data)
+                if (var[0] == "bigrams"):
+                    for val1 in var[1]:
+                        for val2 in var[1]:
 
-                # 1 channel for each permutation of unique_value -> unique_value
-                for val1 in unique_values:
-                    for val2 in unique_values:
-                        name = self.name + "_" + str(val1) + "tr" + str(val2)
-
-                        channel = Channel(name)
-                        channel_list.append(channel)
+                            name += self.name + "_" + str(val1) + "tr" + str(val2)
+                            channel = Channel(name)
+                            channel_list.append(channel)
+                else:
+                    name = self.name + "_" + str(var[0]) + "_" + str(var[1])
+                    channel = Channel(name)
+                    channel_list.append(channel)
 
             else:
                 name = self.name + "_" + var
                 channel = Channel(name)
                 channel_list.append(channel)
 
+        num_expected_results = len(channel_list)
+
         for window in windows:
 
             results = self.window_statistics(window.start_timestamp, window.end_timestamp, statistics)
+            if len(results) != num_expected_results:
+                raise Exception("Incorrect number of statistics yielded. {} expected, {} given.".format(num_expected_results, len(results)))
+
             for i in range(len(results)):
                 #print len(results)
                 channel_list[i].append_data(window.start_timestamp, results[i])
@@ -586,8 +595,21 @@ def axivity_read_timestamp(stamp):
         t = None
     return t
 
+def axivity_read_timestamp_raw(stamp):
+    year = ((stamp >> 26) & 0x3f) + 2000
+    month = (stamp >> 22) & 0x0f
+    day   = (stamp >> 17) & 0x1f
+    hours = (stamp >> 12) & 0x1f
+    mins  = (stamp >>  6) & 0x3f
+    secs  = (stamp >>  0) & 0x3f
+    try:
+        t = datetime(year, month, day, hours, mins, secs)
+    except ValueError:
+        t = None
+    return t
+
 def axivity_read(fh, bytes):
-    data = fh.read(bytes)
+    data = fh.read(bytes).decode("ISO-8859-1")
     if len(data) == bytes:
         return data
     else:
@@ -621,14 +643,14 @@ def axivity_parse_header(fh):
 
     annotation = ""
     for x in annotationBlock:
-        if ord(x) != 255 and x != ' ':
+        if x != 255 and x != ' ':
             if x == '?':
                 x = '&'
-            annotation += x
+            annotation += str(x)
     annotation = annotation.strip()
 
     annotationElements = annotation.split('&')
-    annotationNames = {'_c': 'studyCentre', '_s': 'studyCode', '_i': 'investigator', '_x': 'exerciseCode', '_v': 'volunteerNum', '_p': 'bodyLocation', '_so': 'setupOperator', '_n': 'notes', '_b': 'startTime', '_e': 'endTime', '_ro': 'recoveryOperator', '_r': 'retrievalTime',           '_co': 'comments'}
+    annotationNames = {'_c': 'studyCentre', '_s': 'studyCode', '_i': 'investigator', '_x': 'exerciseCode', '_v': 'volunteerNum', '_p': 'bodyLocation', '_so': 'setupOperator', '_n': 'notes', '_b': 'startTime', '_e': 'endTime', '_ro': 'recoveryOperator', '_r': 'retrievalTime', '_co': 'comments'}
     annotations = dict()
     for element in annotationElements:
         kv = element.split('=', 2)
@@ -1187,69 +1209,61 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 
     elif (source_type == "Axivity_ZIP"):
 
-        channel_x = Channel("X")
-        channel_y = Channel("Y")
-        channel_z = Channel("Z")
+        channel_x = Channel.Channel("X")
+        channel_y = Channel.Channel("Y")
+        channel_z = Channel.Channel("Z")
 
-        # be sure to import zipfile
-
+        #print("Opening file")
         archive = zipfile.ZipFile(source, "r")
 
         without_filepath = source.split("/")[-1]
 
         cwa_not_zip = without_filepath.replace(".zip", ".cwa")
 
-        file_handle = archive.open(cwa_not_zip)
+        handle = archive.open(cwa_not_zip)
 
-        fh = io.BytesIO(file_handle.read())
+        raw_bytes = handle.read()
+        #print("Number of bytes:", len(raw_bytes))
+        #print("/512 = ", len(raw_bytes)/512)
 
+        fh = io.BytesIO(raw_bytes)
 
-        n= 0
+        n = 0
+        num_samples = 0
 
-        # Optimisation:
-        # Start with numpy arrays, especially timestamp array
-        axivity_timestamps = []
-        axivity_x = []
-        axivity_y = []
-        axivity_z = []
+        start = datetime(2014, 1, 1)
+
+        # Rough number of pages expected = length of file / size of block (512 bytes)
+        # Rough number of samples expected = pages * 120
+        # Add 1% buffer just to be cautious - it's trimmed later
+        estimated_size = int(((len(raw_bytes)/512)*120)*1.01)
+
+        #print("Estimated number of observations:", estimated_size)
+
+        axivity_x = np.empty(estimated_size)
+        axivity_y = np.empty(estimated_size)
+        axivity_z = np.empty(estimated_size)
+        axivity_timestamps = np.empty(estimated_size, dtype=type(start))
 
         try:
             header = axivity_read(fh,2)
 
-
-            temp_time = False
-
             while len(header) == 2:
 
-                if header == 'MD':
-                    #print 'MD'
+                if header == b'MD':
+                    #print('MD')
                     axivity_parse_header(fh)
-                elif header == 'UB':
-                    #print 'UB'
+                elif header == b'UB':
+                    #print('UB')
                     blockSize = unpack('H', axivity_read(fh,2))[0]
-                elif header == 'SI':
-                    #print 'SI'
+                elif header == b'SI':
+                    #print('SI')
                     pass
-                elif header == 'AX':
+                elif header == b'AX':
 
-                    # Optimisation: 
-                    # Do all of these with one unpack command?
-                    packetLength = unpack('H', axivity_read(fh,2))[0]
-                    deviceId = unpack('H', axivity_read(fh,2))[0]
-                    sessionId = unpack('I', axivity_read(fh,4))[0]
-                    sequenceId = unpack('I', axivity_read(fh,4))[0]
-                    sampleTime = axivity_read_timestamp(axivity_read(fh,4))
-                    light = unpack('H', axivity_read(fh,2))[0]
-                    temperature = unpack('H', axivity_read(fh,2))[0]
-                    events = axivity_read(fh,1)
-                    battery = unpack('B', axivity_read(fh,1))[0]
-                    sampleRate = unpack('B', axivity_read(fh,1))[0]
-                    numAxesBPS = unpack('B', axivity_read(fh,1))[0]
-                    timestampOffset = unpack('h', axivity_read(fh,2))[0]
-                    sampleCount = unpack('H', axivity_read(fh,2))[0]
-
-                    sampleData = io.BytesIO(axivity_read(fh,480))
-                    checksum = unpack('H', axivity_read(fh,2))[0]
+                    packetLength, deviceId, sessionId, sequenceId, sampleTimeData, light, temperature, events,battery,sampleRate, numAxesBPS, timestampOffset, sampleCount = unpack('HHIIIHHcBBBhH', axivity_read(fh,28))
+                    
+                    sampleTime = axivity_read_timestamp_raw(sampleTimeData)
 
                     if packetLength != 508:
                         continue
@@ -1258,22 +1272,7 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
                         continue
 
                     if sampleRate == 0:
-                        chksum = 0
-                    else:
-                        # rewind for checksum calculation
-                        fh.seek(-packetLength - 4, 1)
-                        # calculate checksum
-                        chksum = 0
-                        for x in range(packetLength / 2 + 2):
-                            chksum += unpack('H', axivity_read(fh,2))[0]
-                        chksum %= 2 ** 16
-
-                    if chksum != 0:
                         continue
-
-                    #if sessionId != self.sessionId:
-                    #    print "x"
-                    #    continue
 
                     if ((numAxesBPS >> 4) & 15) != 3:
                         print('[ERROR: num-axes not expected]')
@@ -1289,28 +1288,22 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
                         freq = 1
                     offsetStart = float(-timestampOffset) / float(freq)
 
-                    #print freq
 
-                    #print offsetStart
                     time0 = timestamp + timedelta(milliseconds=offsetStart)
+                    sampleOffset = (timedelta(seconds=1) / sampleCount)
 
-                    #print time0
-                    #print "* - {}".format(sampleCount)
+
                     for sample in range(sampleCount):
 
                         x,y,z,t = 0,0,0,0
 
                         if bps == 6:
-                            x = unpack('h', sampleData.read(2))[0] / 256.0
-                            y = unpack('h', sampleData.read(2))[0] / 256.0
-                            z = unpack('h', sampleData.read(2))[0] / 256.0
 
-                            # Optimisation: 
-                            # x,y,z = unpack('hhh', sampleData.read(6))[0]
-                            # x,y,z = x/256.0,y/256.0,z/256.0
+                            x,y,z = unpack('hhh', fh.read(6))
+                            x,y,z = x/256.0,y/256.0,z/256.0
 
                         elif bps == 4:
-                            temp = unpack('I', sampleData.read(4))[0]
+                            temp = unpack('I', fh.read(4))[0]
                             temp2 = (6 - byte(temp >> 30))
                             x = short(short((ushort(65472) & ushort(temp << 6))) >> temp2) / 256.0
                             y = short(short((ushort(65472) & ushort(temp >> 4))) >> temp2) / 256.0
@@ -1319,18 +1312,20 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
                             # Optimisation:
                             # Cache value of ushort(65472) ?
         
-                        #t = timedelta(milliseconds=(float(sample) / float(freq))*8.64) + time0
-                        t = sample*(timedelta(seconds=1) / sampleCount) + time0
-                        # Optimisation:
-                        # Cache timedelta(seconds=1) / sampleCount)
 
+                        t = sample*sampleOffset + time0
 
+                        axivity_x[num_samples] = x
+                        axivity_y[num_samples] = y
+                        axivity_z[num_samples] = z
+                        axivity_timestamps[num_samples] = t
+                        num_samples += 1
 
-                        axivity_timestamps.append(t)
-                        axivity_x.append(x)
-                        axivity_y.append(y)
-                        axivity_z.append(z)
+                    checksum = unpack('H', axivity_read(fh,2))[0]
 
+                else:
+                    #pass
+                    print("Unrecognised header", header)
 
                 header = axivity_read(fh,2)
 
@@ -1338,20 +1333,17 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
         except IOError:
             pass
 
-        print(n)
 
-        axivity_x = np.array(axivity_x)
-        axivity_y = np.array(axivity_y)
-        axivity_z = np.array(axivity_z)
-        axivity_timestamps = np.array(axivity_timestamps)
-
-        print(len(axivity_x))
+        axivity_x.resize(num_samples)
+        axivity_y.resize(num_samples)
+        axivity_z.resize(num_samples)
+        axivity_timestamps.resize(num_samples)
 
         channel_x.set_contents(axivity_x, axivity_timestamps)
         channel_y.set_contents(axivity_y, axivity_timestamps)
         channel_z.set_contents(axivity_z, axivity_timestamps)
 
-        return [channel_x,channel_y,channel_z]
+        return (channel_x,channel_y,channel_z)
 
     elif (source_type == "GeneActiv"):
 

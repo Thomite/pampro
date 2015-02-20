@@ -4,7 +4,7 @@ import numpy as np
 import sys
 from datetime import datetime
 import json
-'''
+
 def job_indices(n, num_jobs, job_list_size):
 
     n = n-1
@@ -23,7 +23,7 @@ def job_indices(n, num_jobs, job_list_size):
         if i == n:
             return (start_index,end_index)
         start_index = end_index
-'''
+
 
 def get_feedback(filename):
     
@@ -39,6 +39,7 @@ def write_feedback(feedback, filename):
     file.flush()
     file.close()
 
+"""
 def job_indices(n, num_jobs, job_list_size):
 
     n = n-1
@@ -53,6 +54,7 @@ def job_indices(n, num_jobs, job_list_size):
         if i == n:
             return (start_index, end_index)
         start_index = end_index
+"""
 
 def load_job_details(job_file):
     
@@ -99,7 +101,7 @@ def batch_process(analysis_function, job_file, job_num, num_jobs, live_feedback=
     
         except:
             print("Exception:" + str(sys.exc_info()))
-            output_log.write( str(job_details[job]) )
+            output_log.write( str(job_details[job]) + "\n" )
             output_log.write("Exception:" + str(sys.exc_info()) + "\n\n")
             
         job_end_time = datetime.now()
