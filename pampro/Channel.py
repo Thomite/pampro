@@ -1006,8 +1006,10 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
         file_handle = archive.open(filename)
         timestamps = np.genfromtxt(file_handle, delimiter=',', converters={0:convert_actigraph_timestamp}, skip_header=11, usecols=(0))
 
+
         file_handle = archive.open(filename)
         x,y,z = np.genfromtxt(file_handle, delimiter=',', skip_header=11, usecols=(1,2,3), unpack=True)
+
 
 
         x_chan = Channel("X")
