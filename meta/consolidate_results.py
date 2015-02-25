@@ -15,12 +15,18 @@ prefix = sys.argv[2]
 # List all matching files
 files = glob.glob(folder + "/" + prefix + "*.csv")
 
+# If this script has been run before, the previous output file will be in the list
+output_filename = folder + "/" + prefix + "_all.csv"
+files.remove(output_filename)
+
+
+files.sort()
 
 print("Found {} files matching {}/{}*.csv".format(len(files),folder,prefix))
 
 
 # Create the output file
-output = open(folder + "/" + prefix + "_all.csv", "w")
+output = open(output_filename, "w")
 
 # Copy all of the data from the first file, including header
 first_file = open(files[0], "r")
