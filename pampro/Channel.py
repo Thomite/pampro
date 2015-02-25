@@ -609,7 +609,7 @@ def axivity_read_timestamp_raw(stamp):
     return t
 
 def axivity_read(fh, bytes):
-    data = fh.read(bytes).decode("ISO-8859-1")
+    data = fh.read(bytes)
     if len(data) == bytes:
         return data
     else:
@@ -1211,9 +1211,9 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 
     elif (source_type == "Axivity_ZIP"):
 
-        channel_x = Channel.Channel("X")
-        channel_y = Channel.Channel("Y")
-        channel_z = Channel.Channel("Z")
+        channel_x = Channel("X")
+        channel_y = Channel("Y")
+        channel_z = Channel("Z")
 
         #print("Opening file")
         archive = zipfile.ZipFile(source, "r")

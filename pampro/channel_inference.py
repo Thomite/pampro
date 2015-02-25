@@ -168,13 +168,14 @@ def infer_nonwear_actigraph(counts, zero_minutes=timedelta(minutes=60)):
 
     nonwear_bouts = counts.bouts(0, 0, zero_minutes)
 
-    print("Num nonwear bouts: ")
-    print(len(nonwear_bouts))
+    #print("Num nonwear bouts: ", len(nonwear_bouts))
     wear_bouts = Bout.time_period_minus_bouts([counts.timeframe[0], counts.timeframe[1]], nonwear_bouts)
     
+    """
     wear = counts.subset_using_bouts(wear_bouts, "Wear_only", substitute_value=-1)
     #wear.delete_windows(nonwear_bouts)
 
+    
     print("wear.data length: " + str(len(wear.data)))
     bad_indices = np.where(wear.data == -1)
     print("Bad indices length:")
@@ -189,6 +190,10 @@ def infer_nonwear_actigraph(counts, zero_minutes=timedelta(minutes=60)):
     print("Done infer_nonwear")
 
     return [wear, wear_with_missings, wear_bouts, nonwear_bouts]
+    """
+    return nonwear_bouts, wear_bouts
+
+    
 
 
 def infer_still_bouts_triaxial(x, y, z, window_size=timedelta(minutes=10), noise_cutoff_mg=13):
