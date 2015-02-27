@@ -839,7 +839,7 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 
         return [actiheart_activity, actiheart_ecg]
 
-    elif (source_type == "activPAL"):
+    elif (source_type == "activPAL_CSV"):
 
         ap_timestamp, ap_x, ap_y, ap_z = np.loadtxt(source, delimiter=',', unpack=True, skiprows=5, dtype={'names':('ap_timestamp','ap_x','ap_y','ap_z'), 'formats':('S16','f8','f8','f8')})
         #print("A")
@@ -871,6 +871,148 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
         z.set_contents(np.array(ap_z, dtype=np.float64), ap_timestamps)
         #print("C")
         return [x,y,z]
+
+    
+    elif (source_type == "activPAL"):
+
+        f = open(source, "rb")
+        data = f.read()
+        filesize = len(data)
+        data = io.BytesIO(data)
+
+
+        #print("File read in")
+
+        #print("filesize", filesize)
+
+        A = unpack('1024s', data.read(1024))[0]
+
+        #print((A[276]) << 8 | (A[277]))
+        #print((A[278]) << 8 | (A[279]))
+
+
+        start_time = str((A[256])).rjust(2, "0") + ":" + str((A[257])).rjust(2, "0") + ":" + str((A[258])).rjust(2, "0")
+        start_date = str((A[259])).rjust(2, "0") + "/" + str((A[260])).rjust(2, "0") + "/" + str(2000 + (A[261]))
+
+        end_time = str((A[262])).rjust(2, "0") + ":" + str((A[263])).rjust(2, "0") + ":" + str((A[264])).rjust(2, "0")
+        end_date = str((A[265])).rjust(2, "0") + "/" + str((A[266])).rjust(2, "0") + "/" + str(2000 + (A[267]))
+
+        start = start_date + " " + start_time
+        end = end_date + " " + end_time
+
+        #print(start_date, start_time)
+        #print(end_date, end_time)
+
+
+        start_python = datetime.strptime(start, "%d/%m/%Y %H:%M:%S")
+        end_python = datetime.strptime(end, "%d/%m/%Y %H:%M:%S")
+        duration = end_python - start_python
+        
+        num_records = duration.total_seconds() / (timedelta(seconds=1)/20).total_seconds()
+
+        #print("expected records:", num_records)
+        #print("sampling frequency", (A[35]))
+
+        #print("header end", A[1012:1023])
+        
+        
+        n = 0
+        data_cache = False
+        # extract timestamp
+
+        x = np.zeros(num_records)
+        y = np.zeros(num_records)
+        z = np.zeros(num_records)
+
+        x.fill(-1.1212121212121)
+        y.fill(-1.1212121212121)
+        z.fill(-1.1212121212121)
+        
+        last_a,last_b,last_c = 0,0,0
+
+        while n < num_records and data.tell() < filesize:
+
+            try:
+                data_cache = data.read(3)
+                a,b,c = unpack('ccc', data_cache) 
+                a,b,c = ord(a), ord(b), ord(c)
+
+                #print(a,b,c)
+
+                # activPAL writes TAIL but these values could legitimately turn up
+                if a == 116 and b == 97 and c == 105: 
+                    # if a,b,c spell TAI
+
+                    d = ord(unpack('c', data.read(1))[0])
+                    # and if d == T, so TAIL just came up
+                    if d == 108:
+                        #print ("Found footer!")
+                        #print (data.tell())
+                        remainder = data.read()
+                    else:
+                    # Otherwise TAI came up coincidently
+                    # Meaning a,b,c was a legitimate record, and we just read in a from another record
+                    # So read in the next 2 bytes and record 2 records: a,b,c and d,e,f
+                        e,f = unpack('cc', data.read(2))
+                        e,f = ord(e), ord(f)
+                        x[n] = a
+                        y[n] = b
+                        z[n] = c
+                        n += 1
+                        x[n] = d
+                        y[n] = e
+                        z[n] = f
+                        n += 1
+
+                else:
+                    if a == 0 and b == 0:
+                        # repeat last abc C-1 times
+                        x[n:(n+c+1)] = [last_a for val in range(c+1)]
+                        y[n:(n+c+1)] = [last_b for val in range(c+1)]
+                        z[n:(n+c+1)] = [last_c for val in range(c+1)]
+                        n += c+1
+                    else:
+                        x[n] = a
+                        y[n] = b
+                        z[n] = c
+                        n += 1
+                    
+                last_a, last_b, last_c = a,b,c
+
+
+            except:
+                """
+                print("Exception tell", data.tell())
+                print(str(sys.exc_info()))
+                print("data_cache:", data_cache)
+                print("len(data_cache)", len(data_cache))
+                    
+                for a in data_cache:
+                    print(a)
+                """
+                break
+
+
+        x.resize(n)
+        y.resize(n)
+        z.resize(n)
+
+        x = (x-128.0)/64.0
+        y = (y-128.0)/64.0
+        z = (z-128.0)/64.0
+
+        delta = timedelta(seconds=1)/20
+        timestamps = np.array([start_python + delta*i for i in range(n)])
+
+        x_channel = Channel("X")
+        y_channel = Channel("Y")
+        z_channel = Channel("Z")
+
+        x_channel.set_contents(x, timestamps)
+        y_channel.set_contents(y, timestamps)
+        z_channel.set_contents(z, timestamps)
+
+        return (x_channel, y_channel, z_channel)
 
     elif (source_type == "GeneActiv_CSV"):
 
