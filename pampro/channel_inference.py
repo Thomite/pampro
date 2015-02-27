@@ -196,7 +196,7 @@ def infer_nonwear_actigraph(counts, zero_minutes=timedelta(minutes=60)):
     
 
 
-def infer_still_bouts_triaxial(x, y, z, window_size=timedelta(minutes=10), noise_cutoff_mg=13):
+def infer_still_bouts_triaxial(x, y, z, window_size=timedelta(seconds=10), noise_cutoff_mg=13):
     
     stats = {x.name:["std"], y.name:["std"], z.name:["std"]}
 

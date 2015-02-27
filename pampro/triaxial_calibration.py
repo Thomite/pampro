@@ -68,27 +68,22 @@ def find_calibration_parameters(x_input, y_input, z_input, num_iterations=1000):
 
     return final_x_offset, final_x_scale, final_y_offset, final_y_scale, final_z_offset, final_z_scale
 
-def calibrate(x,y,z, allow_overwrite=True, budget=7500, noise_cutoff_mg=13):
+def calibrate(x,y,z, allow_overwrite=True, budget=1000, noise_cutoff_mg=13):
 
 
-    ts_temp = Time_Series.Time_Series("Temporary")
-    ts_temp.add_channels([x,y,z])
-    stats = {x.name:["mean", "std"], y.name:["mean", "std"], z.name:["mean", "std"]}
+    vm = channel_inference.infer_vector_magnitude(x,y,z)
 
-    # Get 10 second windowed means and stdevs of X,Y,Z
-    result_chans = ts_temp.piecewise_statistics(timedelta(seconds=10), stats, time_period=x.timeframe)
-    ts_temp.add_channels(result_chans)
+    still_bouts = channel_inference.infer_still_bouts_triaxial(x,y,z, noise_cutoff_mg=noise_cutoff_mg)
 
-    x_bouts = ts_temp.get_channel(x.name + "_std").bouts(0, float(noise_cutoff_mg)/1000.0, timedelta(seconds=60))
-    y_bouts = ts_temp.get_channel(y.name + "_std").bouts(0, float(noise_cutoff_mg)/1000.0, timedelta(seconds=60))
-    z_bouts = ts_temp.get_channel(z.name + "_std").bouts(0, float(noise_cutoff_mg)/1000.0, timedelta(seconds=60))
+    num_still_bouts = len(still_bouts)
+    num_still_seconds = Bout.total_time(still_bouts).total_seconds()
+    num_reasonable_bouts = len(reasonable_bouts)
+    num_reasonable_seconds = Bout.total_time(reasonable_bouts).total_seconds()
 
-    # Intersect the bouts to get bouts where all axes have low stdev
-    x_y_bouts = Bout.bout_list_intersection(x_bouts, y_bouts)
-    still_bouts = Bout.bout_list_intersection(x_y_bouts, z_bouts)
-
-    #print("Num still bouts", len(still_bouts))
-    #print("Total still time", Bout.total_time(still_bouts).total_seconds())
+    still_bouts = Bout.bout_list_intersection(reasonable_bouts, still_bouts)
+    
+    num_final_bouts = len(still_bouts)
+    num_final_seconds = Bout.total_time(still_bouts).total_seconds()
 
     # Get the average X,Y,Z for each still bout (inside which, by definition, XYZ should not change)
     still_x, num_samples = x.build_statistics_channels(still_bouts, ["mean", "n"])
@@ -114,7 +109,7 @@ def calibrate(x,y,z, allow_overwrite=True, budget=7500, noise_cutoff_mg=13):
         # Apply the best calibration factors to the data
         do_calibration(x, y, z, calibration_parameters)
 
-        return (x, y, z, calibration_parameters, (start_error, end_error), (len(still_bouts), Bout.total_time(still_bouts).total_seconds() ))
+        return (x, y, z, calibration_parameters, (start_error, end_error), (num_final_bouts, num_final_seconds,num_still_bouts, num_still_seconds, num_reasonable_bouts, num_reasonable_seconds ))
 
     else:
         # Else we create an independent copy of the raw data and calibrate that instead
