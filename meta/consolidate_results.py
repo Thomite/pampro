@@ -17,8 +17,10 @@ files = glob.glob(folder + "/" + prefix + "*.csv")
 
 # If this script has been run before, the previous output file will be in the list
 output_filename = folder + "/" + prefix + "_all.csv"
-files.remove(output_filename)
-
+try:
+    files.remove(output_filename)
+except:
+    pass
 
 files.sort()
 
