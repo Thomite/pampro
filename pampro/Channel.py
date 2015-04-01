@@ -91,7 +91,7 @@ class Channel(object):
         min_value = min(self.data)
         increment = float(max_value - min_value)/float(bins)
 
-        print(min_value) 
+        print(min_value)
         print(max_value)
 
         ranges = []
@@ -209,7 +209,8 @@ class Channel(object):
 
                         # Count transitions from each unique value to the next
                         for val1, val2 in zip(self.data[indices], self.data[indices[1:]]):
-                            pairs[val1][val2] += 1
+                            if val1 in unique_values and val2 in unique_values:
+                                pairs[val1][val2] += 1
 
                         for val1 in unique_values:
                             for val2 in unique_values:
@@ -223,7 +224,7 @@ class Channel(object):
                     # for p25, p50, etc
                     percentile = int(percentile_pattern.match(stat).groups()[1])
                     output_row.append(np.percentile(self.data[indices],percentile))
-                   
+
                 else:
                     output_row.append(-1)
         else:
@@ -487,6 +488,11 @@ class Channel(object):
 
         self.data[indices] = fill_value
 
+    def fill_windows(self, bouts, fill_value=0):
+
+        for b in bouts:
+            self.fill(b, fill_value = fill_value)
+
     def fft(self):
 
         return np.fft.fft(self.data)
@@ -708,7 +714,7 @@ def parse_header(header, type, datetime_format):
         header_info["start_time"] = start_time
 
         test = header[3].split(" ")
-        start_date = test[-1].replace("-", "/")    
+        start_date = test[-1].replace("-", "/")
 
         try:
             start_date = datetime.strptime(start_date, datetime_format)
@@ -872,7 +878,7 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
         #print("C")
         return [x,y,z]
 
-    
+
     elif (source_type == "activPAL"):
 
         f = open(source, "rb")
@@ -903,19 +909,25 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
         #print(start_date, start_time)
         #print(end_date, end_time)
 
+        # Given in Hz
+        sampling_frequency = A[35]
+
+        # 0 = 2g, 1 = 4g (therefore double the raw values), 2 = 8g (therefore quadruple the raw values)
+        dynamic_range = A[38]
+        dynamic_multiplier = 2**dynamic_range
 
         start_python = datetime.strptime(start, "%d/%m/%Y %H:%M:%S")
         end_python = datetime.strptime(end, "%d/%m/%Y %H:%M:%S")
         duration = end_python - start_python
-        
-        num_records = duration.total_seconds() / (timedelta(seconds=1)/20).total_seconds()
+
+        num_records = duration.total_seconds() / (timedelta(seconds=1)/sampling_frequency).total_seconds()
 
         #print("expected records:", num_records)
         #print("sampling frequency", (A[35]))
 
         #print("header end", A[1012:1023])
-        
-        
+
+
         n = 0
         data_cache = False
         # extract timestamp
@@ -927,20 +939,20 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
         x.fill(-1.1212121212121)
         y.fill(-1.1212121212121)
         z.fill(-1.1212121212121)
-        
+
         last_a,last_b,last_c = 0,0,0
 
         while n < num_records and data.tell() < filesize:
 
             try:
                 data_cache = data.read(3)
-                a,b,c = unpack('ccc', data_cache) 
+                a,b,c = unpack('ccc', data_cache)
                 a,b,c = ord(a), ord(b), ord(c)
 
                 #print(a,b,c)
 
                 # activPAL writes TAIL but these values could legitimately turn up
-                if a == 116 and b == 97 and c == 105: 
+                if a == 116 and b == 97 and c == 105:
                     # if a,b,c spell TAI
 
                     d = ord(unpack('c', data.read(1))[0])
@@ -976,7 +988,7 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
                         y[n] = b
                         z[n] = c
                         n += 1
-                    
+
                 last_a, last_b, last_c = a,b,c
 
 
@@ -986,7 +998,7 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
                 print(str(sys.exc_info()))
                 print("data_cache:", data_cache)
                 print("len(data_cache)", len(data_cache))
-                    
+
                 for a in data_cache:
                     print(a)
                 """
@@ -1001,7 +1013,12 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
         y = (y-128.0)/64.0
         z = (z-128.0)/64.0
 
-        delta = timedelta(seconds=1)/20
+        if dynamic_multiplier > 1:
+            x *= dynamic_multiplier
+            y *= dynamic_multiplier
+            z *= dynamic_multiplier
+
+        delta = timedelta(seconds=1)/sampling_frequency
         timestamps = np.array([start_python + delta*i for i in range(n)])
 
         x_channel = Channel("X")
@@ -1406,7 +1423,7 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
                 elif header == b'AX':
 
                     packetLength, deviceId, sessionId, sequenceId, sampleTimeData, light, temperature, events,battery,sampleRate, numAxesBPS, timestampOffset, sampleCount = unpack('HHIIIHHcBBBhH', axivity_read(fh,28))
-                    
+
                     sampleTime = axivity_read_timestamp_raw(sampleTimeData)
 
                     if packetLength != 508:
@@ -1455,7 +1472,7 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 
                             # Optimisation:
                             # Cache value of ushort(65472) ?
-        
+
 
                         t = sample*sampleOffset + time0
 
@@ -1511,22 +1528,22 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 
         # For each page
         for i in range(n):
-            
+
             #xs,ys,zs,times = read_block(data, header_info)
             lines = [data.readline().strip().decode() for i in range(9)]
             page_time = datetime.strptime(lines[3][10:29], "%Y-%m-%d %H:%M:%S") + timedelta(microseconds=int(lines[3][30:])*1000)
-    
+
             # For each 12 byte measurement in page (300 of them)
             for j in range(num):
-                
+
                 time = page_time + (j * header_info["epoch"])
 
                 block = data.read(12)
-                
+
                 x = int(block[0:3], 16)
                 y = int(block[3:6], 16)
                 z = int(block[6:9], 16)
-            
+
                 x, y, z = twos_comp(x, 12), twos_comp(y, 12), twos_comp(z, 12)
                 #print(x,y,z)
                 x_values[obs_num] = x
@@ -1537,8 +1554,8 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
 
 
             excess = data.read(2)
-        
-        print("C") 
+
+        print("C")
         x_values = np.array([(x * 100.0 - header_info["x_offset"]) / header_info["x_gain"] for x in x_values])
         y_values = np.array([(y * 100.0 - header_info["y_offset"]) / header_info["y_gain"] for y in y_values])
         z_values = np.array([(z * 100.0 - header_info["z_offset"]) / header_info["z_gain"] for z in z_values])
@@ -1546,7 +1563,7 @@ def load_channels(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", d
         x_channel = Channel("X")
         y_channel = Channel("Y")
         z_channel = Channel("Z")
-        
+
         x_channel.set_contents(x_values, time_values)
         y_channel.set_contents(y_values, time_values)
         z_channel.set_contents(z_values, time_values)

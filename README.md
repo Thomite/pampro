@@ -12,6 +12,7 @@ PAMPRO is a software project for the systematic analysis of physical activity da
 	* Axivity binary (.cwa)
 	* GeneActiv (.bin)
 	* Actigraph (.dat)
+	* activPAL & activPAL micro binary (.datx)
 	* Any timestamped data (.csv)
 * Output piecewise summary statistics of any data channel, over any size time window:
 	* Time spent in any cutpoint.
