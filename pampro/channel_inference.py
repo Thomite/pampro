@@ -5,7 +5,7 @@ import numpy as np
 import copy
 
 def produce_binary_channels(bouts, lengths, skeleton_channel):
-    
+
     Bout.cache_lengths(bouts)
     bouts.sort(key=lambda x: x.length, reverse=True)
 
@@ -54,21 +54,21 @@ def activpal_classification(pitch):
     transition_stand_sit = 22 # Stand -> Sit if angle <= 22
     ten_seconds_in_samples = 200 #20Hz
 
-    classification = copy.deepcopy(pitch)
-    classification.name = "activPAL_class"
-    classification.data.fill(0)
+    # This should be faster than pointlessly copying the input array
+    classification = Channel.Channel("activPAL_class")
+    classification.set_contents(np.zeros(len(pitch.data)), pitch.timestamps)
 
     current_classification = 0 # 0 = sitting, 1 = standing, 2 = stepping
     bout_length = 0
     bout_index = 0
     for index,value in enumerate(pitch.data):
-        
-        classification[index] = current_classification
+
+        classification.data[index] = current_classification
 
         if current_classification == 0:
 
             if value >= transition_sit_stand:
-                
+
                 if bout_length == 0:
                     bout_length = 1
                     bout_index = index
@@ -85,7 +85,7 @@ def activpal_classification(pitch):
 
         elif current_classification == 1:
             if value <= transition_stand_sit:
-            
+
                 if bout_length == 0:
                     bout_length = 1
                     bout_index = index
@@ -120,6 +120,25 @@ def infer_sleep_actiheart(actiheart_activity, actiheart_ecg):
     #print(activity_norm.data)
     #print(ecg_norm.data)
     return product
+
+def infer_magic(x,y,z):
+
+    xdiff = np.abs(np.diff(x.data))
+    ydiff = np.abs(np.diff(y.data))
+    zdiff = np.abs(np.diff(z.data))
+
+    xdiffchan = Channel.Channel("Xdiff")
+    ydiffchan = Channel.Channel("Ydiff")
+    zdiffchan = Channel.Channel("Zdiff")
+
+    xdiffchan.set_contents(xdiff, x.timestamps)
+    ydiffchan.set_contents(ydiff, y.timestamps)
+    zdiffchan.set_contents(zdiff, z.timestamps)
+
+    vmdiff = infer_vector_magnitude(xdiffchan, ydiffchan, zdiffchan)
+    vmdiff.name = "Magic"
+
+    return vmdiff
 
 def infer_vector_magnitude(x,y,z):
 
@@ -170,12 +189,12 @@ def infer_nonwear_actigraph(counts, zero_minutes=timedelta(minutes=60)):
 
     #print("Num nonwear bouts: ", len(nonwear_bouts))
     wear_bouts = Bout.time_period_minus_bouts([counts.timeframe[0], counts.timeframe[1]], nonwear_bouts)
-    
+
     """
     wear = counts.subset_using_bouts(wear_bouts, "Wear_only", substitute_value=-1)
     #wear.delete_windows(nonwear_bouts)
 
-    
+
     print("wear.data length: " + str(len(wear.data)))
     bad_indices = np.where(wear.data == -1)
     print("Bad indices length:")
@@ -193,11 +212,10 @@ def infer_nonwear_actigraph(counts, zero_minutes=timedelta(minutes=60)):
     """
     return nonwear_bouts, wear_bouts
 
-    
 
 
 def infer_still_bouts_triaxial(x, y, z, window_size=timedelta(seconds=10), noise_cutoff_mg=13):
-    
+
     stats = {x.name:["std"], y.name:["std"], z.name:["std"]}
 
     results = Time_Series.Time_Series("Results")
@@ -213,28 +231,31 @@ def infer_still_bouts_triaxial(x, y, z, window_size=timedelta(seconds=10), noise
     x_bouts = x_std.bouts(0, float(noise_cutoff_mg)/1000.0)
     y_bouts = y_std.bouts(0, float(noise_cutoff_mg)/1000.0)
     z_bouts = z_std.bouts(0, float(noise_cutoff_mg)/1000.0)
-    
+
     # Get the times where those bouts overlap
     x_intersect_y = Bout.bout_list_intersection(x_bouts, y_bouts)
     x_intersect_y_intersect_z = Bout.bout_list_intersection(x_intersect_y, z_bouts)
 
     return x_intersect_y_intersect_z
-    
 
-def infer_nonwear_triaxial(x, y, z, minimum_length=timedelta(hours=1), noise_cutoff_mg=13):
-    
+
+def infer_nonwear_triaxial(x, y, z, minimum_length=timedelta(hours=1), noise_cutoff_mg=13, return_nonwear_binary=False):
+
     ''' Use the 3 channels of triaxial acceleration to infer periods of nonwear '''
-    
+
     x_intersect_y_intersect_z = infer_still_bouts_triaxial(x,y,z)
     Bout.cache_lengths(x_intersect_y_intersect_z)
     x_intersect_y_intersect_z = Bout.limit_to_lengths(x_intersect_y_intersect_z, min_length=minimum_length)
 
-    # Create a parallel, binary channel indicating if that time point was in or out of wear
-    nonwear_binary = Channel.channel_from_bouts(x_intersect_y_intersect_z, x.timeframe, False, "nonwear", skeleton=x)
+    if return_nonwear_binary:
+        # Create a parallel, binary channel indicating if that time point was in or out of wear
+        nonwear_binary = Channel.channel_from_bouts(x_intersect_y_intersect_z, x.timeframe, False, "nonwear", skeleton=x)
 
-    return (nonwear_binary, x_intersect_y_intersect_z)
+        return (x_intersect_y_intersect_z, nonwear_binary)
+    else:
+        return x_intersect_y_intersect_z
 
-def infer_valid_days(channel, wear_bouts, epoch_length=False, valid_criterion=timedelta(hours=10)):
+def infer_valid_days(channel, wear_bouts, valid_criterion=timedelta(hours=10)):
 
     #Generate day-long windows
     start = time_utilities.start_of_day(channel.timestamps[0])
@@ -242,7 +263,7 @@ def infer_valid_days(channel, wear_bouts, epoch_length=False, valid_criterion=ti
     while start < channel.timeframe[1]:
         day_windows.append(Bout.Bout(start, start+timedelta(days=1)))
         start += timedelta(days=1)
-    
+
     valid_windows = []
     for window in day_windows:
         #how much does all of wear_bouts intersect with window?
@@ -256,18 +277,6 @@ def infer_valid_days(channel, wear_bouts, epoch_length=False, valid_criterion=ti
         #print total
 
 
-    
-    valid_zeroes = channel.subset_using_bouts(valid_windows, channel.name + "_valid_zeroes", substitute_value=0)
-    valid_missings = channel.subset_using_bouts(valid_windows, channel.name + "_valid_missings", substitute_value=-1)
-    # Create a binary channel
-    if epoch_length == False:
-        epoch_length = channel.timestamps[1] - channel.timestamps[0] 
-    
-    valid_binary = Channel.channel_from_bouts(valid_windows, [channel.timeframe[0], channel.timeframe[1]], epoch_length, "valid", skeleton=channel)
+    invalid_windows = Bout.time_period_minus_bouts(channel.timeframe, valid_windows)
 
-    return [valid_zeroes, valid_missings, valid_binary, valid_windows]
-
-
-
-
-
+    return(invalid_windows, valid_windows)

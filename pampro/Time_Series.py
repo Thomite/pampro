@@ -2,10 +2,11 @@ import matplotlib.pyplot as plt
 from datetime import datetime, date, time, timedelta
 import numpy as np
 
+
 class Time_Series(object):
 
     def __init__(self, name):
-        
+
         self.name = name
         self.channels = []
         self.number_of_channels = 0
@@ -40,7 +41,7 @@ class Time_Series(object):
         self.earliest, self.latest = chan.timeframe
 
         for chan in self.channels[1:]:
-            
+
             tf = chan.timeframe
             if tf[0] < self.earliest:
                 self.earliest = tf[0]
@@ -48,7 +49,7 @@ class Time_Series(object):
                 self.latest = tf[1]
 
     def rename_channel(self, current_name, desired_name):
-        
+
         chan = self.get_channel(current_name)
         chan.name = desired_name
         self.channel_lookup.pop(current_name, None)
@@ -58,7 +59,7 @@ class Time_Series(object):
     def build_statistics_channels(self, bouts, statistics):
 
         result_channels = []
-        
+
         for channel_name,stats in statistics.items():
             if channel_name in self.channel_lookup.keys():
                 channels = self.get_channel(channel_name).build_statistics_channels(bouts, statistics=stats)
@@ -70,7 +71,7 @@ class Time_Series(object):
     def piecewise_statistics(self, window_size, statistics, time_period=False):
 
         result_channels = []
-        
+
         for channel_name,stats in statistics.items():
             if channel_name in self.channel_lookup.keys():
                 channels = self.get_channel(channel_name).piecewise_statistics(window_size, statistics=stats, time_period=time_period)
@@ -82,7 +83,7 @@ class Time_Series(object):
     def summary_statistics(self, statistics):
 
         results = []
-        
+
         for channel_name,stats in statistics.items():
             if channel_name in self.channel_lookup.keys():
                 channel_results = self.get_channel(channel_name).summary_statistics(statistics=stats)
@@ -90,7 +91,7 @@ class Time_Series(object):
             else:
                 print("Warning: {} not in {}".format(channel_name, self.name))
         return results
-    
+
 
     def restrict_timeframe(self, start, end):
 
@@ -139,7 +140,7 @@ class Time_Series(object):
                 else:
                     file_output.write("\n")
         else:
-    
+
             file_output = file_target
 
         #for chan in channel_sources:
@@ -151,7 +152,7 @@ class Time_Series(object):
 
             pretty_timestamp = channel_sources[0].timestamps[i].strftime("%d/%m/%Y %H:%M:%S:%f")
             file_output.write(self.name + "," + pretty_timestamp + ",")
-            
+
             for n,chan in enumerate(channel_sources):
 
                 file_output.write(str(chan.data[i]))
@@ -159,7 +160,7 @@ class Time_Series(object):
                     file_output.write(",")
                 else:
                     file_output.write("\n")
-        
+
         if isinstance(file_target, str):
             file_output.close()
 
@@ -175,7 +176,7 @@ class Time_Series(object):
         else:
             for c in channels:
                 channel_list.append(self.get_channel(c))
-        
+
 
         for channel in channel_list:
 
@@ -203,12 +204,12 @@ class Time_Series(object):
         else:
             for c in channels:
                 channel_list.append(self.get_channel(c))
-        
+
 
         for channel in channel_list:
             max_value = max(channel.data)
             min_value = min(channel.data)
-             
+
             if time_period==False:
                 indices = channel.get_window(time_period[0], time_period[1])
                 if (len(indices) > 0):
@@ -235,7 +236,7 @@ class Time_Series(object):
 
         for index, channel in enumerate(channel_list):
             ax = fig.add_subplot(len(channel_list), 1, 1+index)
-            
+
             # Same as draw_separate except it skips the -1s
             if time_period==False:
                 ax.plot(channel.timestamps[np.where(channel.data != -1)], channel.data[np.where(channel.data != -1)], label=channel.name, **channel.draw_properties)
@@ -271,7 +272,7 @@ class Time_Series(object):
 
         for index, channel in enumerate(channel_list):
             ax = fig.add_subplot(len(channel_list), 1, 1+index)
-            
+
 
             if time_period==False:
                 ax.plot(channel.timestamps, channel.data, label=channel.name, **channel.draw_properties)
@@ -302,7 +303,7 @@ class Time_Series(object):
     def draw_experimental(self, channel_combinations, time_period=False, file_target=False):
 
         fig = plt.figure(figsize=(15,10), frameon=False)
-        
+
         axes = [fig.add_subplot(len(channel_combinations), 1, 1+index) for index in range(len(channel_combinations))]
 
         for channels, axis in zip(channel_combinations, axes):

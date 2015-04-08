@@ -1,5 +1,5 @@
 
-from pampro import Time_Series, Bout, Channel, channel_inference
+from pampro import Time_Series, Bout, Channel, channel_inference, time_utilities
 
 
 from datetime import datetime, date, time, timedelta
@@ -10,11 +10,13 @@ from scipy import stats
 import numpy as np
 
 def nearest_sphere_surface(x_input, y_input, z_input):
-    
+
     """Given the 3D co-ordinates of a point, return the 3D co-ordinates of the point on the surface of a unit sphere. """
 
     vm = math.sqrt(sum([x_input**2, y_input**2, z_input**2]))
     return (x_input/vm, y_input/vm, z_input/vm)
+
+
 
 def find_calibration_parameters(x_input, y_input, z_input, num_iterations=1000):
 
@@ -26,6 +28,7 @@ def find_calibration_parameters(x_input, y_input, z_input, num_iterations=1000):
     y_input_copy = y_input[::]
     z_input_copy = z_input[::]
 
+
     # Need 3 blank arrays to populate
     x_matched = np.empty(len(x_input))
     y_matched = np.empty(len(y_input))
@@ -34,9 +37,7 @@ def find_calibration_parameters(x_input, y_input, z_input, num_iterations=1000):
 
     for i in range(num_iterations):
 
-        #if i%100 == 0:
-        #    print(i)
-        
+
         for i,a,b,c in zip(range(len(x_input)),x_input, y_input, z_input):
 
             # For each point, find its nearest point on the surface of a sphere
@@ -46,12 +47,12 @@ def find_calibration_parameters(x_input, y_input, z_input, num_iterations=1000):
             x_matched[i] = closest[0]
             y_matched[i] = closest[1]
             z_matched[i] = closest[2]
-        
+
         # Now that each X input is matched up against a "perfect" X on a sphere, do linear regression
         x_regression_results = stats.linregress(x_input, x_matched)
         y_regression_results = stats.linregress(y_input, y_matched)
         z_regression_results = stats.linregress(z_input, z_matched)
-        
+
         # Transform the input points using the regression co-efficients
         x_input = [x_regression_results[1] + x_input_val*x_regression_results[0] for x_input_val in x_input]
         y_input = [y_regression_results[1] + y_input_val*y_regression_results[0] for y_input_val in y_input]
@@ -74,6 +75,9 @@ def calibrate(x,y,z, allow_overwrite=True, budget=1000, noise_cutoff_mg=13):
     vm = channel_inference.infer_vector_magnitude(x,y,z)
 
     still_bouts = channel_inference.infer_still_bouts_triaxial(x,y,z, noise_cutoff_mg=noise_cutoff_mg)
+    vm_windows = vm.piecewise_statistics( timedelta(seconds=10), ["mean"], time_period=(time_utilities.start_of_hour(x.timeframe[0]), time_utilities.end_of_hour(x.timeframe[1])) )[0]
+
+    reasonable_bouts = vm_windows.bouts(0.5, 1.5)
 
     num_still_bouts = len(still_bouts)
     num_still_seconds = Bout.total_time(still_bouts).total_seconds()
@@ -81,7 +85,9 @@ def calibrate(x,y,z, allow_overwrite=True, budget=1000, noise_cutoff_mg=13):
     num_reasonable_seconds = Bout.total_time(reasonable_bouts).total_seconds()
 
     still_bouts = Bout.bout_list_intersection(reasonable_bouts, still_bouts)
-    
+    Bout.cache_lengths(still_bouts)
+    still_bouts = Bout.limit_to_lengths(still_bouts, min_length = timedelta(seconds=10))
+
     num_final_bouts = len(still_bouts)
     num_final_seconds = Bout.total_time(still_bouts).total_seconds()
 
@@ -95,11 +101,14 @@ def calibrate(x,y,z, allow_overwrite=True, budget=1000, noise_cutoff_mg=13):
     still_z.name = "still_z"
     num_samples.name = "n"
 
+
+
+
     # Calculate the initial error without doing any calibration
     start_error = evaluate_solution(still_x, still_y, still_z, num_samples, [0,1,0,1,0,1])
 
     calibration_parameters = find_calibration_parameters(still_x.data, still_y.data, still_z.data)
-    
+
     # Calculate the final error after calibration
     end_error = evaluate_solution(still_x, still_y, still_z, num_samples, calibration_parameters)
 
@@ -109,7 +118,7 @@ def calibrate(x,y,z, allow_overwrite=True, budget=1000, noise_cutoff_mg=13):
         # Apply the best calibration factors to the data
         do_calibration(x, y, z, calibration_parameters)
 
-        return (x, y, z, calibration_parameters, (start_error, end_error), (num_final_bouts, num_final_seconds,num_still_bouts, num_still_seconds, num_reasonable_bouts, num_reasonable_seconds ))
+        return (x, y, z, calibration_parameters, (start_error, end_error), (num_final_bouts, num_final_seconds,num_still_bouts, num_still_seconds, num_reasonable_bouts, num_reasonable_seconds, still_bouts ))
 
     else:
         # Else we create an independent copy of the raw data and calibrate that instead
@@ -122,32 +131,32 @@ def calibrate(x,y,z, allow_overwrite=True, budget=1000, noise_cutoff_mg=13):
 
         return (cal_x, cal_y, cal_z, calibration_parameters, (start_error, end_error), (len(still_bouts), Bout.total_time(still_bouts).total_seconds() ))
 
-    
+
 
 
 
 def do_calibration(x,y,z,values):
-    
+
     x.data = values[0] + (x.data * values[1])
     y.data = values[2] + (y.data * values[3])
     z.data = values[4] + (z.data * values[5])
 
 
 def undo_calibration(x,y,z,values):
-    
+
     x.data = -values[0] + (x.data / values[1])
     y.data = -values[2] + (y.data / values[3])
     z.data = -values[4] + (z.data / values[5])
 
 
 def evaluate_solution(still_x, still_y, still_z, still_n, calibration_parameters):
-    
+
     # Temporarily adjust the channels of still data, which has collapsed x,y,z values
     do_calibration(still_x, still_y, still_z, calibration_parameters)
-    
+
     # Get the VM of the calibrated channel
-    vm = channel_inference.infer_vector_magnitude(still_x, still_y, still_z)     
-    
+    vm = channel_inference.infer_vector_magnitude(still_x, still_y, still_z)
+
     # se = sum error
     se = 0.0
 
@@ -155,11 +164,10 @@ def evaluate_solution(still_x, still_y, still_z, still_n, calibration_parameters
         se += (abs(1.0 - vm_val)**2)*n
 
 
-    rmse = math.sqrt(se / len(vm.data)) 
+    rmse = math.sqrt(se / len(vm.data))
 
 
     # Undo the temporary calibration
     undo_calibration(still_x, still_y, still_z, calibration_parameters)
-    
-    return rmse
 
+    return rmse
