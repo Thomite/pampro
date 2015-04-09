@@ -1,54 +1,40 @@
-import os
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.dates import DayLocator, HourLocator, DateFormatter, drange
+
 from datetime import datetime, date, time, timedelta
-from scipy import stats
-import random
-import copy
-import time
-
-from pampro import Time_Series, Channel, channel_inference
+from pampro import Time_Series, Channel, channel_inference, triaxial_calibration
 
 
+# Read the data - yields 1 channel per axis
+x, y, z = Channel.load_channels("/pa/data/BIOBANK/example.cwa", "Axivity")
 
-ts = Time_Series.Time_Series("Axivity")
+print(x.data)
+print(x.timestamps)
 
-chans = Channel.load_channels("C:/Data/13064_0000000003.cwa", "Axivity", average_over=timedelta(seconds=1))
-#chans = Channel.load_channels(os.path.join(os.path.dirname(__file__), '..', 'data/nomovement.cwa'), "Axivity")
-ts.add_channels(chans)
+# Autocalibrate the raw acceleration data
+x, y, z, (cal_params), (results), (misc) = triaxial_calibration.calibrate(x, y, z)
 
-ts.write_channels_to_file("C:/Data/3.csv")
-
-
-vm = channel_inference.infer_vector_magnitude(chans[0], chans[1], chans[2])
-ts.add_channel(vm)
-
+# Infer some sample level information - Vector Magnitude (VM), Euclidean Norm Minus One (ENMO)
+vm = channel_inference.infer_vector_magnitude(x, y, z)
 enmo = channel_inference.infer_enmo(vm)
-ts.add_channel(enmo)
 
-chans = channel_inference.infer_pitch_roll(chans[0], chans[1], chans[2])
-ts.add_channels(chans)
+# Create a time series object and add channels to it
+ts = Time_Series.Time_Series("Axivity")
+ts.add_channels([x, y, z, vm, enmo])
 
-stats = {"X":["mean", "std"], "Y":["mean", "std"], "Z":["mean", "std"], "VM":["mean", "std", "n"], "Pitch":["mean", "std"], "Roll":["mean", "std"]}
+# Uncomment this line to write the raw data as CSV
+#ts.write_channels_to_file("C:/Data/3.csv")
 
+# Request some interesting statistics - mean of ENMO
+stats = {"ENMO":["mean"]}
 
-print ts.earliest
-print ts.latest
-print ts.latest - ts.earliest
+# Get the above statistics on an hourly level - returned as channels
+hourly_results = ts.piecewise_statistics(timedelta(hours=1), statistics=stats, time_period=x.timeframe)
 
+# Add the result channels to a new time series object, and draw them
+ts_visualisation = Time_Series.Time_Series("Axivity")
+ts_visualisation.add_channels(hourly_results)
 
-# Define the appearance of the signals
-tom_red = [0.78431,0.196,0.196]
-tom_green = [0.196,0.78431,0.196]
-tom_blue = [0.196,0.196,0.78431]
+# Write the hourly analysis to a file
+ts_visualisation.write_channels_to_file("/pa/data/BIOBANK/example_output.csv")
 
-
-
-ts.draw_separate(channels=["VM", "Pitch", "Roll"])
-#ts_visualisation.draw_separate()
-
-#fig = plt.figure(figsize=(18,10))
-#ax = fig.add_subplot(1,1,1)
-#ax.scatter(simplified[1].data, simplified[2].data, lw=0, alpha=0.7, s=50)
-#plt.show()
+# Visualise the hourly ENMO signal
+ts_visualisation.draw_experimental([["ENMO_mean"]], file_target="/pa/data/BIOBANK/example.png")
