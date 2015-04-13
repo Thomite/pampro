@@ -19,3 +19,13 @@ def end_of_hour(datetimestamp):
 	''' Add the excess minutes, seconds and microseconds onto a datetime stamp '''
 	end = datetimestamp + timedelta(minutes=59-datetimestamp.minute, seconds=59-datetimestamp.second, microseconds=999999-datetimestamp.microsecond)
 	return end
+
+def start_of_minute(datetimestamp):
+	''' Trim the excess seconds and microseconds off a datetime stamp '''
+	start = datetimestamp - timedelta(seconds=datetimestamp.second, microseconds=datetimestamp.microsecond)
+	return start
+
+def end_of_minute(datetimestamp):
+	''' Add the excess seconds and microseconds onto a datetime stamp '''
+	end = datetimestamp + timedelta(seconds=59-datetimestamp.second, microseconds=999999-datetimestamp.microsecond)
+	return end

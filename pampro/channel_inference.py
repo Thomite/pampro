@@ -185,7 +185,9 @@ def infer_nonwear_actigraph(counts, zero_minutes=timedelta(minutes=60)):
 
     #nonwear = Channel.Channel("Nonwear")
 
-    nonwear_bouts = counts.bouts(0, 0, zero_minutes)
+    nonwear_bouts = counts.bouts(0, 0)
+    Bout.cache_lengths(nonwear_bouts)
+    nonwear_bouts = Bout.limit_to_lengths(nonwear_bouts, min_length=zero_minutes)
 
     #print("Num nonwear bouts: ", len(nonwear_bouts))
     wear_bouts = Bout.time_period_minus_bouts([counts.timeframe[0], counts.timeframe[1]], nonwear_bouts)
