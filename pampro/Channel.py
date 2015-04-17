@@ -216,6 +216,44 @@ class Channel(object):
                             for val2 in unique_values:
                                 output_row.append(pairs[val1][val2])
 
+                    elif stat[0] == "freq_range":
+
+                        spectrum = np.fft.fft(self.data[indices])
+                        spectrum = [abs(e) for e in spectrum[:len(indices)/2]]
+                        sum_spec = sum(spectrum)
+                        spectrum = spectrum/sum_spec
+
+                        frequencies = np.fft.fftfreq(len(indices), d=1.0/self.frequency)[:len(indices)/2]
+
+
+                        start = np.searchsorted(frequencies, stat[1], 'left')
+                        end = np.searchsorted(frequencies, stat[2], 'right')
+
+                        index_range = np.arange(start, end-1)
+                        sum_range = sum(spectrum[index_range])
+
+                        output_row.append(sum_range)
+
+                    elif stat[0] == "freq_top":
+
+                        spectrum = np.fft.fft(self.data[indices])
+                        spectrum = [abs(e) for e in spectrum[:len(indices)/2]]
+                        sum_spec = sum(spectrum)
+                        spectrum = spectrum/sum_spec
+
+                        frequencies = np.fft.fftfreq(len(indices), d=1.0/self.frequency)[:len(indices)/2]
+
+                        sorted_spectrum = np.sort(spectrum)[::-1]
+                        dom_magnitudes = sorted_spectrum[:stat[1]]
+
+                        dom_indices = [np.where(spectrum==top)[0] for top in dom_magnitudes]
+                        dom_frequencies = [frequencies[index] for index in dom_indices]
+
+                        for freq,mag in zip(dom_frequencies,dom_magnitudes):
+                            output_row.append(freq[0])
+                            output_row.append(mag)
+
+
                     else:
                         indices2 = np.where((self.data[indices] >= stat[0]) & (self.data[indices] <= stat[1]))[0]
                         output_row.append(len(indices2))
@@ -238,6 +276,11 @@ class Channel(object):
 
                         possible_transitions = len(stat[1])**2
                         num_missings += possible_transitions
+
+                    elif stat[0] == "freq_top":
+
+                        num_missings += 2*stat[1]
+
                     else:
                         num_missings += 1
                 else:
@@ -264,6 +307,25 @@ class Channel(object):
                             name += self.name + "_" + str(val1) + "tr" + str(val2)
                             channel = Channel(name)
                             channel_list.append(channel)
+
+                elif (var[0] == "freq_range"):
+
+                    name = self.name + "_" + str(var[1]) + "hz_" + str(var[2]) + "hz"
+                    channel = Channel(name)
+                    channel_list.append(channel)
+
+                elif (var[0] == "freq_top"):
+
+                    for i in range(var[1]):
+
+                        name = self.name + "_topfreq_" + str(i)
+                        channel = Channel(name)
+                        channel_list.append(channel)
+
+                        name = self.name + "_topmag_" + str(i)
+                        channel = Channel(name)
+                        channel_list.append(channel)
+
                 else:
                     name = self.name + "_" + str(var[0]) + "_" + str(var[1])
                     channel = Channel(name)
