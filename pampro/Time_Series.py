@@ -319,6 +319,7 @@ class Time_Series(object):
             legend = axis.legend(loc='upper right')
             legend.get_frame().set_alpha(0.5)
             legend.draw_frame(False)
+            axis.grid()
 
         fig.tight_layout()
 
@@ -327,4 +328,4 @@ class Time_Series(object):
         else:
             plt.savefig(file_target, dpi=300, frameon=False)
 
-        plt.clf()
+        return fig

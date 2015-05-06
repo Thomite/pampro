@@ -496,39 +496,6 @@ class Channel(object):
 
         self.set_contents(self.data[indices], self.timestamps[indices])
 
-    def moving_average(self, size):
-
-        averaged = []
-        half = (size-1)/2
-
-        for i in range(0,self.size):
-            total = 0
-            contributors = 0
-            for j in range(i-half,i+half):
-                if (j >= 0) & (j < self.size):
-                    contributors+=1
-                    total += self.data[j]
-            averaged.append(total/contributors)
-
-        result = Channel(self.name + "_ma")
-        result.set_contents(np.array(averaged), self.timestamps)
-        return result
-
-    def moving_std(self, size):
-
-        averaged = []
-        half = (size-1)/2
-
-        for i in range(0,self.size):
-
-            low = max(0,i-half)
-            high = min(self.size,i+half)
-
-            averaged.append(np.std(self.data[low:high]))
-
-        result = Channel(self.name + "_mstd")
-        result.set_contents(np.array(averaged), self.timestamps)
-        return result
 
     def time_derivative(self):
 
