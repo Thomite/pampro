@@ -221,9 +221,9 @@ def infer_still_bouts_triaxial(x, y, z, window_size=timedelta(seconds=10), noise
     stats = {x.name:["std"], y.name:["std"], z.name:["std"]}
 
     results = Time_Series.Time_Series("Results")
-    results.add_channels(x.piecewise_statistics(window_size, statistics=["std"], time_period=(time_utilities.start_of_hour(x.timeframe[0]), time_utilities.end_of_hour(x.timeframe[1]))))
-    results.add_channels(y.piecewise_statistics(window_size, statistics=["std"], time_period=(time_utilities.start_of_hour(y.timeframe[0]), time_utilities.end_of_hour(y.timeframe[1]))))
-    results.add_channels(z.piecewise_statistics(window_size, statistics=["std"], time_period=(time_utilities.start_of_hour(z.timeframe[0]), time_utilities.end_of_hour(z.timeframe[1]))))
+    results.add_channels(x.piecewise_statistics(window_size, statistics=[("generic",["std"])], time_period=(time_utilities.start_of_hour(x.timeframe[0]), time_utilities.end_of_hour(x.timeframe[1]))))
+    results.add_channels(y.piecewise_statistics(window_size, statistics=[("generic",["std"])], time_period=(time_utilities.start_of_hour(y.timeframe[0]), time_utilities.end_of_hour(y.timeframe[1]))))
+    results.add_channels(z.piecewise_statistics(window_size, statistics=[("generic",["std"])], time_period=(time_utilities.start_of_hour(z.timeframe[0]), time_utilities.end_of_hour(z.timeframe[1]))))
 
     x_std = results.get_channel(x.name + "_std")
     y_std = results.get_channel(y.name + "_std")

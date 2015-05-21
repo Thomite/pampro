@@ -1,5 +1,5 @@
 import numpy as np
-import Channel
+from pampro import Channel
 
 
 def sine_wave(channel, wavelength_minutes=1440.0):

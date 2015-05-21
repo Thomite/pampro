@@ -8,11 +8,10 @@ def read(fname):
 setup(
     name = "pampro",
     packages = ["pampro"],
-    version = "0.2",
+    version = "0.3",
     author = "Tom White",
     author_email = "thomite@gmail.com",
     description = ("Physical Activity Monitoring Processing"),
     url = "https://github.com/Thomite/pampro",
     install_requires = ['numpy', 'scipy', 'matplotlib']
 )
-

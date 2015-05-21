@@ -1,23 +1,20 @@
 import numpy as np
 import scipy as sp
 from datetime import datetime, date, time, timedelta
-from pampro import Bout
+from pampro import Bout, pampro_utilities
 import copy
-
 from struct import *
 from math import *
 import time
 from datetime import datetime
-#from urllib import unquote_plus
 import sys
 import io
 import re
-import cProfile, pstats
-
 import string
 from scipy.io.wavfile import write
-
 import zipfile
+
+
 
 percentile_pattern = re.compile("\A([p])([0-9]*)")
 
@@ -47,7 +44,7 @@ class Channel(object):
 
     def append(self, other_channel):
 
-        print(self.name + " " + str(len(self.data)))
+        #print(self.name + " " + str(len(self.data)))
         self.data = np.concatenate((self.data, other_channel.data))
         self.timestamps = np.concatenate((self.timestamps, other_channel.timestamps))
 
@@ -56,8 +53,8 @@ class Channel(object):
 
         self.timestamps = np.array(self.timestamps)[indices]
         self.data = np.array(self.data)[indices]
-        print(self.name + " " + str(len(self.data)))
-        print("")
+        #print(self.name + " " + str(len(self.data)))
+        #print("")
         self.calculate_timeframe()
 
     def calculate_timeframe(self):
@@ -123,32 +120,13 @@ class Channel(object):
 
         return clone
 
-
-    def bigrams(self):
-
-        unique_values = np.unique(self.data)
-
-        # Create a dictionary to count each permutation of unique_value -> unique_value
-        pairs = {}
-        for val1 in unique_values:
-            pairs[val1] = {}
-            for val2 in unique_values:
-                pairs[val1][val2] = 0
-
-        # Count transitions from each unique value to the next
-        for val1, val2 in zip(self.data, self.data[1:]):
-            pairs[val1][val2] += 1
-
-        return pairs
-
-
     def get_window(self, datetime_start, datetime_end):
 
         key_value = str(datetime_start) + "|" + str(datetime_end)
         indices = [-1]
 
         # If we already know what the indices are for this time range:
-        #if key_value in self.cached_indices.keys():
+
         try:
             indices = self.cached_indices[key_value]
 
@@ -173,168 +151,162 @@ class Channel(object):
 
     def window_statistics(self, start_dts, end_dts, statistics):
 
-
         indices = self.get_window(start_dts, end_dts)
-
-        #pretty_timestamp = start_dts.strftime("%d/%m/%Y %H:%M:%S:%f")
-        #output_row = [pretty_timestamp]
 
         output_row = []
         if (len(indices) > 0):
 
             for stat in statistics:
-                if stat == "mean":
-                    output_row.append(np.mean(self.data[indices]))
-                elif stat == "sum":
-                    output_row.append(sum(self.data[indices]))
-                elif stat == "std":
-                    output_row.append(np.std(self.data[indices]))
-                elif stat == "min":
-                    output_row.append(np.min(self.data[indices]))
-                elif stat == "max":
-                    output_row.append(np.max(self.data[indices]))
-                elif stat == "n":
-                    output_row.append(len(indices))
-                elif isinstance(stat, list):
+                # Every stat is a tuple of the form ("type", [details])
 
-                    if stat[0] == "bigrams":
+                if stat[0] == "generic":
+                # Example: ("generic", ["mean", "min", "sum"])
 
-                        unique_values = stat[1]
-                        # 1 channel for each permutation of unique_value -> unique_value
-                        pairs = {}
-                        for val1 in unique_values:
-                            pairs[val1] = {}
-                            for val2 in unique_values:
-                                pairs[val1][val2] = 0
+                    for val in stat[1]:
+                        if val == "mean":
+                            output_row.append(np.mean(self.data[indices]))
+                        elif val == "sum" or stat[1] == "total":
+                            output_row.append(sum(self.data[indices]))
+                        elif val == "std" or stat[1] == "stdev":
+                            output_row.append(np.std(self.data[indices]))
+                        elif val == "min" or stat[1] == "minimum":
+                            output_row.append(np.min(self.data[indices]))
+                        elif val == "max" or stat[1] == "maximum":
+                            output_row.append(np.max(self.data[indices]))
+                        elif val == "n":
+                            output_row.append(len(indices))
 
-                        # Count transitions from each unique value to the next
-                        for val1, val2 in zip(self.data[indices], self.data[indices[1:]]):
-                            if val1 in unique_values and val2 in unique_values:
-                                pairs[val1][val2] += 1
+                elif stat[0] == "cutpoints":
+                # Example: ("cutpoints", [[0,10],[10,20],[20,30]])
 
-                        for val1 in unique_values:
-                            for val2 in unique_values:
-                                output_row.append(pairs[val1][val2])
+                    sorted_vals = np.sort(self.data[indices])
+                    for low,high in stat[1]:
+                        start = np.searchsorted(sorted_vals, low, 'left')
+                        end = np.searchsorted(sorted_vals, high, 'right')
 
-                    elif stat[0] == "freq_range":
+                        output_row.append(end-start)
+                    """
+                    This is the old way - much slower
+                    for low,high in stat[1]:
+                        indices2 = np.where((self.data[indices] >= low) & (self.data[indices] <= high))[0]
+                        output_row.append(len(indices2))
+                    """
 
-                        spectrum = np.fft.fft(self.data[indices])
-                        spectrum = [abs(e) for e in spectrum[:len(indices)/2]]
-                        sum_spec = sum(spectrum)
-                        spectrum = spectrum/sum_spec
+                elif stat[0] == "bigrams":
+                # Example: ("bigrams", [0,1,2])
 
-                        frequencies = np.fft.fftfreq(len(indices), d=1.0/self.frequency)[:len(indices)/2]
+                    unique_values = stat[1]
+                    # 1 channel for each permutation of unique_value -> unique_value
+                    pairs = {}
+                    for val1 in unique_values:
+                        pairs[val1] = {}
+                        for val2 in unique_values:
+                            pairs[val1][val2] = 0
 
+                    # Count transitions from each unique value to the next
+                    for val1, val2 in zip(self.data[indices], self.data[indices[1:]]):
+                        if val1 in unique_values and val2 in unique_values:
+                            pairs[val1][val2] += 1
 
-                        start = np.searchsorted(frequencies, stat[1], 'left')
-                        end = np.searchsorted(frequencies, stat[2], 'right')
+                    for val1 in unique_values:
+                        for val2 in unique_values:
+                            output_row.append(pairs[val1][val2])
 
+                elif stat[0] == "frequency_ranges":
+                # Example: ("freq_ranges", [[0,1],[1,2],[2,3]])
+
+                    spectrum = np.fft.fft(self.data[indices])
+                    spectrum = [abs(e) for e in spectrum[:len(indices)/2]]
+                    sum_spec = sum(spectrum)
+                    spectrum = spectrum/sum_spec
+
+                    frequencies = np.fft.fftfreq(len(indices), d=1.0/self.frequency)[:len(indices)/2]
+
+                    for low,high in stat[1]:
+
+                        start = np.searchsorted(frequencies, low, 'left')
+                        end = np.searchsorted(frequencies, high, 'right')
                         index_range = np.arange(start, end-1)
                         sum_range = sum(spectrum[index_range])
 
                         output_row.append(sum_range)
 
-                    elif stat[0] == "freq_top":
+                elif stat[0] == "top_frequencies":
+                # Example: ("top_frequencies", 5)
 
-                        spectrum = np.fft.fft(self.data[indices])
-                        spectrum = [abs(e) for e in spectrum[:len(indices)/2]]
-                        sum_spec = sum(spectrum)
-                        spectrum = spectrum/sum_spec
+                    spectrum = np.fft.fft(self.data[indices])
+                    spectrum = [abs(e) for e in spectrum[:len(indices)/2]]
+                    sum_spec = sum(spectrum)
+                    spectrum = spectrum/sum_spec
+                    #print(spectrum)
+                    frequencies = np.fft.fftfreq(len(indices), d=1.0/self.frequency)[:len(indices)/2]
 
-                        frequencies = np.fft.fftfreq(len(indices), d=1.0/self.frequency)[:len(indices)/2]
+                    sorted_spectrum = np.sort(spectrum)[::-1]
+                    dom_magnitudes = sorted_spectrum[:stat[1]]
 
-                        sorted_spectrum = np.sort(spectrum)[::-1]
-                        dom_magnitudes = sorted_spectrum[:stat[1]]
+                    dom_indices = [np.where(spectrum==top)[0] for top in dom_magnitudes]
+                    dom_frequencies = [frequencies[index] for index in dom_indices]
 
-                        dom_indices = [np.where(spectrum==top)[0] for top in dom_magnitudes]
-                        dom_frequencies = [frequencies[index] for index in dom_indices]
+                    for freq,mag in zip(dom_frequencies,dom_magnitudes):
+                        output_row.append(freq[0])
+                        output_row.append(mag)
 
-                        for freq,mag in zip(dom_frequencies,dom_magnitudes):
-                            output_row.append(freq[0])
-                            output_row.append(mag)
+                elif stat[0] == "percentiles":
+                # Example: ("percentiles", [10,20,30,40,50,60,70,80,90])
 
-
-                    else:
-                        indices2 = np.where((self.data[indices] >= stat[0]) & (self.data[indices] <= stat[1]))[0]
-                        output_row.append(len(indices2))
-
-                elif percentile_pattern.match(stat):
-                    # for p25, p50, etc
-                    percentile = int(percentile_pattern.match(stat).groups()[1])
-                    output_row.append(np.percentile(self.data[indices],percentile))
+                    values = np.percentile(self.data[indices], stat[1])
+                    for v in values:
+                        output_row.append(v)
 
                 else:
-                    output_row.append(-1)
+                    output_row.append("Unknown statistic")
         else:
 
-            num_missings = 0
-
-            # len(statistics) doesn't work for bigrams
-            for stat in statistics:
-                if isinstance(stat, list):
-                    if stat[0] == "bigrams":
-
-                        possible_transitions = len(stat[1])**2
-                        num_missings += possible_transitions
-
-                    elif stat[0] == "freq_top":
-
-                        num_missings += 2*stat[1]
-
-                    else:
-                        num_missings += 1
-                else:
-                    num_missings +=1
-
-            for i in range(num_missings):
-
+            # There was no data for the time period
+            # Output -1 for each missing variable
+            for i in range(self.expected_results(statistics)):
                 output_row.append(-1)
 
 
         return output_row
 
+
+    def expected_results(self, statistics):
+        """ Calculate the number of expected results for this statistics request """
+
+        expected = 0
+        for stat in statistics:
+            if stat[0] == "generic":
+                expected += len(stat[1])
+
+            elif stat[0] == "cutpoints":
+                expected += len(stat[1])
+
+            elif stat[0] == "bigrams":
+                expected += len(stat[1])**2
+
+            elif stat[0] == "frequency_ranges":
+                expected += len(stat[1])
+
+            elif stat[0] == "top_frequencies":
+                expected += int(stat[1])*2
+
+            elif stat[0] == "percentiles":
+                expected += len(stat[1])
+
+        return expected
+
+
     def build_statistics_channels(self, windows, statistics):
 
         channel_list = []
-        for var in statistics:
-            name = self.name
-            if isinstance(var, list):
 
-                if (var[0] == "bigrams"):
-                    for val1 in var[1]:
-                        for val2 in var[1]:
-
-                            name += self.name + "_" + str(val1) + "tr" + str(val2)
-                            channel = Channel(name)
-                            channel_list.append(channel)
-
-                elif (var[0] == "freq_range"):
-
-                    name = self.name + "_" + str(var[1]) + "hz_" + str(var[2]) + "hz"
-                    channel = Channel(name)
-                    channel_list.append(channel)
-
-                elif (var[0] == "freq_top"):
-
-                    for i in range(var[1]):
-
-                        name = self.name + "_topfreq_" + str(i)
-                        channel = Channel(name)
-                        channel_list.append(channel)
-
-                        name = self.name + "_topmag_" + str(i)
-                        channel = Channel(name)
-                        channel_list.append(channel)
-
-                else:
-                    name = self.name + "_" + str(var[0]) + "_" + str(var[1])
-                    channel = Channel(name)
-                    channel_list.append(channel)
-
-            else:
-                name = self.name + "_" + var
-                channel = Channel(name)
-                channel_list.append(channel)
+        for stat in statistics:
+            #print(stat)
+            channel_names = pampro_utilities.design_variable_names(self.name, stat)
+            #print(channel_names)
+            for cn in channel_names:
+                channel_list.append(Channel(cn))
 
         num_expected_results = len(channel_list)
 
@@ -342,7 +314,7 @@ class Channel(object):
 
             results = self.window_statistics(window.start_timestamp, window.end_timestamp, statistics)
             if len(results) != num_expected_results:
-                raise Exception("Incorrect number of statistics yielded. {} expected, {} given.".format(num_expected_results, len(results)))
+                raise Exception("Incorrect number of statistics yielded. {} expected, {} given. Channel: {}. Statistics: {}.".format(num_expected_results, len(results), self.name, statistics))
 
             for i in range(len(results)):
                 #print len(results)
@@ -382,7 +354,7 @@ class Channel(object):
         return self.build_statistics_channels(windows, statistics)
 
 
-    def piecewise_statistics(self, window_size, statistics=["mean"], time_period=False):
+    def piecewise_statistics(self, window_size, statistics=[("generic", ["mean"])], time_period=False):
 
         if time_period == False:
             start = self.timeframe[0] - timedelta(hours=self.timeframe[0].hour, minutes=self.timeframe[0].minute, seconds=self.timeframe[0].second, microseconds=self.timeframe[0].microsecond)
@@ -540,7 +512,7 @@ class Channel(object):
 
         write(filename, rate, tone)
 
-    def draw_experimental(self, axis):
+    def draw(self, axis):
 
         axis.plot(self.timestamps, self.data, label=self.name, **self.draw_properties)
         for a in self.annotations:

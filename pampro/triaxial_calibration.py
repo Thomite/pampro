@@ -75,7 +75,7 @@ def calibrate(x,y,z, allow_overwrite=True, budget=1000, noise_cutoff_mg=13):
     vm = channel_inference.infer_vector_magnitude(x,y,z)
 
     still_bouts = channel_inference.infer_still_bouts_triaxial(x,y,z, noise_cutoff_mg=noise_cutoff_mg)
-    vm_windows = vm.piecewise_statistics( timedelta(seconds=10), ["mean"], time_period=(time_utilities.start_of_hour(x.timeframe[0]), time_utilities.end_of_hour(x.timeframe[1])) )[0]
+    vm_windows = vm.piecewise_statistics( timedelta(seconds=10), [("generic", ["mean"])], time_period=(time_utilities.start_of_hour(x.timeframe[0]), time_utilities.end_of_hour(x.timeframe[1])) )[0]
 
     reasonable_bouts = vm_windows.bouts(0.5, 1.5)
 
@@ -92,9 +92,9 @@ def calibrate(x,y,z, allow_overwrite=True, budget=1000, noise_cutoff_mg=13):
     num_final_seconds = Bout.total_time(still_bouts).total_seconds()
 
     # Get the average X,Y,Z for each still bout (inside which, by definition, XYZ should not change)
-    still_x, num_samples = x.build_statistics_channels(still_bouts, ["mean", "n"])
-    still_y = y.build_statistics_channels(still_bouts, ["mean"])[0]
-    still_z = z.build_statistics_channels(still_bouts, ["mean"])[0]
+    still_x, num_samples = x.build_statistics_channels(still_bouts, [("generic", ["mean", "n"])])
+    still_y = y.build_statistics_channels(still_bouts, [("generic", ["mean"])])[0]
+    still_z = z.build_statistics_channels(still_bouts, [("generic", ["mean"])])[0]
 
     still_x.name = "still_x"
     still_y.name = "still_y"
