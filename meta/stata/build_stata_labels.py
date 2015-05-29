@@ -15,6 +15,6 @@ output = open(do_file, "w")
 
 for variable,description in zip(data[0,], data[1,]):
     #print("label variable {} \"{}\"".format(variable, description))
-    output.write(("label variable {} \"{}\" \n".format(variable, description)))
+    output.write(("cap label variable {} \"{}\" \n".format(variable, description)))
 
 output.close()
