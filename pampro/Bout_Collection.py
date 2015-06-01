@@ -67,9 +67,9 @@ class Bout_Collection(object):
                             output_row.append(-1)
         else:
             # No bouts in this Bout_Collection overlapping this window
-            num_missings = len(statistics)
-
-            for i in range(num_missings):
+            # There was no data for the time period
+            # Output -1 for each missing variable
+            for i in range(self.expected_results(statistics)):
                 output_row.append(-1)
 
 
@@ -78,15 +78,22 @@ class Bout_Collection(object):
     def build_statistics_channels(self, windows, statistics):
 
         channel_list = []
-        for var in statistics:
 
-            channel = Channel.Channel(self.name+"_"+str(var))
-            channel_list.append(channel)
+        for stat in statistics:
+            #print(stat)
+            channel_names = pampro_utilities.design_variable_names(self.name, stat)
+            #print(channel_names)
+            for cn in channel_names:
+                channel_list.append(Channel.Channel(cn))
 
+        num_expected_results = len(channel_list)
 
         for window in windows:
 
             results = self.window_statistics(window.start_timestamp, window.end_timestamp, statistics)
+            if len(results) != num_expected_results:
+                raise Exception("Incorrect number of statistics yielded. {} expected, {} given. Channel: {}. Statistics: {}.".format(num_expected_results, len(results), self.name, statistics))
+
             for i in range(len(results)):
                 #print len(results)
                 channel_list[i].append_data(window.start_timestamp, results[i])
@@ -131,6 +138,15 @@ class Bout_Collection(object):
 
         return self.build_statistics_channels(windows, statistics)
 
+    def expected_results(self, statistics):
+        """ Calculate the number of expected results for this statistics request """
+
+        expected = 0
+        for stat in statistics:
+            if stat[0] == "generic":
+                expected += len(stat[1])
+
+        return expected
 
     def cache_lengths(self):
 

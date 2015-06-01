@@ -2,6 +2,7 @@
 from datetime import datetime, date, time, timedelta
 from pampro import Time_Series, Channel, channel_inference, triaxial_calibration
 
+# Change the filenames as appropriate
 
 # Load sample activPAL data
 x, y, z = Channel.load_channels("/pa/data/STVS/_data/activpal_data/714952C-AP1335893 18Nov13 10-00am for 7d 23h 14m.datx", "activPAL")
@@ -35,4 +36,4 @@ ts_output.add_channels(quarter_hourly_results)
 ts_output.write_channels_to_file("/pa/data/STVS/_results/example_output.csv")
 
 # Visualise the mean ENMO, pitch and roll signals
-ts_output.draw_experimental([["ENMO_mean"],["Pitch_mean","Roll_mean"]], file_target="/pa/data/STVS/example.png")
+ts_output.draw([["ENMO_mean"],["Pitch_mean","Roll_mean"]], file_target="/pa/data/STVS/example.png")
