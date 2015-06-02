@@ -41,6 +41,12 @@ def design_variable_names(signal_name, stat):
 
             varnames.append(signal_name + "_p" + str(i))
 
+    elif (stat[0] == "sdx"):
+
+        for i in stat[1]:
+
+            varnames.append(signal_name + "_sd" + str(i))
+
     return varnames
 
 def design_file_header(statistics):

@@ -1,12 +1,10 @@
 from pampro import Time_Series, Channel, channel_inference, Bout, pampro_utilities, time_utilities, batch_processing
 import numpy as np
-import scipy as sp
+
 from datetime import datetime, date, time, timedelta
 from pampro import Bout, Channel
 import copy
 
-from struct import *
-from math import *
 import time
 from datetime import datetime
 
@@ -65,6 +63,15 @@ class Bout_Collection(object):
                             print(stat)
                             print(statistics)
                             output_row.append(-1)
+
+                elif stat[0] == "sdx":
+
+                    # ("sdx", [10,20,30,40,50,60,70,80,90])
+
+                    sdx_results = sdx(bouts, stat[1])
+                    for r in sdx_results:
+                        output_row.append(r)
+
         else:
             # No bouts in this Bout_Collection overlapping this window
             # There was no data for the time period
@@ -145,7 +152,8 @@ class Bout_Collection(object):
         for stat in statistics:
             if stat[0] == "generic":
                 expected += len(stat[1])
-
+            elif stat[0] == "sdx":
+                expected += len(stat[1])
         return expected
 
     def cache_lengths(self):
@@ -180,3 +188,47 @@ class Bout_Collection(object):
                     break
 
         self.bouts = within_length
+
+
+def sdx(bouts, percentages):
+
+    total_time_minutes = Bout.total_time(bouts).total_seconds()/60
+
+    Bout.cache_lengths(bouts)
+    bouts.sort(key=lambda x : x.length)
+
+    highest_length_minutes = int(bouts[-1].length.total_seconds()/60)
+
+    targets_minutes = [int((total_time_minutes)/100.0 * percentage) for percentage in percentages]
+    results = []
+
+    #print("Number of bouts: ", len(bouts))
+    #print("Total time mins: ", total_time_minutes)
+    #print("Highest length mins", highest_length_minutes)
+    #print(targets_minutes)
+
+    current_target_index = 0
+    target_minutes = targets_minutes[current_target_index]
+    for length in range(1, highest_length_minutes+1):
+
+        included_bouts = [b for b in bouts if b.length.total_seconds()/60 <= length]
+        #print(included_bouts)
+        total_included_time_minutes = Bout.total_time(included_bouts).total_seconds()/60
+
+        #print(length, total_included_time_minutes)
+        while total_included_time_minutes >= target_minutes:
+
+            #print(">target_minutes", target_minutes)
+            #length is the result
+            results.append(length)
+            current_target_index += 1
+            if current_target_index == len(targets_minutes):
+                target_minutes = 999999999
+            else:
+                target_minutes = targets_minutes[current_target_index]
+
+        if current_target_index == len(targets_minutes):
+            break
+
+    #print(results)
+    return results
