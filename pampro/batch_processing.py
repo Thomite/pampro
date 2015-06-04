@@ -26,14 +26,14 @@ def job_indices(n, num_jobs, job_list_size):
 
 
 def get_feedback(filename):
-    
+
     file = open(filename, "r")
     feedback = json.loads(file.read())
     file.close()
     return feedback
 
 def write_feedback(feedback, filename):
-    
+
     file = open(filename, "w")
     file.write(json.dumps(feedback))
     file.flush()
@@ -57,23 +57,23 @@ def job_indices(n, num_jobs, job_list_size):
 """
 
 def load_job_details(job_file):
-    
+
     data = np.genfromtxt(job_file, delimiter=',', dtype='str', skiprows=0)
-    
+
     master_dictionary = collections.OrderedDict()
-    
+
     for row in data[1:]:
         master_dictionary[row[0]] = {}
         for index,col in enumerate(row):
             master_dictionary[row[0]][data[0,index]] = col
-    
+
     return master_dictionary
 
 
 def batch_process(analysis_function, job_file, job_num, num_jobs, live_feedback=False):
 
     batch_start_time = datetime.now()
-    
+
     # Load the document listing all the files to be processed
     job_details = load_job_details(job_file)
 
@@ -81,7 +81,7 @@ def batch_process(analysis_function, job_file, job_num, num_jobs, live_feedback=
     job_section = job_indices(job_num, num_jobs, len(job_details))
     my_jobs = list(job_details.keys())[job_section[0]:job_section[1]]
 
-    output_log = open(job_file + "_log_{}.csv".format(job_num), "w")
+    output_log = False
 
     if live_feedback:
         # Create a JSON file to store progress information in
@@ -92,18 +92,23 @@ def batch_process(analysis_function, job_file, job_num, num_jobs, live_feedback=
 
         print("Job {}/{}: {}\n".format(n+1, len(my_jobs), job))
         job_start_time = datetime.now()
-        
+
         try:
             if live_feedback:
                 analysis_function( job_details[job], feedback_filename )
             else:
                 analysis_function( job_details[job] )
-    
+
         except:
+
+            # Create the output file only if an error has occurred
+            if output_log is False:
+                output_log = open("error_log_{}.csv".format(job_num), "w")
+
             print("Exception:" + str(sys.exc_info()))
             output_log.write( str(job_details[job]) + "\n" )
             output_log.write("Exception:" + str(sys.exc_info()) + "\n\n")
-            
+
         job_end_time = datetime.now()
         job_duration = job_end_time - job_start_time
         print("\nJob run time: " + str(job_duration))
@@ -128,4 +133,6 @@ def batch_process(analysis_function, job_file, job_num, num_jobs, live_feedback=
         feedback["complete"] = 1
         write_feedback(feedback, feedback_filename)
 
-    output_log.close()
+    # If everything went smoothly, output_log is False because it was never a file object
+    if output_log is not False:
+        output_log.close()
