@@ -131,27 +131,51 @@ class Channel(object):
             indices = self.cached_indices[key_value]
 
         except:
-        #else:
-            start = np.searchsorted(self.timestamps, datetime_start, 'left')
-            end = np.searchsorted(self.timestamps, datetime_end, 'right')
-            indices = np.arange(start, end-1)
+
+            if len(self.timestamps) == len(self.data):
+
+                indices = self.get_data_indices(datetime_start, datetime_end)
+
+            else:
+
+                indices = self.get_sparse_data_indices(datetime_start, datetime_end)
+
 
             # Cache those for next time
             self.cached_indices[key_value] = indices
 
         return indices
 
-    # This is the old, uncached method
-    def get_window_old(self, datetime_start, datetime_end):
+
+    def get_data_indices(self, datetime_start, datetime_end):
+        """ Returns the indices of the data array to use if every observation is timestamped """
 
         start = np.searchsorted(self.timestamps, datetime_start, 'left')
         end = np.searchsorted(self.timestamps, datetime_end, 'right')
         return np.arange(start, end-1)
 
 
+    def get_sparse_data_indices(datetime_start, datetime_end):
+        """ Returns the indices of the data array to use if it is sparsely timestamped """
+
+        start = np.searchsorted(self.timestamps, datetime_start, 'left')
+        start_difference = self.timestamps[start]-datetime_start
+        start_difference_index = start + int(start_difference/self.resolution)
+
+        end = np.searchsorted(self.timestamps, datetime_end, 'right')
+        end_difference = datetime_end-self.timestamps[end]
+        end_difference_index = end - int(end_difference/self.resolution)
+
+        indices = np.arange(self.indices[start_difference_index], self.indices[end_difference_index])
+
+        return indices
+
+
     def window_statistics(self, start_dts, end_dts, statistics):
 
         indices = self.get_window(start_dts, end_dts)
+
+        window_data = self.data[indices]
 
         output_row = []
         if (len(indices) > 0):
@@ -164,22 +188,22 @@ class Channel(object):
 
                     for val in stat[1]:
                         if val == "mean":
-                            output_row.append(np.mean(self.data[indices]))
+                            output_row.append(np.mean(window_data))
                         elif val == "sum" or stat[1] == "total":
-                            output_row.append(sum(self.data[indices]))
+                            output_row.append(sum(window_data))
                         elif val == "std" or stat[1] == "stdev":
-                            output_row.append(np.std(self.data[indices]))
+                            output_row.append(np.std(window_data))
                         elif val == "min" or stat[1] == "minimum":
-                            output_row.append(np.min(self.data[indices]))
+                            output_row.append(np.min(window_data))
                         elif val == "max" or stat[1] == "maximum":
-                            output_row.append(np.max(self.data[indices]))
+                            output_row.append(np.max(window_data))
                         elif val == "n":
                             output_row.append(len(indices))
 
                 elif stat[0] == "cutpoints":
                 # Example: ("cutpoints", [[0,10],[10,20],[20,30]])
 
-                    sorted_vals = np.sort(self.data[indices])
+                    sorted_vals = np.sort(window_data)
                     for low,high in stat[1]:
                         start = np.searchsorted(sorted_vals, low, 'left')
                         end = np.searchsorted(sorted_vals, high, 'right')
@@ -204,7 +228,7 @@ class Channel(object):
                             pairs[val1][val2] = 0
 
                     # Count transitions from each unique value to the next
-                    for val1, val2 in zip(self.data[indices], self.data[indices[1:]]):
+                    for val1, val2 in zip(window_data, window_data[1:]):
                         if val1 in unique_values and val2 in unique_values:
                             pairs[val1][val2] += 1
 
@@ -215,7 +239,7 @@ class Channel(object):
                 elif stat[0] == "frequency_ranges":
                 # Example: ("freq_ranges", [[0,1],[1,2],[2,3]])
 
-                    spectrum = np.fft.fft(self.data[indices])
+                    spectrum = np.fft.fft(window_data)
                     spectrum = [abs(e) for e in spectrum[:len(indices)/2]]
                     sum_spec = sum(spectrum)
                     spectrum = spectrum/sum_spec
@@ -234,7 +258,7 @@ class Channel(object):
                 elif stat[0] == "top_frequencies":
                 # Example: ("top_frequencies", 5)
 
-                    spectrum = np.fft.fft(self.data[indices])
+                    spectrum = np.fft.fft(window_data)
                     spectrum = [abs(e) for e in spectrum[:len(indices)/2]]
                     sum_spec = sum(spectrum)
                     spectrum = spectrum/sum_spec
@@ -254,7 +278,7 @@ class Channel(object):
                 elif stat[0] == "percentiles":
                 # Example: ("percentiles", [10,20,30,40,50,60,70,80,90])
 
-                    values = np.percentile(self.data[indices], stat[1])
+                    values = np.percentile(window_data, stat[1])
                     for v in values:
                         output_row.append(v)
 
@@ -331,7 +355,7 @@ class Channel(object):
         self.timestamps.append(timestamp)
         self.data.append(data_row)
 
-    def sliding_statistics(self, window_size, statistics=["mean"], time_period=False):
+    def sliding_statistics(self, window_size, statistics=[("generic", "mean")], time_period=False):
 
         if time_period == False:
             start = self.timeframe[0] - timedelta(hours=self.timeframe[0].hour, minutes=self.timeframe[0].minute, seconds=self.timeframe[0].second, microseconds=self.timeframe[0].microsecond)
