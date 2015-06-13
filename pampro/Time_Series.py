@@ -168,6 +168,7 @@ class Time_Series(object):
     def draw(self, channel_combinations, time_period=False, file_target=False):
 
         fig = plt.figure(figsize=(15,10), frameon=False)
+        fig.patch.set_facecolor('#FFFFFF')
 
         axes = [fig.add_subplot(len(channel_combinations), 1, 1+index) for index in range(len(channel_combinations))]
 
@@ -191,6 +192,6 @@ class Time_Series(object):
         if file_target==False:
             return fig
         else:
-            plt.savefig(file_target, dpi=300, frameon=False)
+            plt.savefig(file_target, dpi=300, frameon=False, facecolor='#FFFFFF')
 
             plt.clf()
