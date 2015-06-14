@@ -1,7 +1,7 @@
 import numpy as np
 import scipy as sp
 from datetime import datetime, date, time, timedelta
-from pampro import Channel, Bout, pampro_utilities
+from pampro import Time_Series, Channel, Bout, pampro_utilities
 import copy
 from struct import *
 from math import *
@@ -126,6 +126,8 @@ def axivity_parse_header(fh):
     lastChangeTime = axivity_read_timestamp(lastChangeTime)
     firmwareVersion = firmwareVersion if firmwareVersion != 255 else 0
 
+    return {"frequency":samplingRate}
+
 def parse_header(header, type, datetime_format):
 
     header_info = {}
@@ -248,6 +250,10 @@ def convert_actigraph_timestamp(t):
 
 def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_column=0, ignore_columns=False, unique_names=False):
 
+    header = {}
+    channels = []
+    ts = Time_Series.Time_Series("")
+
     if (source_type == "Actiheart"):
 
         first_lines = []
@@ -290,7 +296,8 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         actiheart_ecg = Channel.Channel("AH_ECG")
         actiheart_ecg.set_contents(ecg, timestamps2)
 
-        return [actiheart_activity, actiheart_ecg]
+        header = header_info
+        channels = [actiheart_activity, actiheart_ecg]
 
     elif (source_type == "activPAL_CSV"):
 
@@ -323,7 +330,7 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         y.set_contents(np.array(ap_y, dtype=np.float64), ap_timestamps)
         z.set_contents(np.array(ap_z, dtype=np.float64), ap_timestamps)
         #print("C")
-        return [x,y,z]
+        channels = [x,y,z]
 
 
     elif (source_type == "activPAL"):
@@ -476,7 +483,7 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         y_channel.set_contents(y, timestamps)
         z_channel.set_contents(z, timestamps)
 
-        return (x_channel, y_channel, z_channel)
+        channels = [x_channel, y_channel, z_channel]
 
     elif (source_type == "GeneActiv_CSV"):
 
@@ -510,7 +517,7 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         event.set_contents(ga_event, ga_timestamps)
         temperature.set_contents(ga_temperature, ga_timestamps)
 
-        return [x,y,z,lux,event,temperature]
+        channels = [x,y,z,lux,event,temperature]
 
     elif (source_type == "Actigraph"):
 
@@ -559,7 +566,8 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         chan = Channel.Channel("AG_Counts")
         chan.set_contents(counts, timestamps)
 
-        return [chan, header_info]
+        channels = [chan]
+        header = header_info
 
     elif (source_type == "GT3X+_CSV"):
 
@@ -588,7 +596,8 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         y_chan.set_contents(y, timestamps)
         z_chan.set_contents(z, timestamps)
 
-        return [x_chan,y_chan,z_chan]
+        channels = [x_chan,y_chan,z_chan]
+        header = header_info
 
     elif (source_type == "GT3X+_CSV_ZIP"):
 
@@ -626,7 +635,8 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         y_chan.set_contents(y, timestamps)
         z_chan.set_contents(z, timestamps)
 
-        return [x_chan,y_chan,z_chan]
+        channels = [x_chan,y_chan,z_chan]
+        header = header_info
 
     elif (source_type == "CSV"):
 
@@ -670,7 +680,6 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
             c.set_contents(np.array(data[:,col], dtype=np.float64), timestamps)
             channels.append(c)
 
-        return channels
 
     elif (source_type == "Axivity"):
 
@@ -799,7 +808,7 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         channel_y.set_contents(axivity_y, axivity_timestamps)
         channel_z.set_contents(axivity_z, axivity_timestamps)
 
-        return (channel_x,channel_y,channel_z)
+        channels = [channel_x,channel_y,channel_z]
 
     elif (source_type == "Axivity_ZIP"):
 
@@ -824,6 +833,7 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
 
         n = 0
         num_samples = 0
+        num_pages = 0
 
         start = datetime(2014, 1, 1)
 
@@ -837,7 +847,10 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         axivity_x = np.empty(estimated_size)
         axivity_y = np.empty(estimated_size)
         axivity_z = np.empty(estimated_size)
-        axivity_timestamps = np.empty(estimated_size, dtype=type(start))
+        axivity_timestamps = np.empty(estimated_size/100, dtype=type(start))
+        axivity_indices = np.empty(estimated_size/100)
+
+        file_header = {}
 
         try:
             header = axivity_read(fh,2)
@@ -846,7 +859,7 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
 
                 if header == b'MD':
                     #print('MD')
-                    axivity_parse_header(fh)
+                    file_header = axivity_parse_header(fh)
                 elif header == b'UB':
                     #print('UB')
                     blockSize = unpack('H', axivity_read(fh,2))[0]
@@ -857,15 +870,9 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
 
                     packetLength, deviceId, sessionId, sequenceId, sampleTimeData, light, temperature, events,battery,sampleRate, numAxesBPS, timestampOffset, sampleCount = unpack('HHIIIHHcBBBhH', axivity_read(fh,28))
 
-                    sampleTime = axivity_read_timestamp_raw(sampleTimeData)
+                    timestamp = axivity_read_timestamp_raw(sampleTimeData)
 
-                    if packetLength != 508:
-                        continue
-
-                    if sampleTime == None:
-                        continue
-
-                    if sampleRate == 0:
+                    if packetLength != 508 or timestamp == None or sampleRate == 0:
                         continue
 
                     if ((numAxesBPS >> 4) & 15) != 3:
@@ -876,20 +883,19 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
                     elif (numAxesBPS & 15) == 0:
                         bps = 4
 
-                    timestamp = sampleTime
                     freq = 3200 / (1 << (15 - sampleRate & 15))
                     if freq <= 0:
                         freq = 1
                     offsetStart = float(-timestampOffset) / float(freq)
 
-
                     time0 = timestamp + timedelta(milliseconds=offsetStart)
-                    sampleOffset = (timedelta(seconds=1) / sampleCount)
-
+                    axivity_indices[num_pages] = num_samples
+                    axivity_timestamps[num_pages] = time0
+                    num_pages += 1
 
                     for sample in range(sampleCount):
 
-                        x,y,z,t = 0,0,0,0
+                        x,y,z = 0,0,0
 
                         if bps == 6:
 
@@ -907,13 +913,15 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
                             # Cache value of ushort(65472) ?
 
 
-                        t = sample*sampleOffset + time0
+                        #t = sample*sampleOffset + time0
 
                         axivity_x[num_samples] = x
                         axivity_y[num_samples] = y
                         axivity_z[num_samples] = z
-                        axivity_timestamps[num_samples] = t
+
                         num_samples += 1
+
+
 
                     checksum = unpack('H', axivity_read(fh,2))[0]
 
@@ -931,13 +939,18 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         axivity_x.resize(num_samples)
         axivity_y.resize(num_samples)
         axivity_z.resize(num_samples)
-        axivity_timestamps.resize(num_samples)
+        axivity_timestamps.resize(num_pages)
+        axivity_indices.resize(num_pages)
 
         channel_x.set_contents(axivity_x, axivity_timestamps)
         channel_y.set_contents(axivity_y, axivity_timestamps)
         channel_z.set_contents(axivity_z, axivity_timestamps)
 
-        return (channel_x,channel_y,channel_z)
+        for chan in [channel_x, channel_y, channel_z]:
+            chan.indices = axivity_indices
+
+        channels = [channel_x,channel_y,channel_z]
+        header = file_header
 
     elif (source_type == "GeneActiv"):
 
@@ -988,7 +1001,7 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
 
             excess = data.read(2)
 
-        print("C")
+
         x_values = np.array([(x * 100.0 - header_info["x_offset"]) / header_info["x_gain"] for x in x_values])
         y_values = np.array([(y * 100.0 - header_info["y_offset"]) / header_info["y_gain"] for y in y_values])
         z_values = np.array([(z * 100.0 - header_info["z_offset"]) / header_info["z_gain"] for z in z_values])
@@ -1001,4 +1014,8 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         y_channel.set_contents(y_values, time_values)
         z_channel.set_contents(z_values, time_values)
 
-        return [x_channel, y_channel, z_channel]
+        channels = [x_channel, y_channel, z_channel]
+        header = header_info
+
+    ts.add_channels(channels)
+    return ts, header

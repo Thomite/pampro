@@ -152,33 +152,68 @@ class Channel(object):
 
         start = np.searchsorted(self.timestamps, datetime_start, 'left')
         end = np.searchsorted(self.timestamps, datetime_end, 'right')
-        return np.arange(start, end-1)
+        return (start, end-1)
 
 
-    def get_sparse_data_indices(datetime_start, datetime_end):
+    def get_sparse_data_indices(self, datetime_start, datetime_end):
         """ Returns the indices of the data array to use if it is sparsely timestamped """
 
-        start = np.searchsorted(self.timestamps, datetime_start, 'left')
-        start_difference = self.timestamps[start]-datetime_start
-        start_difference_index = start + int(start_difference/self.resolution)
+        #print("Searching for ", datetime_start, datetime_end)
 
-        end = np.searchsorted(self.timestamps, datetime_end, 'right')
-        end_difference = datetime_end-self.timestamps[end]
-        end_difference_index = end - int(end_difference/self.resolution)
+        if datetime_start < self.timestamps[0]:
+            a = 0
+        else:
+            start = np.searchsorted(self.timestamps, datetime_start, 'left')
+            if self.timestamps[start] != datetime_start:
+                #print("Start not equal - wanted ", datetime_start, " got ", self.timestamps[start])
 
-        indices = np.arange(self.indices[start_difference_index], self.indices[end_difference_index])
+                previous_timestamp = self.timestamps[start-1]
+                previous_difference = self.timestamps[start]-previous_timestamp
+                sample_difference = self.indices[start]-self.indices[start-1]
+                per_sample_difference = previous_difference / sample_difference
+                num_samples_back = int(previous_difference / per_sample_difference)
 
-        return indices
+                a = max(0, self.indices[start] - num_samples_back)
+
+                self.timestamps = np.insert(self.timestamps, start, datetime_start)
+                self.indices = np.insert(self.indices, start, a)
+
+            else:
+                a = self.indices[start]
+
+        if datetime_end > self.timestamps[-1]:
+            b = len(self.data)-1
+        else:
+            end = np.searchsorted(self.timestamps, datetime_end, 'right')
+            if self.timestamps[end] != datetime_end:
+                #print("End not equal - wanted ", datetime_end, " got ", self.timestamps[end])
+
+                next_timestamp = self.timestamps[end+1]
+                next_difference = next_timestamp-self.timestamps[end]
+                sample_difference = self.indices[end+1]-self.indices[end]
+                per_sample_difference = next_difference / sample_difference
+                num_samples_forward = int(next_difference / per_sample_difference)
+
+                b = min(self.indices[end] + num_samples_forward, len(self.data)-1)
+
+                self.timestamps = np.insert(self.timestamps, end, datetime_end)
+                self.indices = np.insert(self.indices, end, b)
+
+            else:
+                b = self.indices[end]
+
+
+        return (a, b)
 
 
     def window_statistics(self, start_dts, end_dts, statistics):
 
-        indices = self.get_window(start_dts, end_dts)
+        start_index,end_index = self.get_window(start_dts, end_dts)
 
-        window_data = self.data[indices]
+        window_data = self.data[start_index:end_index]
 
         output_row = []
-        if (len(indices) > 0):
+        if (end_index-start_index > 0):
 
             for stat in statistics:
                 # Every stat is a tuple of the form ("type", [details])
@@ -198,7 +233,7 @@ class Channel(object):
                         elif val == "max" or stat[1] == "maximum":
                             output_row.append(np.max(window_data))
                         elif val == "n":
-                            output_row.append(len(indices))
+                            output_row.append(end_index-start_index)
 
                 elif stat[0] == "cutpoints":
                 # Example: ("cutpoints", [[0,10],[10,20],[20,30]])
@@ -240,11 +275,10 @@ class Channel(object):
                 # Example: ("freq_ranges", [[0,1],[1,2],[2,3]])
 
                     spectrum = np.fft.fft(window_data)
-                    spectrum = [abs(e) for e in spectrum[:len(indices)/2]]
+                    spectrum = [abs(e) for e in spectrum[:int((end_index-start_index)/2)]]
                     sum_spec = sum(spectrum)
                     spectrum = spectrum/sum_spec
-
-                    frequencies = np.fft.fftfreq(len(indices), d=1.0/self.frequency)[:len(indices)/2]
+                    frequencies = np.fft.fftfreq(int(end_index-start_index), d=1.0/self.frequency)[:int((end_index-start_index)/2)]
 
                     for low,high in stat[1]:
 
@@ -259,11 +293,10 @@ class Channel(object):
                 # Example: ("top_frequencies", 5)
 
                     spectrum = np.fft.fft(window_data)
-                    spectrum = [abs(e) for e in spectrum[:len(indices)/2]]
+                    spectrum = [abs(e) for e in spectrum[:int((end_index-start_index)/2)]]
                     sum_spec = sum(spectrum)
                     spectrum = spectrum/sum_spec
-                    #print(spectrum)
-                    frequencies = np.fft.fftfreq(len(indices), d=1.0/self.frequency)[:len(indices)/2]
+                    frequencies = np.fft.fftfreq(int(end_index-start_index), d=1.0/self.frequency)[:int((end_index-start_index)/2)]
 
                     sorted_spectrum = np.sort(spectrum)[::-1]
                     dom_magnitudes = sorted_spectrum[:stat[1]]
