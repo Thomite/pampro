@@ -154,8 +154,34 @@ class Channel(object):
         end = np.searchsorted(self.timestamps, datetime_end, 'right')
         return (start, end-1)
 
+    def get_data_index(self, timestamp):
 
-    def get_sparse_data_indices(self, datetime_start, datetime_end):
+        if timestamp < self.timestamps[0]:
+            return -1
+        elif timestamp > self.timestamps[-1]:
+            return -1
+        else:
+
+            start = np.searchsorted(self.timestamps, timestamp, 'left')
+            if self.timestamps[start] != timestamp:
+
+                previous_timestamp = self.timestamps[start-1]
+                previous_difference = self.timestamps[start]-previous_timestamp
+                sample_difference = self.indices[start]-self.indices[start-1]
+                per_sample_difference = previous_difference / sample_difference
+                num_samples_back = int(previous_difference / per_sample_difference)
+
+                a = max(0, self.indices[start] - num_samples_back)
+
+                self.timestamps = np.insert(self.timestamps, start, timestamp)
+                self.indices = np.insert(self.indices, start, a)
+
+            else:
+                a = self.indices[start]
+
+            return a
+
+    def get_sparse_data_indices_old(self, datetime_start, datetime_end):
         """ Returns the indices of the data array to use if it is sparsely timestamped """
 
         #print("Searching for ", datetime_start, datetime_end)
@@ -164,6 +190,7 @@ class Channel(object):
             a = 0
         else:
             start = np.searchsorted(self.timestamps, datetime_start, 'left')
+            print(start)
             if self.timestamps[start] != datetime_start:
                 #print("Start not equal - wanted ", datetime_start, " got ", self.timestamps[start])
 
@@ -205,6 +232,19 @@ class Channel(object):
 
         return (a, b)
 
+    def get_sparse_data_indices(self, datetime_start, datetime_end):
+        """ Returns the indices of the data array to use if it is sparsely timestamped """
+
+        a = self.get_data_index(datetime_start)
+        b = self.get_data_index(datetime_end)
+
+        if a == -1 and b != -1:
+            a = 0
+
+        if a != -1 and b == -1:
+            b = len(self.timestamps)-1
+
+        return (a, b)
 
     def window_statistics(self, start_dts, end_dts, statistics):
 
