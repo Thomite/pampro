@@ -969,8 +969,11 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         x_values = np.empty(num*n)
         y_values = np.empty(num*n)
         z_values = np.empty(num*n)
-        time_values = np.array([header_info["start_datetime_python"]])
-        time_values = np.resize(time_values, num*n)
+        #time_values = np.array([header_info["start_datetime_python"]])
+        #time_values = np.resize(time_values, num*n)
+
+        ga_timestamps = np.empty(header_info["number_pages"], dtype=type(header_info["start_datetime_python"]))
+        ga_indices = np.empty(header_info["number_pages"])
 
         # For each page
         for i in range(n):
@@ -979,10 +982,13 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
             lines = [data.readline().strip().decode() for i in range(9)]
             page_time = datetime.strptime(lines[3][10:29], "%Y-%m-%d %H:%M:%S") + timedelta(microseconds=int(lines[3][30:])*1000)
 
+            ga_timestamps[i] = page_time
+            ga_indices[i] = obs_num
+
             # For each 12 byte measurement in page (300 of them)
             for j in range(num):
 
-                time = page_time + (j * header_info["epoch"])
+                #time = page_time + (j * header_info["epoch"])
 
                 block = data.read(12)
 
@@ -995,7 +1001,7 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
                 x_values[obs_num] = x
                 y_values[obs_num] = y
                 z_values[obs_num] = z
-                time_values[obs_num] = time
+                #time_values[obs_num] = time
                 obs_num += 1
 
 
@@ -1010,9 +1016,12 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         y_channel = Channel.Channel("Y")
         z_channel = Channel.Channel("Z")
 
-        x_channel.set_contents(x_values, time_values)
-        y_channel.set_contents(y_values, time_values)
-        z_channel.set_contents(z_values, time_values)
+        x_channel.set_contents(x_values, ga_timestamps)
+        y_channel.set_contents(y_values, ga_timestamps)
+        z_channel.set_contents(z_values, ga_timestamps)
+
+        for c in [x_channel, y_channel, z_channel]:
+            c.indices = ga_indices
 
         channels = [x_channel, y_channel, z_channel]
         header = header_info
