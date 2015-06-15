@@ -949,7 +949,7 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         for c in [channel_x, channel_y, channel_z]:
             c.indices = axivity_indices
             c.sparsely_timestamped = True
-        
+
 
         channels = [channel_x,channel_y,channel_z]
         header = file_header
@@ -1022,9 +1022,11 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         y_channel.set_contents(y_values, ga_timestamps)
         z_channel.set_contents(z_values, ga_timestamps)
 
+
         for c in [x_channel, y_channel, z_channel]:
             c.indices = ga_indices
             c.sparsely_timestamped = True
+
         channels = [x_channel, y_channel, z_channel]
         header = header_info
 
