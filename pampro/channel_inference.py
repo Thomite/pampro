@@ -146,6 +146,9 @@ def infer_vector_magnitude(x,y,z):
 
     result.set_contents( np.sqrt( np.multiply(x.data,x.data) + np.multiply(y.data,y.data) + np.multiply(z.data,z.data) ), x.timestamps )
 
+    if x.sparsely_timestamped:
+        result.indices = x.indices
+
     return result
 
 def infer_pitch_roll(x,y,z):
@@ -160,6 +163,10 @@ def infer_pitch_roll(x,y,z):
     pitch.set_contents( pitch_degrees, x.timestamps)
     roll.set_contents( roll_degrees, x.timestamps)
 
+    if x.sparsely_timestamped:
+        pitch.indices = x.indices
+        roll.indices = x.indices
+
     return [pitch, roll]
 
 def infer_enmo(vm):
@@ -168,8 +175,10 @@ def infer_enmo(vm):
 
     result.set_contents( (vm.data - 1.0)*1000.0 , vm.timestamps )
 
-
     result.data[np.where(result.data < 0)] = 0
+
+    if vm.sparsely_timestamped:
+        result.indices = vm.indices
 
     return result
 
@@ -178,6 +187,9 @@ def infer_enmo_a(vm):
     result = Channel.Channel("ENMOa")
 
     result.set_contents( np.absolute((vm.data - 1.0)*1000.0) , vm.timestamps )
+
+    if vm.sparsely_timestamped:
+        result.indices = vm.indices
 
     return result
 

@@ -30,6 +30,7 @@ class Channel(object):
         self.annotations = []
         self.draw_properties = {}
         self.cached_indices = {}
+        self.sparsely_timestamped = False
 
     def clone(self):
 
@@ -132,7 +133,7 @@ class Channel(object):
 
         except:
 
-            if len(self.timestamps) == len(self.data):
+            if not self.sparsely_timestamped:
 
                 indices = self.get_data_indices(datetime_start, datetime_end)
 
