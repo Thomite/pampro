@@ -148,6 +148,7 @@ def infer_vector_magnitude(x,y,z):
 
     if x.sparsely_timestamped:
         result.indices = x.indices
+        result.sparsely_timestamped = True
 
     return result
 
@@ -158,7 +159,6 @@ def infer_pitch_roll(x,y,z):
 
     pitch_degrees = np.arctan(x.data/np.sqrt((y.data*y.data) + (z.data*z.data))) * 180.0/np.pi
     roll_degrees = np.arctan(y.data/np.sqrt((x.data*x.data) + (z.data*z.data))) * 180.0/np.pi
-    # Remove the -1s here?
 
     pitch.set_contents( pitch_degrees, x.timestamps)
     roll.set_contents( roll_degrees, x.timestamps)
@@ -166,6 +166,8 @@ def infer_pitch_roll(x,y,z):
     if x.sparsely_timestamped:
         pitch.indices = x.indices
         roll.indices = x.indices
+        pitch.sparsely_timestamped = True
+        roll.sparsely_timestamped = True
 
     return [pitch, roll]
 
@@ -179,6 +181,7 @@ def infer_enmo(vm):
 
     if vm.sparsely_timestamped:
         result.indices = vm.indices
+        result.sparsely_timestamped = True
 
     return result
 
@@ -190,7 +193,7 @@ def infer_enmo_a(vm):
 
     if vm.sparsely_timestamped:
         result.indices = vm.indices
-
+        result.sparsely_timestamped = True
     return result
 
 def infer_nonwear_actigraph(counts, zero_minutes=timedelta(minutes=60)):

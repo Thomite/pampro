@@ -35,6 +35,10 @@ class Time_Series(object):
 
         return self.channel_lookup[channel_name]
 
+    def get_channels(self, channel_names):
+
+        return [self.get_channel(c) for c in channel_names]
+
     def calculate_timeframe(self):
 
         chan = self.channels[0]

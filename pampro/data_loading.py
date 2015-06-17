@@ -847,8 +847,8 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         axivity_x = np.empty(estimated_size)
         axivity_y = np.empty(estimated_size)
         axivity_z = np.empty(estimated_size)
-        axivity_timestamps = np.empty(estimated_size/100, dtype=type(start))
-        axivity_indices = np.empty(estimated_size/100)
+        axivity_timestamps = np.empty((len(raw_bytes)/512)*1.01, dtype=type(start))
+        axivity_indices = np.empty((len(raw_bytes)/512*1.01))
 
         file_header = OrderedDict()
 
@@ -1009,7 +1009,7 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
 
             excess = data.read(2)
 
-
+        print("A")
         x_values = np.array([(x * 100.0 - header_info["x_offset"]) / header_info["x_gain"] for x in x_values])
         y_values = np.array([(y * 100.0 - header_info["y_offset"]) / header_info["y_gain"] for y in y_values])
         z_values = np.array([(z * 100.0 - header_info["z_offset"]) / header_info["z_gain"] for z in z_values])
@@ -1022,11 +1022,11 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         y_channel.set_contents(y_values, ga_timestamps)
         z_channel.set_contents(z_values, ga_timestamps)
 
-
+        print("B")
         for c in [x_channel, y_channel, z_channel]:
             c.indices = ga_indices
             c.sparsely_timestamped = True
-
+        print("C")
         channels = [x_channel, y_channel, z_channel]
         header = header_info
 

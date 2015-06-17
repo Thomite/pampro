@@ -24,4 +24,7 @@ def high_pass_filter(input_channel, high, frequency=1, order=1):
     output_channel = Channel.Channel(input_channel.name + "_HPF_" + str(high))
     output_channel.set_contents(y, input_channel.timestamps)
 
+    if input_channel.sparsely_timestamped:
+        output_channel.indices = input_channel.indices
+
     return output_channel

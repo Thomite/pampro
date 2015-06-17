@@ -182,57 +182,6 @@ class Channel(object):
 
             return a
 
-    def get_sparse_data_indices_old(self, datetime_start, datetime_end):
-        """ Returns the indices of the data array to use if it is sparsely timestamped """
-
-        #print("Searching for ", datetime_start, datetime_end)
-
-        if datetime_start < self.timestamps[0]:
-            a = 0
-        else:
-            start = np.searchsorted(self.timestamps, datetime_start, 'left')
-            print(start)
-            if self.timestamps[start] != datetime_start:
-                #print("Start not equal - wanted ", datetime_start, " got ", self.timestamps[start])
-
-                previous_timestamp = self.timestamps[start-1]
-                previous_difference = self.timestamps[start]-previous_timestamp
-                sample_difference = self.indices[start]-self.indices[start-1]
-                per_sample_difference = previous_difference / sample_difference
-                num_samples_back = int(previous_difference / per_sample_difference)
-
-                a = max(0, self.indices[start] - num_samples_back)
-
-                self.timestamps = np.insert(self.timestamps, start, datetime_start)
-                self.indices = np.insert(self.indices, start, a)
-
-            else:
-                a = self.indices[start]
-
-        if datetime_end > self.timestamps[-1]:
-            b = len(self.data)-1
-        else:
-            end = np.searchsorted(self.timestamps, datetime_end, 'right')
-            if self.timestamps[end] != datetime_end:
-                #print("End not equal - wanted ", datetime_end, " got ", self.timestamps[end])
-
-                next_timestamp = self.timestamps[end+1]
-                next_difference = next_timestamp-self.timestamps[end]
-                sample_difference = self.indices[end+1]-self.indices[end]
-                per_sample_difference = next_difference / sample_difference
-                num_samples_forward = int(next_difference / per_sample_difference)
-
-                b = min(self.indices[end] + num_samples_forward, len(self.data)-1)
-
-                self.timestamps = np.insert(self.timestamps, end, datetime_end)
-                self.indices = np.insert(self.indices, end, b)
-
-            else:
-                b = self.indices[end]
-
-
-        return (a, b)
-
     def get_sparse_data_indices(self, datetime_start, datetime_end):
         """ Returns the indices of the data array to use if it is sparsely timestamped """
 
@@ -313,7 +262,7 @@ class Channel(object):
                             output_row.append(pairs[val1][val2])
 
                 elif stat[0] == "frequency_ranges":
-                # Example: ("freq_ranges", [[0,1],[1,2],[2,3]])
+                # Example: ("frequency_ranges", [[0,1],[1,2],[2,3]])
 
                     spectrum = np.fft.fft(window_data)
                     spectrum = [abs(e) for e in spectrum[:int((end_index-start_index)/2)]]
@@ -541,20 +490,30 @@ class Channel(object):
         for bout in bout_list:
             #print(bout)
 
-            indices = self.get_window(bout.start_timestamp, bout.end_timestamp)
+            start_index,end_index = self.get_window(bout.start_timestamp, bout.end_timestamp)
 
             #c.data[bout[2]:bout[3]] = self.data[bout[2]:bout[3]]
-            c.data[indices] = self.data[indices]
+            c.data[indices] = self.data[start_index:end_index]
 
         return c
 
     def delete_windows(self, windows):
 
         for window in windows:
-            indices = self.get_window(window.start_timestamp, window.end_timestamp)
+            start_index,end_index = self.get_window(window.start_timestamp, window.end_timestamp)
 
-            self.data = np.delete(self.data, indices, None)
-            self.timestamps = np.delete(self.timestamps, indices, None)
+            self.data = np.delete(self.data, range(start_index, end_index), None)
+
+            if not self.sparsely_timestamped:
+                self.timestamps = np.delete(self.timestamps, range(start_index, end_index), None)
+
+            else:
+                start = np.searchsorted(self.timestamps, window.start_timestamp, 'left')
+                end = np.searchsorted(self.timestamps, window.end_timestamp, 'right')
+                self.timestamps = np.delete(self.timestamps, range(start,end), None)
+                self.indices[start:] -= end_index-start_index
+                self.indices = np.delete(self.indices, range(start,end), None)
+
 
         self.calculate_timeframe()
 
@@ -562,9 +521,9 @@ class Channel(object):
 
     def restrict_timeframe(self, start, end):
 
-        indices = self.get_window(start, end)
+        start_index,end_index = self.get_window(start, end)
 
-        self.set_contents(self.data[indices], self.timestamps[indices])
+        self.set_contents(self.data[start_index:end_index], self.timestamps[start_index:end_index])
 
 
     def time_derivative(self):
@@ -581,9 +540,9 @@ class Channel(object):
 
     def fill(self, bout, fill_value=0):
 
-        indices = self.get_window(bout.start_timestamp,bout.end_timestamp)
+        start_index,end_index = self.get_window(bout.start_timestamp,bout.end_timestamp)
 
-        self.data[indices] = fill_value
+        self.data[start_index:end_index] = fill_value
 
     def fill_windows(self, bouts, fill_value=0):
 
