@@ -1,6 +1,6 @@
 
 from datetime import timedelta
-from pampro import Channel, Bout, Time_Series, time_utilities
+from pampro import Channel, Bout, Time_Series, time_utilities, pampro_fourier
 import numpy as np
 import copy
 
@@ -195,6 +195,15 @@ def infer_enmo_a(vm):
         result.indices = vm.indices
         result.sparsely_timestamped = True
     return result
+
+def infer_vm_hpf(vm):
+    """Apply high pass filter to VM at 0.2 hertz. Absolute resulting data. Returned in mg. """
+
+    vm_hpf = pampro_fourier.high_pass_filter(vm, 0.2, frequency=vm.frequency, order=4)
+    vm_hpf.name = "VM_HPF"
+    vm_hpf.data = np.multiply(1000.0, abs(vm_hpf.data))
+
+    return vm_hpf
 
 def infer_nonwear_actigraph(counts, zero_minutes=timedelta(minutes=60)):
 
