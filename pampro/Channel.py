@@ -205,6 +205,17 @@ class Channel(object):
         output_row = []
         if (end_index-start_index > 0):
 
+
+            for stat in statistics:
+                if stat[0] == "top_frequencies" or stat[0] == "frequency_ranges":
+                    spectrum = np.fft.fft(window_data)
+                    spectrum = np.array([abs(e) for e in spectrum[:int((end_index-start_index)/2)]])
+                    sum_spec = sum(spectrum)
+                    spectrum /= sum_spec
+                    frequencies = np.fft.fftfreq(int(end_index-start_index), d=1.0/self.frequency)[:int((end_index-start_index)/2)]
+                    break
+
+
             for stat in statistics:
                 # Every stat is a tuple of the form ("type", [details])
 
@@ -234,12 +245,12 @@ class Channel(object):
                         end = np.searchsorted(sorted_vals, high, 'right')
 
                         output_row.append(end-start)
-                    """
-                    This is the old way - much slower
-                    for low,high in stat[1]:
-                        indices2 = np.where((self.data[indices] >= low) & (self.data[indices] <= high))[0]
-                        output_row.append(len(indices2))
-                    """
+                        """
+                        This is the old way - much slower
+                        for low,high in stat[1]:
+                            indices2 = np.where((self.data[indices] >= low) & (self.data[indices] <= high))[0]
+                            output_row.append(len(indices2))
+                        """
 
                 elif stat[0] == "bigrams":
                 # Example: ("bigrams", [0,1,2])
@@ -264,12 +275,6 @@ class Channel(object):
                 elif stat[0] == "frequency_ranges":
                 # Example: ("frequency_ranges", [[0,1],[1,2],[2,3]])
 
-                    spectrum = np.fft.fft(window_data)
-                    spectrum = [abs(e) for e in spectrum[:int((end_index-start_index)/2)]]
-                    sum_spec = sum(spectrum)
-                    spectrum = spectrum/sum_spec
-                    frequencies = np.fft.fftfreq(int(end_index-start_index), d=1.0/self.frequency)[:int((end_index-start_index)/2)]
-
                     for low,high in stat[1]:
 
                         start = np.searchsorted(frequencies, low, 'left')
@@ -281,12 +286,6 @@ class Channel(object):
 
                 elif stat[0] == "top_frequencies":
                 # Example: ("top_frequencies", 5)
-
-                    spectrum = np.fft.fft(window_data)
-                    spectrum = [abs(e) for e in spectrum[:int((end_index-start_index)/2)]]
-                    sum_spec = sum(spectrum)
-                    spectrum = spectrum/sum_spec
-                    frequencies = np.fft.fftfreq(int(end_index-start_index), d=1.0/self.frequency)[:int((end_index-start_index)/2)]
 
                     sorted_spectrum = np.sort(spectrum)[::-1]
                     dom_magnitudes = sorted_spectrum[:stat[1]]
