@@ -203,6 +203,10 @@ def infer_vm_hpf(vm):
     vm_hpf.name = "VM_HPF"
     vm_hpf.data = np.multiply(1000.0, abs(vm_hpf.data))
 
+    if vm.sparsely_timestamped:
+        result.indices = vm.indices
+        result.sparsely_timestamped = True
+
     return vm_hpf
 
 def infer_nonwear_actigraph(counts, zero_minutes=timedelta(minutes=60)):
