@@ -204,8 +204,8 @@ def infer_vm_hpf(vm):
     vm_hpf.data = np.multiply(1000.0, abs(vm_hpf.data))
 
     if vm.sparsely_timestamped:
-        result.indices = vm.indices
-        result.sparsely_timestamped = True
+        vm_hpf.indices = vm.indices
+        vm_hpf.sparsely_timestamped = True
 
     return vm_hpf
 
@@ -244,14 +244,20 @@ def infer_nonwear_actigraph(counts, zero_minutes=timedelta(minutes=60)):
 
 
 
-def infer_still_bouts_triaxial(x, y, z, window_size=timedelta(seconds=10), noise_cutoff_mg=13):
-
-    stats = {x.name:["std"], y.name:["std"], z.name:["std"]}
+def infer_still_bouts_triaxial(x, y, z, window_size=timedelta(seconds=10), noise_cutoff_mg=13, approximate_timestamps=False):
 
     results = Time_Series.Time_Series("Results")
-    results.add_channels(x.piecewise_statistics(window_size, statistics=[("generic",["std"])], time_period=(time_utilities.start_of_hour(x.timeframe[0]), time_utilities.end_of_hour(x.timeframe[1]))))
-    results.add_channels(y.piecewise_statistics(window_size, statistics=[("generic",["std"])], time_period=(time_utilities.start_of_hour(y.timeframe[0]), time_utilities.end_of_hour(y.timeframe[1]))))
-    results.add_channels(z.piecewise_statistics(window_size, statistics=[("generic",["std"])], time_period=(time_utilities.start_of_hour(z.timeframe[0]), time_utilities.end_of_hour(z.timeframe[1]))))
+    timeframe = (time_utilities.start_of_hour(x.timeframe[0]), time_utilities.end_of_hour(x.timeframe[1]))
+
+    if x.sparsely_timestamped:
+        results.add_channels(x.piecewise_statistics(window_size.seconds*int(x.frequency), statistics=[("generic",["std"])], time_period=timeframe))
+        results.add_channels(y.piecewise_statistics(window_size.seconds*int(x.frequency), statistics=[("generic",["std"])], time_period=timeframe))
+        results.add_channels(z.piecewise_statistics(window_size.seconds*int(x.frequency), statistics=[("generic",["std"])], time_period=timeframe))
+
+    else:
+        results.add_channels(x.piecewise_statistics(window_size, statistics=[("generic",["std"])], time_period=timeframe))
+        results.add_channels(y.piecewise_statistics(window_size, statistics=[("generic",["std"])], time_period=timeframe))
+        results.add_channels(z.piecewise_statistics(window_size, statistics=[("generic",["std"])], time_period=timeframe))
 
     x_std = results.get_channel(x.name + "_std")
     y_std = results.get_channel(y.name + "_std")
@@ -266,6 +272,9 @@ def infer_still_bouts_triaxial(x, y, z, window_size=timedelta(seconds=10), noise
     x_intersect_y = Bout.bout_list_intersection(x_bouts, y_bouts)
     x_intersect_y_intersect_z = Bout.bout_list_intersection(x_intersect_y, z_bouts)
 
+    if approximate_timestamps:
+        Bout.approximate_timestamps(x_intersect_y_intersect_z, x)
+
     return x_intersect_y_intersect_z
 
 
@@ -273,8 +282,11 @@ def infer_nonwear_triaxial(x, y, z, minimum_length=timedelta(hours=1), noise_cut
 
     ''' Use the 3 channels of triaxial acceleration to infer periods of nonwear '''
 
-    x_intersect_y_intersect_z = infer_still_bouts_triaxial(x,y,z)
+    x_intersect_y_intersect_z = infer_still_bouts_triaxial(x,y,z, approximate_timestamps=True)
+
     Bout.cache_lengths(x_intersect_y_intersect_z)
+
+
     x_intersect_y_intersect_z = Bout.limit_to_lengths(x_intersect_y_intersect_z, min_length=minimum_length)
 
     if return_nonwear_binary:

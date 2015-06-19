@@ -710,6 +710,8 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         axivity_z = np.empty(estimated_size)
         axivity_timestamps = np.empty(estimated_size, dtype=type(start))
 
+        sample_rates = []
+
         try:
             header = axivity_read(fh,2)
 
@@ -727,6 +729,8 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
                 elif header == b'AX':
 
                     packetLength, deviceId, sessionId, sequenceId, sampleTimeData, light, temperature, events,battery,sampleRate, numAxesBPS, timestampOffset, sampleCount = unpack('HHIIIHHcBBBhH', axivity_read(fh,28))
+
+                    sample_rates.append(sampleRate)
 
                     sampleTime = axivity_read_timestamp_raw(sampleTimeData)
 
@@ -798,7 +802,7 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         except IOError:
             pass
 
-
+        print(sum(sample_rates)/len(sample_rates))
         axivity_x.resize(num_samples)
         axivity_y.resize(num_samples)
         axivity_z.resize(num_samples)
@@ -849,7 +853,7 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         axivity_z = np.empty(estimated_size)
         axivity_timestamps = np.empty((len(raw_bytes)/512)*1.01, dtype=type(start))
         axivity_indices = np.empty((len(raw_bytes)/512*1.01))
-
+        sample_rates = []
         file_header = OrderedDict()
 
         try:
@@ -869,7 +873,7 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
                 elif header == b'AX':
 
                     packetLength, deviceId, sessionId, sequenceId, sampleTimeData, light, temperature, events,battery,sampleRate, numAxesBPS, timestampOffset, sampleCount = unpack('HHIIIHHcBBBhH', axivity_read(fh,28))
-
+                    sample_rates.append(sampleRate)
                     timestamp = axivity_read_timestamp_raw(sampleTimeData)
 
                     if packetLength != 508 or timestamp == None or sampleRate == 0:
@@ -935,7 +939,7 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         except IOError:
             pass
 
-
+        print(sum(sample_rates)/len(sample_rates))
         axivity_x.resize(num_samples)
         axivity_y.resize(num_samples)
         axivity_z.resize(num_samples)
@@ -1009,7 +1013,7 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
 
             excess = data.read(2)
 
-        print("A")
+        #print("A")
         x_values = np.array([(x * 100.0 - header_info["x_offset"]) / header_info["x_gain"] for x in x_values])
         y_values = np.array([(y * 100.0 - header_info["y_offset"]) / header_info["y_gain"] for y in y_values])
         z_values = np.array([(z * 100.0 - header_info["z_offset"]) / header_info["z_gain"] for z in z_values])
@@ -1022,11 +1026,12 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         y_channel.set_contents(y_values, ga_timestamps)
         z_channel.set_contents(z_values, ga_timestamps)
 
-        print("B")
+        #print("B")
         for c in [x_channel, y_channel, z_channel]:
             c.indices = ga_indices
             c.sparsely_timestamped = True
-        print("C")
+            c.frequency = header["frequency"]
+        #print("C")
         channels = [x_channel, y_channel, z_channel]
         header = header_info
 

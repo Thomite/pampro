@@ -75,21 +75,43 @@ def calibrate(x,y,z, allow_overwrite=True, budget=1000, noise_cutoff_mg=13):
     vm = channel_inference.infer_vector_magnitude(x,y,z)
 
     still_bouts = channel_inference.infer_still_bouts_triaxial(x,y,z, noise_cutoff_mg=noise_cutoff_mg)
-    vm_windows = vm.piecewise_statistics( timedelta(seconds=10), [("generic", ["mean"])], time_period=(time_utilities.start_of_hour(x.timeframe[0]), time_utilities.end_of_hour(x.timeframe[1])) )[0]
+
+    if vm.sparsely_timestamped:
+
+        vm_windows = vm.piecewise_statistics( 10*int(x.frequency), [("generic", ["mean"])], time_period=(time_utilities.start_of_hour(x.timeframe[0]), time_utilities.end_of_hour(x.timeframe[1])) )[0]
+    else:
+
+        vm_windows = vm.piecewise_statistics( timedelta(seconds=10), [("generic", ["mean"])], time_period=(time_utilities.start_of_hour(x.timeframe[0]), time_utilities.end_of_hour(x.timeframe[1])) )[0]
 
     reasonable_bouts = vm_windows.bouts(0.5, 1.5)
+    #Bout.approximate_timestamps(reasonable_bouts, x)
 
     num_still_bouts = len(still_bouts)
-    num_still_seconds = Bout.total_time(still_bouts).total_seconds()
+
+    if vm.sparsely_timestamped:
+        num_still_seconds = sum([b.end_timestamp-b.start_timestamp for b in still_bouts])/int(x.frequency)
+        num_reasonable_seconds = sum([b.end_timestamp-b.start_timestamp for b in reasonable_bouts])/int(x.frequency)
+    else:
+        num_still_seconds = Bout.total_time(still_bouts).total_seconds()
+        num_reasonable_seconds = Bout.total_time(reasonable_bouts).total_seconds()
+
     num_reasonable_bouts = len(reasonable_bouts)
-    num_reasonable_seconds = Bout.total_time(reasonable_bouts).total_seconds()
 
     still_bouts = Bout.bout_list_intersection(reasonable_bouts, still_bouts)
     Bout.cache_lengths(still_bouts)
-    still_bouts = Bout.limit_to_lengths(still_bouts, min_length = timedelta(seconds=10))
+
+    if vm.sparsely_timestamped:
+        still_bouts = Bout.limit_to_lengths(still_bouts, min_length = 10*int(x.frequency))
+        num_final_seconds = sum([b.end_timestamp-b.start_timestamp for b in still_bouts])/int(x.frequency)
+        # Convert bout objects into lists of indices for efficiency
+        still_bouts = [[b.start_timestamp, b.end_timestamp] for b in still_bouts]
+    else:
+        still_bouts = Bout.limit_to_lengths(still_bouts, min_length = timedelta(seconds=10))
+        num_final_seconds = Bout.total_time(still_bouts).total_seconds()
 
     num_final_bouts = len(still_bouts)
-    num_final_seconds = Bout.total_time(still_bouts).total_seconds()
+
+
 
     # Get the average X,Y,Z for each still bout (inside which, by definition, XYZ should not change)
     still_x, num_samples = x.build_statistics_channels(still_bouts, [("generic", ["mean", "n"])])
@@ -100,9 +122,6 @@ def calibrate(x,y,z, allow_overwrite=True, budget=1000, noise_cutoff_mg=13):
     still_y.name = "still_y"
     still_z.name = "still_z"
     num_samples.name = "n"
-
-
-
 
     # Calculate the initial error without doing any calibration
     start_error = evaluate_solution(still_x, still_y, still_z, num_samples, [0,1,0,1,0,1])

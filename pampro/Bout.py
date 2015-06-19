@@ -5,7 +5,7 @@ import numpy as np
 class Bout(object):
 
 	def __init__(self, start_timestamp, end_timestamp, label=""):
-		
+
 		self.label = label
 		self.start_timestamp = start_timestamp
 		self.end_timestamp = end_timestamp
@@ -16,14 +16,22 @@ class Bout(object):
 		return timepoint >= self.start_timestamp and timepoint <= self.end_timestamp
 
 	def overlaps(self, other):
-		
+
 		return self.contains(other.start_timestamp) or self.contains(other.end_timestamp) or other.contains(self.start_timestamp) or other.contains(self.end_timestamp)
 
 	def intersection(self, other):
 
 		return Bout(max(self.start_timestamp, other.start_timestamp), min(self.end_timestamp, other.end_timestamp))
 
+	def approximate_timestamps(self, channel):
+		"""If start_timestamp and end_timestamp are indices, convert them to timestamps"""
+		self.start_timestamp = channel.infer_timestamp(self.start_timestamp)
+		self.end_timestamp = channel.infer_timestamp(self.end_timestamp)
 
+def approximate_timestamps(bouts, channel):
+
+	for b in bouts:
+		b.approximate_timestamps(channel)
 
 def total_time(bouts):
 
@@ -46,7 +54,7 @@ def bout_list_intersection(bouts_a, bouts_b):
 					bout_c = bout_a.intersection(bout_b)
 					#print bout_a.start_timestamp, bout_a.end_timestamp, "overlaps", bout_b.start_timestamp, bout_b.end_timestamp, "=", bout_c.start_timestamp, bout_c.end_timestamp
 					intersection.append(bout_c)
-		
+
 	#print "Bouts a", len(bouts_a)
 	#print "Bouts b", len(bouts_b)
 	#print "Intersections", len(intersection)
@@ -90,7 +98,7 @@ def bout_confusion_matrix(a1_bouts, b1_bouts, time_period):
 
 	a0_bouts = time_period_minus_bouts(time_period, a1_bouts)
 	b0_bouts = time_period_minus_bouts(time_period, b1_bouts)
-	
+
 	a0_b0_bouts = bout_list_intersection(a0_bouts, b0_bouts)
 	a1_b0_bouts = bout_list_intersection(a1_bouts, b0_bouts)
 	a0_b1_bouts = bout_list_intersection(a0_bouts, b1_bouts)
@@ -110,11 +118,11 @@ def bout_confusion_matrix(a1_bouts, b1_bouts, time_period):
 	results["a1_b0_bouts"] = a1_b0_bouts
 	results["a0_b1_bouts"] = a0_b1_bouts
 	results["a1_b1_bouts"] = a1_b1_bouts
-	
+
 	return results
 
 def limit_to_lengths(bouts, min_length=False, max_length=False, sorted=False):
-	
+
 	within_length = []
 	for bout in bouts:
 		#bout_length = bout.end_timestamp - bout.start_timestamp
@@ -124,13 +132,15 @@ def limit_to_lengths(bouts, min_length=False, max_length=False, sorted=False):
 		else:
 			if sorted:
 				break
-	
+
 	return within_length
 
 def cache_lengths(bouts):
 
 	for bout in bouts:
 		bout.length = bout.end_timestamp - bout.start_timestamp
+
+
 
 
 def write_bouts_to_file(bouts, file_target):
@@ -153,5 +163,5 @@ def read_bouts(file_source, date_format="%d/%m/%Y %H:%M:%S:%f"):
 	bouts = []
 	for start,end in zip(data[:,0],data[:,1]):
 		bouts.append(Bout(datetime.strptime(start, date_format), datetime.strptime(end, date_format)))
-	
+
 	return bouts

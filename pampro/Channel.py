@@ -198,7 +198,13 @@ class Channel(object):
 
     def window_statistics(self, start_dts, end_dts, statistics):
 
-        start_index,end_index = self.get_window(start_dts, end_dts)
+        #print(type(start_dts))
+        index_type = str(type(start_dts))
+        if index_type == "<class 'int'>" or index_type == "<class 'numpy.int32'>":
+            start_index,end_index = start_dts, end_dts
+
+        else:
+            start_index,end_index = self.get_window(start_dts, end_dts)
 
         window_data = self.data[start_index:end_index]
 
@@ -345,6 +351,10 @@ class Channel(object):
 
     def build_statistics_channels(self, windows, statistics):
 
+        using_indices = True
+        if str(type(windows[0])) == "<class 'pampro.Bout.Bout'>":
+            using_indices = False
+
         channel_list = []
 
         for stat in statistics:
@@ -358,13 +368,26 @@ class Channel(object):
 
         for window in windows:
 
-            results = self.window_statistics(window.start_timestamp, window.end_timestamp, statistics)
+            if using_indices:
+
+                results = self.window_statistics(window[0], window[1], statistics)
+
+            else:
+
+                results = self.window_statistics(window.start_timestamp, window.end_timestamp, statistics)
+
             if len(results) != num_expected_results:
+
                 raise Exception("Incorrect number of statistics yielded. {} expected, {} given. Channel: {}. Statistics: {}.".format(num_expected_results, len(results), self.name, statistics))
 
-            for i in range(len(results)):
-                #print len(results)
-                channel_list[i].append_data(window.start_timestamp, results[i])
+            if using_indices:
+
+                for i in range(len(results)):
+                    channel_list[i].append_data(window[0], results[i])
+            else:
+
+                for i in range(len(results)):
+                    channel_list[i].append_data(window.start_timestamp, results[i])
 
         for channel in channel_list:
             channel.calculate_timeframe()
@@ -376,6 +399,23 @@ class Channel(object):
     def append_data(self, timestamp, data_row):
         self.timestamps.append(timestamp)
         self.data.append(data_row)
+
+    def infer_timestamp(self, index):
+
+        start = np.searchsorted(self.indices, index, 'left')
+        if self.indices[start] == index:
+
+            return self.timestamps[start]
+
+        elif start == len(self.indices):
+            return self.timestamps[-1]
+
+        else:
+            # it's before "start" & after "start"-1
+            index_difference = self.indices[start]-self.indices[max(0,start-1)]
+            time_difference = self.timestamps[start]-self.timestamps[max(0,start-1)]
+
+            return self.timestamps[max(0,start-1)] + (time_difference/index_difference)
 
     def sliding_statistics(self, window_size, statistics=[("generic", "mean")], time_period=False):
 
@@ -410,24 +450,31 @@ class Channel(object):
             end = time_period[1]
 
         #print("Piecewise statistics: {}".format(self.name))
-
         windows = []
 
-        start_dts = start
-        end_dts = start + window_size
+        if str(type(window_size)) == "<class 'datetime.timedelta'>":
 
-        while start_dts < end:
+            start_dts = start
+            end_dts = start + window_size
 
-            window = Bout.Bout(start_dts, end_dts)
-            windows.append(window)
+            while start_dts < end:
 
-            start_dts = start_dts + window_size
-            end_dts = end_dts + window_size
+                window = Bout.Bout(start_dts, end_dts)
+                windows.append(window)
+
+                start_dts = start_dts + window_size
+                end_dts = end_dts + window_size
+
+        elif str(type(window_size)) == "<class 'int'>":
+
+            windows = [[i,i+window_size] for i in range(0,len(self.data),window_size)]
+
+
 
         return self.build_statistics_channels(windows, statistics)
 
 
-    def summary_statistics(self, statistics=["mean"]):
+    def summary_statistics(self, statistics=[("generic", ["mean"])]):
 
         windows = [Bout.Bout(self.timeframe[0], self.timeframe[1])]
         #results = self.window_statistics(self.timeframe[0], self.timeframe[1], statistics)
