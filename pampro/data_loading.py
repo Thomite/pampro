@@ -819,6 +819,8 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         channel_x = Channel.Channel("X")
         channel_y = Channel.Channel("Y")
         channel_z = Channel.Channel("Z")
+        channel_light = Channel.Channel("Light")
+        channel_temperature = Channel.Channel("Temperature")
 
         #print("Opening file")
         archive = zipfile.ZipFile(source, "r")
@@ -851,8 +853,10 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         axivity_x = np.empty(estimated_size)
         axivity_y = np.empty(estimated_size)
         axivity_z = np.empty(estimated_size)
+        axivity_light = np.empty(len(raw_bytes)/512*1.01)
+        axivity_temperature = np.empty(len(raw_bytes)/512*1.01)
         axivity_timestamps = np.empty((len(raw_bytes)/512)*1.01, dtype=type(start))
-        axivity_indices = np.empty((len(raw_bytes)/512*1.01))
+        axivity_indices = np.empty(len(raw_bytes)/512*1.01)
         sample_rates = []
         file_header = OrderedDict()
 
@@ -872,7 +876,7 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
                     pass
                 elif header == b'AX':
 
-                    packetLength, deviceId, sessionId, sequenceId, sampleTimeData, light, temperature, events,battery,sampleRate, numAxesBPS, timestampOffset, sampleCount = unpack('HHIIIHHcBBBhH', axivity_read(fh,28))
+                    packetLength, deviceId, sessionId, sequenceId, sampleTimeData, light, temperature, events, battery, sampleRate, numAxesBPS, timestampOffset, sampleCount = unpack('HHIIIHHcBBBhH', axivity_read(fh,28))
                     sample_rates.append(sampleRate)
                     timestamp = axivity_read_timestamp_raw(sampleTimeData)
 
@@ -895,6 +899,8 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
                     time0 = timestamp + timedelta(milliseconds=offsetStart)
                     axivity_indices[num_pages] = num_samples
                     axivity_timestamps[num_pages] = time0
+                    axivity_light[num_pages] = light
+                    axivity_temperature[num_pages] = temperature
                     num_pages += 1
 
                     for sample in range(sampleCount):
@@ -945,17 +951,22 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         axivity_z.resize(num_samples)
         axivity_timestamps.resize(num_pages)
         axivity_indices.resize(num_pages)
+        axivity_temperature.resize(num_pages)
+        axivity_light.resize(num_pages)
 
         channel_x.set_contents(axivity_x, axivity_timestamps)
         channel_y.set_contents(axivity_y, axivity_timestamps)
         channel_z.set_contents(axivity_z, axivity_timestamps)
+
+        channel_light.set_contents(axivity_light, axivity_timestamps)
+        channel_temperature.set_contents(axivity_temperature, axivity_timestamps)
 
         for c in [channel_x, channel_y, channel_z]:
             c.indices = axivity_indices
             c.sparsely_timestamped = True
 
 
-        channels = [channel_x,channel_y,channel_z]
+        channels = [channel_x, channel_y, channel_z, channel_light, channel_temperature]
         header = file_header
 
     elif (source_type == "GeneActiv"):
