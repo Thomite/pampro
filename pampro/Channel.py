@@ -67,6 +67,20 @@ class Channel(object):
         else:
             self.timeframe = False,False
 
+    def inherit_time_properties(self, channel):
+
+        self.timestamps = channel.timestamps
+
+        if channel.sparsely_timestamped:
+            self.sparsely_timestamped = True
+            self.indices = channel.indices
+            self.cached_indices = channel.cached_indices
+            
+        try:
+            self.frequency = channel.frequency
+        except:
+            pass
+
     def add_annotation(self, annotation):
 
         self.annotations.append(annotation)

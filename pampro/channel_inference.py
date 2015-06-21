@@ -146,9 +146,7 @@ def infer_vector_magnitude(x,y,z):
 
     result.set_contents( np.sqrt( np.multiply(x.data,x.data) + np.multiply(y.data,y.data) + np.multiply(z.data,z.data) ), x.timestamps )
 
-    if x.sparsely_timestamped:
-        result.indices = x.indices
-        result.sparsely_timestamped = True
+    result.inherit_time_properties(x)
 
     return result
 
@@ -163,11 +161,8 @@ def infer_pitch_roll(x,y,z):
     pitch.set_contents( pitch_degrees, x.timestamps)
     roll.set_contents( roll_degrees, x.timestamps)
 
-    if x.sparsely_timestamped:
-        pitch.indices = x.indices
-        roll.indices = x.indices
-        pitch.sparsely_timestamped = True
-        roll.sparsely_timestamped = True
+    pitch.inherit_time_properties(x)
+    roll.inherit_time_properties(x)
 
     return [pitch, roll]
 
@@ -179,9 +174,7 @@ def infer_enmo(vm):
 
     result.data[np.where(result.data < 0)] = 0
 
-    if vm.sparsely_timestamped:
-        result.indices = vm.indices
-        result.sparsely_timestamped = True
+    result.inherit_time_properties(vm)
 
     return result
 
@@ -191,9 +184,8 @@ def infer_enmo_a(vm):
 
     result.set_contents( np.absolute((vm.data - 1.0)*1000.0) , vm.timestamps )
 
-    if vm.sparsely_timestamped:
-        result.indices = vm.indices
-        result.sparsely_timestamped = True
+    result.inherit_time_properties(vm)
+
     return result
 
 def infer_vm_hpf(vm):
@@ -203,9 +195,7 @@ def infer_vm_hpf(vm):
     vm_hpf.name = "VM_HPF"
     vm_hpf.data = np.multiply(1000.0, abs(vm_hpf.data))
 
-    if vm.sparsely_timestamped:
-        vm_hpf.indices = vm.indices
-        vm_hpf.sparsely_timestamped = True
+    vm_hpf.inherit_time_properties(vm)
 
     return vm_hpf
 

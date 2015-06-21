@@ -60,24 +60,34 @@ class Time_Series(object):
         self.channel_lookup[desired_name] = chan
 
 
-    def build_statistics_channels(self, bouts, statistics):
+    def build_statistics_channels(self, bouts, statistics, common_time=False):
 
         result_channels = []
 
         for channel_name,stats in statistics.items():
             if channel_name in self.channel_lookup.keys():
+
+                if common_time:
+                    # Once the first channel has been queried, inherit its indexes so the rest are faster
+                    self.get_channel(channel_name).inherit_time_properties(self.get_channel(list(statistics.keys())[0]))
+
                 channels = self.get_channel(channel_name).build_statistics_channels(bouts, statistics=stats)
                 result_channels = result_channels + channels
             else:
                 print("Warning: {} not in {}".format(channel_name, self.name))
         return result_channels
 
-    def piecewise_statistics(self, window_size, statistics, time_period=False):
+    def piecewise_statistics(self, window_size, statistics, time_period=False, common_time=False):
 
         result_channels = []
 
         for channel_name,stats in statistics.items():
             if channel_name in self.channel_lookup.keys():
+
+                if common_time:
+                    # Once the first channel has been queried, inherit its indexes so the rest are faster
+                    self.get_channel(channel_name).inherit_time_properties(self.get_channel(list(statistics.keys())[0]))
+
                 channels = self.get_channel(channel_name).piecewise_statistics(window_size, statistics=stats, time_period=time_period)
                 result_channels = result_channels + channels
             else:
