@@ -52,7 +52,11 @@ class Bout_Collection(object):
                             intersection = Bout.bout_list_intersection([window],bouts)
                             Bout.cache_lengths(intersection)
                             sum_seconds = Bout.total_time(intersection).total_seconds()
-                            output_row.append( sum_seconds / len(bouts) )
+                            
+                            if sum_seconds >0 and len(bouts) > 0:
+                                output_row.append( sum_seconds / len(bouts) )
+                            else:
+                                output_row.append(0)
 
                         elif val1 == "n":
 

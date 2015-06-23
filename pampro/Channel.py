@@ -31,6 +31,7 @@ class Channel(object):
         self.draw_properties = {}
         self.cached_indices = {}
         self.sparsely_timestamped = False
+        self.missing_value = False
 
     def clone(self):
 
@@ -70,12 +71,13 @@ class Channel(object):
     def inherit_time_properties(self, channel):
 
         self.timestamps = channel.timestamps
+        self.missing_value = channel.missing_value
 
         if channel.sparsely_timestamped:
             self.sparsely_timestamped = True
             self.indices = channel.indices
             self.cached_indices = channel.cached_indices
-            
+
         try:
             self.frequency = channel.frequency
         except:
@@ -96,15 +98,14 @@ class Channel(object):
         min_value = min(self.data)
         self.data = ((ceil - floor) * (self.data - min_value))/(max_value - min_value) + floor
 
-
     def collapse_auto(self, bins=10):
 
         max_value = max(self.data)
         min_value = min(self.data)
         increment = float(max_value - min_value)/float(bins)
 
-        print(min_value)
-        print(max_value)
+        #print(min_value)
+        #print(max_value)
 
         ranges = []
         low = min_value
@@ -161,7 +162,6 @@ class Channel(object):
 
         return indices
 
-
     def get_data_indices(self, datetime_start, datetime_end):
         """ Returns the indices of the data array to use if every observation is timestamped """
 
@@ -176,14 +176,16 @@ class Channel(object):
         elif timestamp > self.timestamps[-1]:
             return -1
         else:
-
+            #print("gdi 1")
             start = np.searchsorted(self.timestamps, timestamp, 'left')
             if self.timestamps[start] != timestamp:
 
                 previous_timestamp = self.timestamps[start-1]
                 previous_difference = self.timestamps[start]-previous_timestamp
                 sample_difference = self.indices[start]-self.indices[start-1]
+
                 per_sample_difference = previous_difference / sample_difference
+
                 num_samples_back = int(previous_difference / per_sample_difference)
 
                 a = max(0, self.indices[start] - num_samples_back)
@@ -194,7 +196,7 @@ class Channel(object):
             else:
                 a = self.indices[start]
 
-            return a
+            return int(a)
 
     def get_sparse_data_indices(self, datetime_start, datetime_end):
         """ Returns the indices of the data array to use if it is sparsely timestamped """
@@ -212,70 +214,108 @@ class Channel(object):
 
     def window_statistics(self, start_dts, end_dts, statistics):
 
-        #print(type(start_dts))
+        # Allow direct indexing numerically, or by timestamp
         index_type = str(type(start_dts))
-        if index_type == "<class 'int'>" or index_type == "<class 'numpy.int32'>":
+        if "int" in index_type:
             start_index,end_index = start_dts, end_dts
-
         else:
             start_index,end_index = self.get_window(start_dts, end_dts)
 
         window_data = self.data[start_index:end_index]
+        initial_n = len(window_data)
+        missing_n = 0
+
+        if self.missing_value is not False:
+            window_data = window_data[window_data != self.missing_value]
+            missing_n = initial_n - len(window_data)
 
         output_row = []
-        if (end_index-start_index > 0):
+        data_found = len(window_data) > 0
+        #if (len(window_data) > 0):
+
+        # Cache the frequency spectrum, at least 1 statistic needs it
+        for stat in statistics:
+            if data_found and (stat[0] == "top_frequencies" or stat[0] == "frequency_ranges"):
+                spectrum = np.fft.fft(window_data)
+                spectrum = np.array([abs(e) for e in spectrum[:int((end_index-start_index)/2)]])
+                sum_spec = sum(spectrum)
+                spectrum /= sum_spec
+                frequencies = np.fft.fftfreq(int(end_index-start_index), d=1.0/self.frequency)[:int((end_index-start_index)/2)]
+                break
 
 
-            for stat in statistics:
-                if stat[0] == "top_frequencies" or stat[0] == "frequency_ranges":
-                    spectrum = np.fft.fft(window_data)
-                    spectrum = np.array([abs(e) for e in spectrum[:int((end_index-start_index)/2)]])
-                    sum_spec = sum(spectrum)
-                    spectrum /= sum_spec
-                    frequencies = np.fft.fftfreq(int(end_index-start_index), d=1.0/self.frequency)[:int((end_index-start_index)/2)]
-                    break
+        for stat in statistics:
+            # Every stat is a tuple of the form ("type", [details])
 
+            if stat[0] == "generic":
+            # Example: ("generic", ["mean", "min", "sum"])
 
-            for stat in statistics:
-                # Every stat is a tuple of the form ("type", [details])
+                for val in stat[1]:
+                    if val == "mean":
 
-                if stat[0] == "generic":
-                # Example: ("generic", ["mean", "min", "sum"])
-
-                    for val in stat[1]:
-                        if val == "mean":
+                        if data_found:
                             output_row.append(np.mean(window_data))
-                        elif val == "sum" or stat[1] == "total":
+                        else:
+                            output_row.append(-1)
+                            
+                    elif val == "sum" or stat[1] == "total":
+
+                        if data_found:
                             output_row.append(sum(window_data))
-                        elif val == "std" or stat[1] == "stdev":
+                        else:
+                            output_row.append(-1)
+
+                    elif val == "std" or stat[1] == "stdev":
+
+                        if data_found:
                             output_row.append(np.std(window_data))
-                        elif val == "min" or stat[1] == "minimum":
+                        else:
+                            output_row.append(-1)
+
+                    elif val == "min" or stat[1] == "minimum":
+
+                        if data_found:
                             output_row.append(np.min(window_data))
-                        elif val == "max" or stat[1] == "maximum":
+                        else:
+                            output_row.append(-1)
+
+                    elif val == "max" or stat[1] == "maximum":
+
+                        if data_found:
                             output_row.append(np.max(window_data))
-                        elif val == "n":
-                            output_row.append(end_index-start_index)
+                        else:
+                            output_row.append(-1)
 
-                elif stat[0] == "cutpoints":
-                # Example: ("cutpoints", [[0,10],[10,20],[20,30]])
+                    elif val == "n":
 
+                        output_row.append(len(window_data))
+
+                    elif val == "missing":
+
+                        output_row.append(missing_n)
+
+
+            elif stat[0] == "cutpoints":
+            # Example: ("cutpoints", [[0,10],[10,20],[20,30]])
+
+                if data_found:
                     sorted_vals = np.sort(window_data)
                     for low,high in stat[1]:
                         start = np.searchsorted(sorted_vals, low, 'left')
                         end = np.searchsorted(sorted_vals, high, 'right')
 
                         output_row.append(end-start)
-                        """
-                        This is the old way - much slower
-                        for low,high in stat[1]:
-                            indices2 = np.where((self.data[indices] >= low) & (self.data[indices] <= high))[0]
-                            output_row.append(len(indices2))
-                        """
+                else:
+                    for i in range(len(stat[1])):
+                        output_row.append(0)
 
-                elif stat[0] == "bigrams":
-                # Example: ("bigrams", [0,1,2])
+            elif stat[0] == "bigrams":
+            # Example: ("bigrams", [0,1,2])
 
-                    unique_values = stat[1]
+                unique_values = stat[1]
+
+                if data_found:
+
                     # 1 channel for each permutation of unique_value -> unique_value
                     pairs = {}
                     for val1 in unique_values:
@@ -292,11 +332,18 @@ class Channel(object):
                         for val2 in unique_values:
                             output_row.append(pairs[val1][val2])
 
-                elif stat[0] == "frequency_ranges":
-                # Example: ("frequency_ranges", [[0,1],[1,2],[2,3]])
+                else:
 
-                    for low,high in stat[1]:
+                    for i in range(len(unique_values)**2):
+                        output_row.append(0)
 
+            elif stat[0] == "frequency_ranges":
+            # Example: ("frequency_ranges", [[0,1],[1,2],[2,3]])
+
+
+                for low,high in stat[1]:
+
+                    if data_found:
                         start = np.searchsorted(frequencies, low, 'left')
                         end = np.searchsorted(frequencies, high, 'right')
                         index_range = np.arange(start, end-1)
@@ -304,9 +351,13 @@ class Channel(object):
 
                         output_row.append(sum_range)
 
-                elif stat[0] == "top_frequencies":
-                # Example: ("top_frequencies", 5)
+                    else:
+                        output_row.append(-1)
 
+            elif stat[0] == "top_frequencies":
+            # Example: ("top_frequencies", 5)
+
+                if data_found:
                     sorted_spectrum = np.sort(spectrum)[::-1]
                     dom_magnitudes = sorted_spectrum[:stat[1]]
 
@@ -316,23 +367,32 @@ class Channel(object):
                     for freq,mag in zip(dom_frequencies,dom_magnitudes):
                         output_row.append(freq[0])
                         output_row.append(mag)
+                else:
+                    for i in range(stat[1]*2):
+                        output_row.append(-1)
 
-                elif stat[0] == "percentiles":
-                # Example: ("percentiles", [10,20,30,40,50,60,70,80,90])
+            elif stat[0] == "percentiles":
+            # Example: ("percentiles", [10,20,30,40,50,60,70,80,90])
 
+                if data_found:
                     values = np.percentile(window_data, stat[1])
                     for v in values:
                         output_row.append(v)
-
                 else:
-                    output_row.append("Unknown statistic")
+                    for i in range(len(stat[1])):
+                        output_row.append(-1)
+
+            else:
+                output_row.append("Unknown statistic")
+
+        """
         else:
 
-            # There was no data for the time period
-            # Output -1 for each missing variable
-            for i in range(self.expected_results(statistics)):
-                output_row.append(-1)
-
+        # There was no data for the time period
+        # Output -1 for each missing variable
+        for i in range(self.expected_results(statistics)):
+            output_row.append(-1)
+        """
 
         return output_row
 
@@ -368,7 +428,7 @@ class Channel(object):
         using_indices = True
         if str(type(windows[0])) == "<class 'pampro.Bout.Bout'>":
             using_indices = False
-
+        #print(using_indices)
         channel_list = []
 
         for stat in statistics:
@@ -383,7 +443,6 @@ class Channel(object):
         for window in windows:
 
             if using_indices:
-
                 results = self.window_statistics(window[0], window[1], statistics)
 
             else:
@@ -395,18 +454,18 @@ class Channel(object):
                 raise Exception("Incorrect number of statistics yielded. {} expected, {} given. Channel: {}. Statistics: {}.".format(num_expected_results, len(results), self.name, statistics))
 
             if using_indices:
-
                 for i in range(len(results)):
                     channel_list[i].append_data(window[0], results[i])
+
             else:
 
                 for i in range(len(results)):
                     channel_list[i].append_data(window.start_timestamp, results[i])
 
         for channel in channel_list:
-            channel.calculate_timeframe()
             channel.data = np.array(channel.data)
             channel.timestamps = np.array(channel.timestamps)
+            channel.calculate_timeframe()
 
         return channel_list
 
@@ -557,27 +616,43 @@ class Channel(object):
 
         return c
 
-    def delete_windows(self, windows):
+    def delete_windows(self, windows, missing_value = -111):
 
+        """
+        print("A")
         for window in windows:
             start_index,end_index = self.get_window(window.start_timestamp, window.end_timestamp)
-
+            print(start_index, end_index)
             self.data = np.delete(self.data, range(start_index, end_index), None)
 
             if not self.sparsely_timestamped:
+                print("a1")
                 self.timestamps = np.delete(self.timestamps, range(start_index, end_index), None)
-
+                print("A2")
             else:
+                print("else1")
                 start = np.searchsorted(self.timestamps, window.start_timestamp, 'left')
                 end = np.searchsorted(self.timestamps, window.end_timestamp, 'right')
+                print("else2")
                 self.timestamps = np.delete(self.timestamps, range(start,end), None)
+                print("else3")
                 self.indices[start:] -= end_index-start_index
+                print("else4")
                 self.indices = np.delete(self.indices, range(start,end), None)
+                print("else5")
 
-
+        print("B")
         self.calculate_timeframe()
 
         self.cached_indices = {}
+        """
+
+        # New approach - don't delete the data, mask it with a set value
+        # Then when we summarise, check if data has been masked (missing_value is not False)
+        # Then analyse only unmasked data
+        self.fill_windows(windows, fill_value=missing_value)
+        self.missing_value = missing_value
+
 
     def restrict_timeframe(self, start, end):
 

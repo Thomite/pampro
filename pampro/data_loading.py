@@ -989,8 +989,8 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         #time_values = np.array([header_info["start_datetime_python"]])
         #time_values = np.resize(time_values, num*n)
 
-        ga_timestamps = np.empty(header_info["number_pages"], dtype=type(header_info["start_datetime_python"]))
-        ga_indices = np.empty(header_info["number_pages"])
+        ga_timestamps = np.empty(header_info["number_pages"]+1, dtype=type(header_info["start_datetime_python"]))
+        ga_indices = np.empty(header_info["number_pages"]+1)
 
         # For each page
         for i in range(n):
@@ -1024,6 +1024,10 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
 
             excess = data.read(2)
 
+        # Timestamp the final observation
+        ga_timestamps[-1] = page_time + (num*(timedelta(seconds=1)/header_info["frequency"]))
+        ga_indices[-1] = obs_num
+
         #print("A")
         x_values = np.array([(x * 100.0 - header_info["x_offset"]) / header_info["x_gain"] for x in x_values])
         y_values = np.array([(y * 100.0 - header_info["y_offset"]) / header_info["y_gain"] for y in y_values])
@@ -1041,7 +1045,7 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         for c in [x_channel, y_channel, z_channel]:
             c.indices = ga_indices
             c.sparsely_timestamped = True
-            c.frequency = header["frequency"]
+            c.frequency = header_info["frequency"]
         #print("C")
         channels = [x_channel, y_channel, z_channel]
         header = header_info

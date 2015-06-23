@@ -12,6 +12,8 @@ def low_pass_filter(input_channel, low, frequency=1, order=1):
     output_channel = Channel.Channel(input_channel.name + "_LPF_" + str(low))
     output_channel.set_contents(y, input_channel.timestamps)
 
+    output_channel.inherit_time_properties(input_channel)
+
     return output_channel
 
 def high_pass_filter(input_channel, high, frequency=1, order=1):
@@ -24,7 +26,6 @@ def high_pass_filter(input_channel, high, frequency=1, order=1):
     output_channel = Channel.Channel(input_channel.name + "_HPF_" + str(high))
     output_channel.set_contents(y, input_channel.timestamps)
 
-    if input_channel.sparsely_timestamped:
-        output_channel.indices = input_channel.indices
+    output_channel.inherit_time_properties(input_channel)
 
     return output_channel

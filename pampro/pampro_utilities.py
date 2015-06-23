@@ -82,6 +82,8 @@ def design_variable_descriptions(signal_name, stat):
                 variable_descriptions.append("Highest {}".format(signal_name))
             elif stat1 == "n":
                 variable_descriptions.append("Number of observations in {}".format(signal_name))
+            elif stat1 == "missing":
+                variable_descriptions.append("Number of missing observations in {}".format(signal_name))
 
     elif stat[0] == "cutpoints":
         for low,high in stat[1]:
