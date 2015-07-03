@@ -272,7 +272,7 @@ def infer_nonwear_triaxial(x, y, z, minimum_length=timedelta(hours=1), noise_cut
 
     ''' Use the 3 channels of triaxial acceleration to infer periods of nonwear '''
 
-    x_intersect_y_intersect_z = infer_still_bouts_triaxial(x,y,z, approximate_timestamps=True)
+    x_intersect_y_intersect_z = infer_still_bouts_triaxial(x,y,z, approximate_timestamps=x.sparsely_timestamped)
 
     Bout.cache_lengths(x_intersect_y_intersect_z)
 

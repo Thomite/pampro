@@ -483,6 +483,10 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         y_channel.set_contents(y, timestamps)
         z_channel.set_contents(z, timestamps)
 
+        for c in [x_channel, y_channel, z_channel]:
+            c.sparsely_timestamped = False
+            c.frequency = sampling_frequency
+
         channels = [x_channel, y_channel, z_channel]
 
     elif (source_type == "GeneActiv_CSV"):

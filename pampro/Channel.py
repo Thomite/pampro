@@ -50,6 +50,7 @@ class Channel(object):
         self.data = np.concatenate((self.data, other_channel.data))
         self.timestamps = np.concatenate((self.timestamps, other_channel.timestamps))
 
+
         indices = np.argsort(self.timestamps)
 
 
@@ -257,7 +258,7 @@ class Channel(object):
                             output_row.append(np.mean(window_data))
                         else:
                             output_row.append(-1)
-                            
+
                     elif val == "sum" or stat[1] == "total":
 
                         if data_found:
@@ -658,8 +659,11 @@ class Channel(object):
 
         start_index,end_index = self.get_window(start, end)
 
-        self.set_contents(self.data[start_index:end_index], self.timestamps[start_index:end_index])
-
+        if not self.sparsely_timestamped:
+            self.set_contents(self.data[start_index:end_index], self.timestamps[start_index:end_index])
+        else:
+            print("WARNING - can't restrict timeframe on sparsely timestamped data yet")
+            pass
 
     def time_derivative(self):
 
