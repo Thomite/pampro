@@ -690,151 +690,10 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         channel_x = Channel.Channel("X")
         channel_y = Channel.Channel("Y")
         channel_z = Channel.Channel("Z")
-
-        raw_bytes = open(source, "rb").read()
-        #print("Number of bytes:", len(raw_bytes))
-        #print("/512 = ", len(raw_bytes)/512)
-
-        fh = io.BytesIO(raw_bytes)
-
-        n = 0
-        num_samples = 0
-
-        start = datetime(2014, 1, 1)
-
-        # Rough number of pages expected = length of file / size of block (512 bytes)
-        # Rough number of samples expected = pages * 120
-        # Add 1% buffer just to be cautious - it's trimmed later
-        estimated_size = int(((len(raw_bytes)/512)*120)*1.01)
-
-        #print("Estimated number of observations:", estimated_size)
-
-        axivity_x = np.empty(estimated_size)
-        axivity_y = np.empty(estimated_size)
-        axivity_z = np.empty(estimated_size)
-        axivity_timestamps = np.empty(estimated_size, dtype=type(start))
-
-        sample_rates = []
-
-        try:
-            header = axivity_read(fh,2)
-
-            while len(header) == 2:
-
-                if header == b'MD':
-                    #print('MD')
-                    axivity_parse_header(fh)
-                elif header == b'UB':
-                    #print('UB')
-                    blockSize = unpack('H', axivity_read(fh,2))[0]
-                elif header == b'SI':
-                    #print('SI')
-                    pass
-                elif header == b'AX':
-
-                    packetLength, deviceId, sessionId, sequenceId, sampleTimeData, light, temperature, events,battery,sampleRate, numAxesBPS, timestampOffset, sampleCount = unpack('HHIIIHHcBBBhH', axivity_read(fh,28))
-
-                    sample_rates.append(sampleRate)
-
-                    sampleTime = axivity_read_timestamp_raw(sampleTimeData)
-
-                    if packetLength != 508:
-                        continue
-
-                    if sampleTime == None:
-                        continue
-
-                    if sampleRate == 0:
-                        continue
-
-                    if ((numAxesBPS >> 4) & 15) != 3:
-                        print('[ERROR: num-axes not expected]')
-
-                    if (numAxesBPS & 15) == 2:
-                        bps = 6
-                    elif (numAxesBPS & 15) == 0:
-                        bps = 4
-
-                    timestamp = sampleTime
-                    freq = 3200 / (1 << (15 - sampleRate & 15))
-                    if freq <= 0:
-                        freq = 1
-                    offsetStart = float(-timestampOffset) / float(freq)
-
-
-                    time0 = timestamp + timedelta(milliseconds=offsetStart)
-                    sampleOffset = (timedelta(seconds=1) / sampleCount)
-
-
-                    for sample in range(sampleCount):
-
-                        x,y,z,t = 0,0,0,0
-
-                        if bps == 6:
-
-                            x,y,z = unpack('hhh', fh.read(6))
-                            x,y,z = x/256.0,y/256.0,z/256.0
-
-                        elif bps == 4:
-                            temp = unpack('I', fh.read(4))[0]
-                            temp2 = (6 - byte(temp >> 30))
-                            x = short(short((ushort(65472) & ushort(temp << 6))) >> temp2) / 256.0
-                            y = short(short((ushort(65472) & ushort(temp >> 4))) >> temp2) / 256.0
-                            z = short(short((ushort(65472) & ushort(temp >> 14))) >> temp2) / 256.0
-
-                            # Optimisation:
-                            # Cache value of ushort(65472) ?
-
-
-                        t = sample*sampleOffset + time0
-
-                        axivity_x[num_samples] = x
-                        axivity_y[num_samples] = y
-                        axivity_z[num_samples] = z
-                        axivity_timestamps[num_samples] = t
-                        num_samples += 1
-
-                    checksum = unpack('H', axivity_read(fh,2))[0]
-
-                else:
-                    #pass
-                    print("Unrecognised header", header)
-
-                header = axivity_read(fh,2)
-
-                n=n+1
-        except IOError:
-            pass
-
-        print(sum(sample_rates)/len(sample_rates))
-        axivity_x.resize(num_samples)
-        axivity_y.resize(num_samples)
-        axivity_z.resize(num_samples)
-        axivity_timestamps.resize(num_samples)
-
-        channel_x.set_contents(axivity_x, axivity_timestamps)
-        channel_y.set_contents(axivity_y, axivity_timestamps)
-        channel_z.set_contents(axivity_z, axivity_timestamps)
-
-        channels = [channel_x,channel_y,channel_z]
-
-    elif (source_type == "Axivity_ZIP"):
-
-        channel_x = Channel.Channel("X")
-        channel_y = Channel.Channel("Y")
-        channel_z = Channel.Channel("Z")
         channel_light = Channel.Channel("Light")
         channel_temperature = Channel.Channel("Temperature")
 
-        #print("Opening file")
-        archive = zipfile.ZipFile(source, "r")
-
-        without_filepath = source.split("/")[-1]
-
-        cwa_not_zip = without_filepath.replace(".zip", ".cwa")
-
-        handle = archive.open(cwa_not_zip)
-
+        handle = open(source, "rb")
         raw_bytes = handle.read()
         #print("Number of bytes:", len(raw_bytes))
         #print("/512 = ", len(raw_bytes)/512)
@@ -861,7 +720,7 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         axivity_temperature = np.empty(len(raw_bytes)/512*1.01)
         axivity_timestamps = np.empty((len(raw_bytes)/512)*1.01, dtype=type(start))
         axivity_indices = np.empty(len(raw_bytes)/512*1.01)
-        sample_rates = []
+
         file_header = OrderedDict()
 
         try:
@@ -881,7 +740,7 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
                 elif header == b'AX':
 
                     packetLength, deviceId, sessionId, sequenceId, sampleTimeData, light, temperature, events, battery, sampleRate, numAxesBPS, timestampOffset, sampleCount = unpack('HHIIIHHcBBBhH', axivity_read(fh,28))
-                    sample_rates.append(sampleRate)
+
                     timestamp = axivity_read_timestamp_raw(sampleTimeData)
 
                     if packetLength != 508 or timestamp == None or sampleRate == 0:
@@ -949,7 +808,6 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         except IOError:
             pass
 
-        print(sum(sample_rates)/len(sample_rates))
         axivity_x.resize(num_samples)
         axivity_y.resize(num_samples)
         axivity_z.resize(num_samples)
@@ -965,11 +823,172 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         channel_light.set_contents(axivity_light, axivity_timestamps)
         channel_temperature.set_contents(axivity_temperature, axivity_timestamps)
 
+        approximate_frequency = timedelta(seconds=1)/ ((axivity_timestamps[-1]-axivity_timestamps[0])/num_samples)
+
         for c in [channel_x, channel_y, channel_z]:
             c.indices = axivity_indices
             c.sparsely_timestamped = True
+            c.frequency = approximate_frequency
+
+        file_header["frequency"] = approximate_frequency
+        channels = [channel_x, channel_y, channel_z, channel_light, channel_temperature]
+        header = file_header
+
+    elif (source_type == "Axivity_ZIP"):
+
+        channel_x = Channel.Channel("X")
+        channel_y = Channel.Channel("Y")
+        channel_z = Channel.Channel("Z")
+        channel_light = Channel.Channel("Light")
+        channel_temperature = Channel.Channel("Temperature")
+
+        #print("Opening file")
+        archive = zipfile.ZipFile(source, "r")
+
+        without_filepath = source.split("/")[-1]
+
+        cwa_not_zip = without_filepath.replace(".zip", ".cwa")
+
+        handle = archive.open(cwa_not_zip)
+
+        raw_bytes = handle.read()
+        #print("Number of bytes:", len(raw_bytes))
+        #print("/512 = ", len(raw_bytes)/512)
+
+        fh = io.BytesIO(raw_bytes)
+
+        n = 0
+        num_samples = 0
+        num_pages = 0
+
+        start = datetime(2014, 1, 1)
+
+        # Rough number of pages expected = length of file / size of block (512 bytes)
+        # Rough number of samples expected = pages * 120
+        # Add 1% buffer just to be cautious - it's trimmed later
+        estimated_size = int(((len(raw_bytes)/512)*120)*1.01)
+
+        #print("Estimated number of observations:", estimated_size)
+
+        axivity_x = np.empty(estimated_size)
+        axivity_y = np.empty(estimated_size)
+        axivity_z = np.empty(estimated_size)
+        axivity_light = np.empty(len(raw_bytes)/512*1.01)
+        axivity_temperature = np.empty(len(raw_bytes)/512*1.01)
+        axivity_timestamps = np.empty((len(raw_bytes)/512)*1.01, dtype=type(start))
+        axivity_indices = np.empty(len(raw_bytes)/512*1.01)
+
+        file_header = OrderedDict()
+
+        try:
+            header = axivity_read(fh,2)
+
+            while len(header) == 2:
+
+                if header == b'MD':
+                    #print('MD')
+                    file_header = axivity_parse_header(fh)
+                elif header == b'UB':
+                    #print('UB')
+                    blockSize = unpack('H', axivity_read(fh,2))[0]
+                elif header == b'SI':
+                    #print('SI')
+                    pass
+                elif header == b'AX':
+
+                    packetLength, deviceId, sessionId, sequenceId, sampleTimeData, light, temperature, events, battery, sampleRate, numAxesBPS, timestampOffset, sampleCount = unpack('HHIIIHHcBBBhH', axivity_read(fh,28))
+
+                    timestamp = axivity_read_timestamp_raw(sampleTimeData)
+
+                    if packetLength != 508 or timestamp == None or sampleRate == 0:
+                        continue
+
+                    if ((numAxesBPS >> 4) & 15) != 3:
+                        print('[ERROR: num-axes not expected]')
+
+                    if (numAxesBPS & 15) == 2:
+                        bps = 6
+                    elif (numAxesBPS & 15) == 0:
+                        bps = 4
+
+                    freq = 3200 / (1 << (15 - sampleRate & 15))
+                    if freq <= 0:
+                        freq = 1
+                    offsetStart = float(-timestampOffset) / float(freq)
+
+                    time0 = timestamp + timedelta(milliseconds=offsetStart)
+                    axivity_indices[num_pages] = num_samples
+                    axivity_timestamps[num_pages] = time0
+                    axivity_light[num_pages] = light
+                    axivity_temperature[num_pages] = temperature
+                    num_pages += 1
+
+                    for sample in range(sampleCount):
+
+                        x,y,z = 0,0,0
+
+                        if bps == 6:
+
+                            x,y,z = unpack('hhh', fh.read(6))
+                            x,y,z = x/256.0,y/256.0,z/256.0
+
+                        elif bps == 4:
+                            temp = unpack('I', fh.read(4))[0]
+                            temp2 = (6 - byte(temp >> 30))
+                            x = short(short((ushort(65472) & ushort(temp << 6))) >> temp2) / 256.0
+                            y = short(short((ushort(65472) & ushort(temp >> 4))) >> temp2) / 256.0
+                            z = short(short((ushort(65472) & ushort(temp >> 14))) >> temp2) / 256.0
+
+                            # Optimisation:
+                            # Cache value of ushort(65472) ?
 
 
+                        #t = sample*sampleOffset + time0
+
+                        axivity_x[num_samples] = x
+                        axivity_y[num_samples] = y
+                        axivity_z[num_samples] = z
+
+                        num_samples += 1
+
+
+
+                    checksum = unpack('H', axivity_read(fh,2))[0]
+
+                else:
+                    #pass
+                    print("Unrecognised header", header)
+
+                header = axivity_read(fh,2)
+
+                n=n+1
+        except IOError:
+            pass
+
+
+        axivity_x.resize(num_samples)
+        axivity_y.resize(num_samples)
+        axivity_z.resize(num_samples)
+        axivity_timestamps.resize(num_pages)
+        axivity_indices.resize(num_pages)
+        axivity_temperature.resize(num_pages)
+        axivity_light.resize(num_pages)
+
+        channel_x.set_contents(axivity_x, axivity_timestamps)
+        channel_y.set_contents(axivity_y, axivity_timestamps)
+        channel_z.set_contents(axivity_z, axivity_timestamps)
+
+        channel_light.set_contents(axivity_light, axivity_timestamps)
+        channel_temperature.set_contents(axivity_temperature, axivity_timestamps)
+
+        approximate_frequency = timedelta(seconds=1)/ ((axivity_timestamps[-1]-axivity_timestamps[0])/num_samples)
+
+        for c in [channel_x, channel_y, channel_z]:
+            c.indices = axivity_indices
+            c.sparsely_timestamped = True
+            c.frequency = approximate_frequency
+
+        file_header["frequency"] = approximate_frequency
         channels = [channel_x, channel_y, channel_z, channel_light, channel_temperature]
         header = file_header
 
