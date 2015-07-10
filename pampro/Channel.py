@@ -223,6 +223,7 @@ class Channel(object):
             start_index,end_index = self.get_window(start_dts, end_dts)
 
         window_data = self.data[start_index:end_index]
+        #print(start_dts,end_dts,window_data)
         initial_n = len(window_data)
         missing_n = 0
 

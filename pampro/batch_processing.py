@@ -9,8 +9,9 @@ def job_indices(n, num_jobs, job_list_size):
 
     n = n-1
 
-    job_size = int(math.ceil(job_list_size/num_jobs))
-    remaining = job_list_size % job_size
+    job_size = math.floor(job_list_size/num_jobs)
+    remaining = job_list_size - (num_jobs*job_size)
+
     start_index = 0
     for i in range(num_jobs):
 
