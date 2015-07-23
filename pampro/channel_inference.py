@@ -203,7 +203,7 @@ def infer_nonwear_actigraph(counts, zero_minutes=timedelta(minutes=60)):
 
     #nonwear = Channel.Channel("Nonwear")
 
-    nonwear_bouts = counts.bouts(0, 0)
+    nonwear_bouts = counts.bouts(-999999, 0)
     Bout.cache_lengths(nonwear_bouts)
     nonwear_bouts = Bout.limit_to_lengths(nonwear_bouts, min_length=zero_minutes)
 
@@ -310,5 +310,8 @@ def infer_valid_days(channel, wear_bouts, valid_criterion=timedelta(hours=10)):
 
 
     invalid_windows = Bout.time_period_minus_bouts(channel.timeframe, valid_windows)
+
+    Bout.cache_lengths(invalid_windows)
+    invalid_windows = Bout.limit_to_lengths(invalid_windows, min_length=timedelta(seconds=1))
 
     return(invalid_windows, valid_windows)

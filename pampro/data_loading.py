@@ -966,13 +966,20 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
             pass
 
 
-        axivity_x.resize(num_samples)
-        axivity_y.resize(num_samples)
-        axivity_z.resize(num_samples)
-        axivity_timestamps.resize(num_pages)
+
+        axivity_x.resize(num_samples+1)
+        axivity_y.resize(num_samples+1)
+        axivity_z.resize(num_samples+1)
+        axivity_timestamps.resize(num_pages+1)
         axivity_indices.resize(num_pages)
         axivity_temperature.resize(num_pages)
         axivity_light.resize(num_pages)
+
+        approximate_frequency = timedelta(seconds=1)/ ((axivity_timestamps[-2]-axivity_timestamps[0])/num_samples)
+
+        # Timestamp the final observation
+        axivity_timestamps[-1] = axivity_timestamps[-2] + ((num_samples/num_pages)*(timedelta(seconds=1)/approximate_frequency))
+        axivity_indices[-1] = num_samples
 
         channel_x.set_contents(axivity_x, axivity_timestamps)
         channel_y.set_contents(axivity_y, axivity_timestamps)
@@ -980,8 +987,6 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
 
         channel_light.set_contents(axivity_light, axivity_timestamps)
         channel_temperature.set_contents(axivity_temperature, axivity_timestamps)
-
-        approximate_frequency = timedelta(seconds=1)/ ((axivity_timestamps[-1]-axivity_timestamps[0])/num_samples)
 
         for c in [channel_x, channel_y, channel_z]:
             c.indices = axivity_indices
