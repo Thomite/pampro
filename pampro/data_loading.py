@@ -119,14 +119,20 @@ def axivity_parse_header(fh):
             else:
                 annotations[x] = time.strptime(annotations[x], '%Y-%m-%d %H:%M:%S')
 
-    annotations = annotations
-    deviceId = deviceId
-    sessionId = sessionId
+
     lastClearTime = axivity_read_timestamp(lastClearTime)
     lastChangeTime = axivity_read_timestamp(lastChangeTime)
     firmwareVersion = firmwareVersion if firmwareVersion != 255 else 0
 
-    return {"frequency":samplingRate}
+    ax_header = OrderedDict()
+    ax_header["sample_rate"] = samplingRate
+    ax_header["device"] = deviceId
+    ax_header["session"] = sessionId
+    ax_header["firmware"] = firmwareVersion
+    ax_header["logging_start_time"] = loggingStartTime
+    ax_header["logging_end_time"] = loggingEndTime
+
+    return ax_header
 
 def parse_header(header, type, datetime_format):
 
@@ -799,8 +805,8 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
                     checksum = unpack('H', axivity_read(fh,2))[0]
 
                 else:
-                    #pass
-                    print("Unrecognised header", header)
+                    pass
+                    #print("Unrecognised header", header)
 
                 header = axivity_read(fh,2)
 
@@ -831,6 +837,8 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
             c.frequency = approximate_frequency
 
         file_header["frequency"] = approximate_frequency
+        file_header["num_pages"] = num_pages
+        file_header["num_samples"] = num_samples
         channels = [channel_x, channel_y, channel_z, channel_light, channel_temperature]
         header = file_header
 
@@ -956,8 +964,8 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
                     checksum = unpack('H', axivity_read(fh,2))[0]
 
                 else:
-                    #pass
-                    print("Unrecognised header", header)
+                    pass
+                    #print("Unrecognised header", header)
 
                 header = axivity_read(fh,2)
 
@@ -994,6 +1002,8 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
             c.frequency = approximate_frequency
 
         file_header["frequency"] = approximate_frequency
+        file_header["num_pages"] = num_pages
+        file_header["num_samples"] = num_samples
         channels = [channel_x, channel_y, channel_z, channel_light, channel_temperature]
         header = file_header
 
