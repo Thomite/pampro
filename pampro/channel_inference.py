@@ -297,6 +297,7 @@ def infer_valid_days(channel, wear_bouts, valid_criterion=timedelta(hours=10)):
         start += timedelta(days=1)
 
     valid_windows = []
+    invalid_windows = []
     for window in day_windows:
         #how much does all of wear_bouts intersect with window?
         intersections = Bout.bout_list_intersection([window], wear_bouts)
@@ -306,12 +307,8 @@ def infer_valid_days(channel, wear_bouts, valid_criterion=timedelta(hours=10)):
         if total > valid_criterion:
             #window.draw_properties={"lw":0, "facecolor":[1,0,0], "alpha":0.25}
             valid_windows.append(window)
-        #print total
+        else:
+            invalid_windows.append(window)
 
-
-    invalid_windows = Bout.time_period_minus_bouts(channel.timeframe, valid_windows)
-
-    Bout.cache_lengths(invalid_windows)
-    invalid_windows = Bout.limit_to_lengths(invalid_windows, min_length=timedelta(seconds=1))
 
     return(invalid_windows, valid_windows)

@@ -127,3 +127,19 @@ def design_data_dictionary(statistics_dictionary):
 
 
     return data_dictionary
+
+def csv_line(vals):
+    """ CSV formatted output of a list """
+    strval = str(vals[0])
+    for val in vals[1:]:
+        strval += "," + str(val)
+    strval += "\n"
+    return strval
+
+def dict_write(file_handle, id, dictionary):
+    """ Various functions now return a dictionary that needs to be outputted - this just outputs 1 line per call to the file handle of choice"""
+
+    if not file_handle.tell(): # if nothing has been written to the file yet
+        file_handle.write(csv_line(["id"]+list(dictionary.keys())))
+    file_handle.write(csv_line([id]+list(dictionary.values())))
+    file_handle.flush()

@@ -1,33 +1,26 @@
 
 from pampro import Time_Series, Bout, Channel, channel_inference, time_utilities
-
-
 from datetime import datetime, date, time, timedelta
 import math
 import copy
 import random
 from scipy import stats
 import numpy as np
+from collections import OrderedDict
 
 def nearest_sphere_surface(x_input, y_input, z_input):
-
     """Given the 3D co-ordinates of a point, return the 3D co-ordinates of the point on the surface of a unit sphere. """
 
     vm = math.sqrt(sum([x_input**2, y_input**2, z_input**2]))
     return (x_input/vm, y_input/vm, z_input/vm)
 
-
-
-def find_calibration_parameters(x_input, y_input, z_input, num_iterations=1000):
-
+def find_calibration_parameters(x_input, y_input, z_input, num_iterations=1000, offset_only=False):
     """Find the offset and scaling factors for each 3D axis. Assumes the input vectors are only still points."""
-
 
     # Need to keep a copy of the original input
     x_input_copy = x_input[::]
     y_input_copy = y_input[::]
     z_input_copy = z_input[::]
-
 
     # Need 3 blank arrays to populate
     x_matched = np.empty(len(x_input))
@@ -36,7 +29,6 @@ def find_calibration_parameters(x_input, y_input, z_input, num_iterations=1000):
 
 
     for i in range(num_iterations):
-
 
         for i,a,b,c in zip(range(len(x_input)),x_input, y_input, z_input):
 
@@ -53,10 +45,16 @@ def find_calibration_parameters(x_input, y_input, z_input, num_iterations=1000):
         y_regression_results = stats.linregress(y_input, y_matched)
         z_regression_results = stats.linregress(z_input, z_matched)
 
-        # Transform the input points using the regression co-efficients
-        x_input = [x_regression_results[1] + x_input_val*x_regression_results[0] for x_input_val in x_input]
-        y_input = [y_regression_results[1] + y_input_val*y_regression_results[0] for y_input_val in y_input]
-        z_input = [z_regression_results[1] + z_input_val*z_regression_results[0] for z_input_val in z_input]
+        if offset_only:
+            # Transform the input points using ONLY the offset co-efficient
+            x_input = [x_regression_results[1] + x_input_val for x_input_val in x_input]
+            y_input = [y_regression_results[1] + y_input_val for y_input_val in y_input]
+            z_input = [z_regression_results[1] + z_input_val for z_input_val in z_input]
+        else:
+            # Transform the input points using the regression co-efficients
+            x_input = [x_regression_results[1] + x_input_val*x_regression_results[0] for x_input_val in x_input]
+            y_input = [y_regression_results[1] + y_input_val*y_regression_results[0] for y_input_val in y_input]
+            z_input = [z_regression_results[1] + z_input_val*z_regression_results[0] for z_input_val in z_input]
 
     # Regress the backup copy of the original input against the transformed version, calculate how much we offset and scaled
     final_x_regression = stats.linregress(x_input_copy, x_input)[0:2]
@@ -71,11 +69,10 @@ def find_calibration_parameters(x_input, y_input, z_input, num_iterations=1000):
 
 def calibrate(x,y,z, allow_overwrite=True, budget=1000, noise_cutoff_mg=13):
 
+    calibration_diagnostics = OrderedDict()
 
     vm = channel_inference.infer_vector_magnitude(x,y,z)
-
     still_bouts = channel_inference.infer_still_bouts_triaxial(x,y,z, noise_cutoff_mg=noise_cutoff_mg)
-
 
     if vm.sparsely_timestamped:
 
@@ -85,9 +82,7 @@ def calibrate(x,y,z, allow_overwrite=True, budget=1000, noise_cutoff_mg=13):
 
         vm_windows = vm.piecewise_statistics( timedelta(seconds=10), [("generic", ["mean"])], time_period=(time_utilities.start_of_hour(x.timeframe[0]), time_utilities.end_of_hour(x.timeframe[1])) )[0]
 
-
     reasonable_bouts = vm_windows.bouts(0.5, 1.5)
-    #Bout.approximate_timestamps(reasonable_bouts, x)
 
     num_still_bouts = len(still_bouts)
 
@@ -121,18 +116,39 @@ def calibrate(x,y,z, allow_overwrite=True, budget=1000, noise_cutoff_mg=13):
     still_y = y.build_statistics_channels(still_bouts, [("generic", ["mean"])])[0]
     still_z = z.build_statistics_channels(still_bouts, [("generic", ["mean"])])[0]
 
-    still_x.name = "still_x"
-    still_y.name = "still_y"
-    still_z.name = "still_z"
-    num_samples.name = "n"
+    # Get the octant positions of the points to calibrate on
+    occupancy = octant_occupancy(still_x.data, still_y.data, still_z.data)
+
+    # Are they fairly distributed?
+    comparisons = {"x<0":[0,1,2,3], "x>0":[4,5,6,7], "y<0":[0,1,4,5], "y>0":[2,3,6,7], "z<0":[0,2,4,6], "z>0":[1,3,5,7]}
+    for axis in ["x", "y", "z"]:
+        mt = sum(occupancy[comparisons[axis + ">0"]])
+        lt = sum(occupancy[comparisons[axis + "<0"]])
+        calibration_diagnostics[axis + "_inequality"] = abs(mt-lt)/sum(occupancy)
 
     # Calculate the initial error without doing any calibration
     start_error = evaluate_solution(still_x, still_y, still_z, num_samples, [0,1,0,1,0,1])
 
+    # Search for the correct way to calibrate the data
     calibration_parameters = find_calibration_parameters(still_x.data, still_y.data, still_z.data)
+
+    for param,value in zip("x_offset,x_scale,y_offset,y_scale,z_offset,z_scale".split(","), calibration_parameters):
+        calibration_diagnostics[param] = value
+
+    for i,occ in enumerate(occupancy):
+        calibration_diagnostics["octant_"+str(i)] = occ
 
     # Calculate the final error after calibration
     end_error = evaluate_solution(still_x, still_y, still_z, num_samples, calibration_parameters)
+
+    calibration_diagnostics["start_error"] = start_error
+    calibration_diagnostics["end_error"] = end_error
+    calibration_diagnostics["num_final_bouts"] = num_final_bouts
+    calibration_diagnostics["num_final_seconds"] = num_final_seconds
+    calibration_diagnostics["num_still_bouts"] = num_still_bouts
+    calibration_diagnostics["num_still_seconds"] = num_still_seconds
+    calibration_diagnostics["num_reasonable_bouts"] = num_reasonable_bouts
+    calibration_diagnostics["num_reasonable_seconds"] = num_reasonable_seconds
 
     if allow_overwrite:
         # If we do not need to preserve the original x,y,z values, we can just calibrate that data
@@ -140,7 +156,7 @@ def calibrate(x,y,z, allow_overwrite=True, budget=1000, noise_cutoff_mg=13):
         # Apply the best calibration factors to the data
         do_calibration(x, y, z, calibration_parameters)
 
-        return (x, y, z, calibration_parameters, (start_error, end_error), (num_final_bouts, num_final_seconds,num_still_bouts, num_still_seconds, num_reasonable_bouts, num_reasonable_seconds, still_bouts ))
+        return (x, y, z, calibration_diagnostics)
 
     else:
         # Else we create an independent copy of the raw data and calibrate that instead
@@ -151,27 +167,23 @@ def calibrate(x,y,z, allow_overwrite=True, budget=1000, noise_cutoff_mg=13):
         # Apply the best calibration factors to the data
         do_calibration(cal_x, cal_y, cal_z, calibration_parameters)
 
-        return (cal_x, cal_y, cal_z, calibration_parameters, (start_error, end_error), (len(still_bouts), Bout.total_time(still_bouts).total_seconds() ))
-
-
-
-
+        return (cal_x, cal_y, cal_z, calibration_diagnostics)
 
 def do_calibration(x,y,z,values):
-
+    """ Performs calibration on given channel using given parameters """
     x.data = values[0] + (x.data * values[1])
     y.data = values[2] + (y.data * values[3])
     z.data = values[4] + (z.data * values[5])
 
-
 def undo_calibration(x,y,z,values):
+    """ Reverses calibration on given channel using given parameters """
 
     x.data = -values[0] + (x.data / values[1])
     y.data = -values[2] + (y.data / values[3])
     z.data = -values[4] + (z.data / values[5])
 
-
 def evaluate_solution(still_x, still_y, still_z, still_n, calibration_parameters):
+    """ Calculates the RMSE of the input XYZ signal if calibrated according to input calibration parameters"""
 
     # Temporarily adjust the channels of still data, which has collapsed x,y,z values
     do_calibration(still_x, still_y, still_z, calibration_parameters)
@@ -185,11 +197,38 @@ def evaluate_solution(still_x, still_y, still_z, still_n, calibration_parameters
     for vm_val,n in zip(vm.data, still_n.data):
         se += (abs(1.0 - vm_val)**2)*n
 
-
     rmse = math.sqrt(se / len(vm.data))
-
 
     # Undo the temporary calibration
     undo_calibration(still_x, still_y, still_z, calibration_parameters)
 
     return rmse
+
+def octant_occupancy(x, y, z):
+    """ Counts number of samples lying in each octal region around the origin """
+
+    octants = np.zeros(8, dtype="int")
+
+    for a,b,c in zip(x,y,z):
+
+        if a < 0 and b < 0 and c < 0:
+            octants[0] += 1
+        elif a < 0 and b < 0 and c > 0:
+            octants[1] += 1
+        elif a < 0 and b > 0 and c < 0:
+            octants[2] += 1
+        elif a < 0 and b > 0 and c > 0:
+            octants[3] += 1
+        elif a > 0 and b < 0 and c < 0:
+            octants[4] += 1
+        elif a > 0 and b < 0 and c > 0:
+            octants[5] += 1
+        elif a > 0 and b > 0 and c < 0:
+            octants[6] += 1
+        elif a > 0 and b > 0 and c > 0:
+            octants[7] += 1
+        else:
+            # Possible because of edge cases, shouldn't come up in calibration
+            pass
+
+    return octants

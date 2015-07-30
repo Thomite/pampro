@@ -4,6 +4,7 @@ import numpy as np
 import sys
 from datetime import datetime
 import json
+import traceback
 
 def job_indices(n, num_jobs, job_list_size):
 
@@ -25,7 +26,6 @@ def job_indices(n, num_jobs, job_list_size):
             return (start_index,end_index)
         start_index = end_index
 
-
 def get_feedback(filename):
 
     file = open(filename, "r")
@@ -40,23 +40,6 @@ def write_feedback(feedback, filename):
     file.flush()
     file.close()
 
-"""
-def job_indices(n, num_jobs, job_list_size):
-
-    n = n-1
-
-    job_size = int(math.ceil(job_list_size/num_jobs))+1
-
-    start_index = 0
-    for i in range(n+1):
-
-        end_index = min( job_list_size, start_index + job_size )
-
-        if i == n:
-            return (start_index, end_index)
-        start_index = end_index
-"""
-
 def load_job_details(job_file):
 
     data = np.genfromtxt(job_file, delimiter=',', dtype='str', skiprows=0)
@@ -69,7 +52,6 @@ def load_job_details(job_file):
             master_dictionary[row[0]][data[0,index]] = col
 
     return master_dictionary
-
 
 def batch_process(analysis_function, job_file, job_num, num_jobs, live_feedback=False):
 
@@ -102,13 +84,18 @@ def batch_process(analysis_function, job_file, job_num, num_jobs, live_feedback=
 
         except:
 
+            tb = traceback.format_exc()
+
             # Create the output file only if an error has occurred
             if output_log is False:
                 output_log = open("error_log_{}.csv".format(job_num), "w")
 
             print("Exception:" + str(sys.exc_info()))
+            print(tb)
+
             output_log.write( str(job_details[job]) + "\n" )
-            output_log.write("Exception:" + str(sys.exc_info()) + "\n\n")
+            output_log.write("Exception:" + str(sys.exc_info()) + "\n")
+            output_log.write(tb + "\n\n")
 
         job_end_time = datetime.now()
         job_duration = job_end_time - job_start_time

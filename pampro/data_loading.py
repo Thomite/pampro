@@ -187,12 +187,18 @@ def parse_header(header, type, datetime_format):
         start_datetime = start_date + start_time
         header_info["start_datetime"] = start_datetime
 
-        mode = 0
-        splitup = header[8].split(" ")
-        if "Mode" in splitup:
-            index = splitup.index("Mode")
-            mode = splitup[index + 2]
-        header_info["mode"] = int(mode)
+        header_info["mode"] = 0
+
+        try:
+            splitup = header[8].split(" ")
+            if "Mode" in splitup:
+                index = splitup.index("Mode")
+                mode = splitup[index + 2]
+
+                header_info["mode"] = int(mode)
+        except:
+            pass
+
 
     elif type == "GT3X+_CSV":
 
