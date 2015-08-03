@@ -1,28 +1,28 @@
 # PAMPRO
 
-## Upcoming features
+### Upcoming features
 
-### Monitor support
-- GeneActiv binary
-- activPAL binary
+This document contains a non-exhaustive list of features that will be added to PAMPRO in the near and far future. 
 
-### Fourier transform related
-- Signal compression using Fourier coefficients 
-- Low, high and bandpass filters
-- Spectral analysis of signals
+##### Near future
 
-### Statistics generation
-- Improved options for caching of indices to speed up analyses
-- Neater ways for analysing time spent in bouts of minimum/maximum lengths
+- Monitor support
+  - Actigraph GT3X+
+  - Sparsely timestamped CSVs
 
-### Miscellaneous
-- Local peak detection
-- Perceptually Important Points implementation (PIP)
 
-### User interface
-- Expose functionality via API
-- Graphical user interface to use API
+- Unit tests
+  - Battery of tests to catch bugs and ensure PAMPRO functionality doesn't get compromised
 
-### Meta
-- Post-processing recommendations
-- Example analyses of PAMPRO output using statistical packages
+
+
+##### Far future
+
+- User interface
+  - Expose functionality via API
+  - Graphical user interface to use API
+
+
+- Meta
+  - Post-processing recommendations
+  - Example analyses of PAMPRO output using statistical packages
