@@ -492,7 +492,7 @@ class Channel(object):
 
             return self.timestamps[max(0,start-1)] + (time_difference/index_difference)
 
-    def sliding_statistics(self, window_size, statistics=[("generic", "mean")], time_period=False):
+    def sliding_statistics(self, window_size, statistics=[("generic", ["mean"])], time_period=False):
 
         if time_period == False:
             start = self.timeframe[0] - timedelta(hours=self.timeframe[0].hour, minutes=self.timeframe[0].minute, seconds=self.timeframe[0].second, microseconds=self.timeframe[0].microsecond)
@@ -681,7 +681,7 @@ class Channel(object):
     def fill(self, bout, fill_value=0):
 
         start_index,end_index = self.get_window(bout.start_timestamp,bout.end_timestamp)
-
+        print(start_index, end_index)
         self.data[start_index:end_index] = fill_value
 
     def fill_windows(self, bouts, fill_value=0):
