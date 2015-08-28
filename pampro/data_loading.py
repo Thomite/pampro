@@ -253,7 +253,22 @@ def parse_header(header, type, datetime_format):
 
         header_info["number_pages"] = int(header[57].split(":")[1])
 
-        return header_info
+    elif type == "XLO":
+
+        # Start timestamp
+        blah = header[7].split()
+        sans_meridian = blah[3].replace("AM", "")
+        sans_meridian = sans_meridian.replace("PM","")
+        dt = datetime.strptime(blah[1] + " " + sans_meridian, "%d/%m/%Y %H:%M:%S")
+        header_info["start_datetime_python"] = dt
+
+        # Height and weight
+        l3 = header[3].split(":")
+        height = float(l3[1].strip().replace(" cm", "").split()[0])
+        weight = float(l3[2].strip().replace(" kg", ""))
+        header_info["height"] = height
+        header_info["weight"] = weight
+
 
     return header_info
 
@@ -1092,6 +1107,47 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
             c.frequency = header_info["frequency"]
         #print("C")
         channels = [x_channel, y_channel, z_channel]
+        header = header_info
+
+
+    elif (source_type == "XLO"):
+
+        first_lines = []
+        f = open(source, 'r')
+        for i in range(15):
+            s = f.readline().strip()
+            first_lines.append(s)
+
+        header_info = parse_header(first_lines, "XLO", "%d/%m/%Y %H:%M:%S")
+        data = np.loadtxt(f, delimiter="\t", dtype="S").astype("U")
+        f.close()
+
+        good_rows = data[:,0] == '   -    '
+        data = data[good_rows]
+
+        # Timestamps
+        start = header_info["start_datetime_python"]
+        mins = [int(t.strip().split(":")[0]) for t in data[:,2]]
+        secs = [int(t.strip().split(":")[1]) for t in data[:,2]]
+        time = [m*60+s for m,s in zip(mins,secs)]
+        timestamps = np.array([start+timedelta(seconds=m*60+s) for m,s in zip(mins,secs)])
+
+        varlist = ['T-body', 'Pmean', 'Time', 't-ph', 'RPM', 'Load', 'Speed', 'Elev.', 'VTex', 'VTin', 't-ex', 't-in', 'BF', "V'E", "V'O2", "V'CO2", 'RER', 'FIO2', 'FICO2', 'FEO2', 'FECO2', 'FETO2', 'FETCO2', 'PEO2', 'PECO2', 'PETO2', 'PETCO2', 'EqO2', 'EqCO2', 'VDe', 'VDc/VT', 'VDe/VT']
+        ignore = ['T-body', 'Pmean', 'Time', 't-ph', 'RPM', 'Load', 'Speed', 'Elev.']
+        for i,var in enumerate(varlist):
+
+            if not var in ignore:
+                chan = Channel.Channel(var)
+
+                missings = data[:, i] == '   -    '
+                data[missings,i] = 0
+
+                chan.set_contents(data[:,i].astype("float"), timestamps)
+                channels.append(chan)
+
+                if var in ["V'O2", "V'CO2"]:
+                    chan.data /= header_info["weight"]
+
         header = header_info
 
     ts.add_channels(channels)
