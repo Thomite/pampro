@@ -241,8 +241,6 @@ def parse_header(header, type, datetime_format):
         header_info["device_id"] = header[1].split(":")[1]
         header_info["firmware"] = header[4][24:]
         header_info["calibration_date"] = header[5][17:]
-        header_info["frequency"] = float(header[19].split(":")[1].replace(" Hz", ""))
-        header_info["epoch"] = timedelta(seconds=1) / int(header_info["frequency"])
 
         header_info["x_gain"] = float(header[47].split(":")[1])
         header_info["x_offset"] = float(header[48].split(":")[1])
@@ -252,6 +250,13 @@ def parse_header(header, type, datetime_format):
         header_info["z_offset"] = float(header[52].split(":")[1])
 
         header_info["number_pages"] = int(header[57].split(":")[1])
+
+        # Turns out the frequency might be written European style (, instead of .)
+        splitted = header[19].split(":")
+        sans_hz = splitted[1].replace(" Hz", "")
+        comma_safe = sans_hz.replace(",", ".")
+        header_info["frequency"] = float(comma_safe)
+        header_info["epoch"] = timedelta(seconds=1) / int(header_info["frequency"])
 
         return header_info
 
