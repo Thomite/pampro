@@ -213,6 +213,7 @@ def parse_header(header, type, datetime_format):
             hz = int(test[index-1])
             epoch_length = timedelta(seconds=1) / hz
             header_info["epoch_length"] = epoch_length
+            header_info["frequency"] = hz
 
         if "format" in test:
             index = test.index("format")
@@ -616,6 +617,7 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         x_chan.set_contents(x, timestamps)
         y_chan.set_contents(y, timestamps)
         z_chan.set_contents(z, timestamps)
+
 
         channels = [x_chan,y_chan,z_chan]
         header = header_info
