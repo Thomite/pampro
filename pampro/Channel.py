@@ -167,8 +167,14 @@ class Channel(object):
         """ Returns the indices of the data array to use if every observation is timestamped """
 
         start = np.searchsorted(self.timestamps, datetime_start, 'left')
-        end = np.searchsorted(self.timestamps, datetime_end, 'right')
-        return (start, end-1)
+        end = np.searchsorted(self.timestamps, datetime_end, 'right')-1
+
+        if datetime_start < self.timestamps[0]:
+            start = -1
+        if datetime_end < self.timestamps[0]:
+            end = -1
+
+        return (start, end)
 
     def get_data_index(self, timestamp):
 
@@ -611,7 +617,7 @@ class Channel(object):
         for bout in bout_list:
             #print(bout)
 
-            start_index,end_index = self.get_window(bout.start_timestamp, bout.end_timestamp)
+            start_index,end_index = self.bout.start_timestamp, bout.end_timestamp
 
             #c.data[bout[2]:bout[3]] = self.data[bout[2]:bout[3]]
             c.data[indices] = self.data[start_index:end_index]

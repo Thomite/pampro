@@ -213,6 +213,7 @@ def parse_header(header, type, datetime_format):
             hz = int(test[index-1])
             epoch_length = timedelta(seconds=1) / hz
             header_info["epoch_length"] = epoch_length
+            header_info["frequency"] = hz
 
         if "format" in test:
             index = test.index("format")
@@ -241,8 +242,6 @@ def parse_header(header, type, datetime_format):
         header_info["device_id"] = header[1].split(":")[1]
         header_info["firmware"] = header[4][24:]
         header_info["calibration_date"] = header[5][17:]
-        header_info["frequency"] = float(header[19].split(":")[1].replace(" Hz", ""))
-        header_info["epoch"] = timedelta(seconds=1) / int(header_info["frequency"])
 
         header_info["x_gain"] = float(header[47].split(":")[1])
         header_info["x_offset"] = float(header[48].split(":")[1])
@@ -252,6 +251,13 @@ def parse_header(header, type, datetime_format):
         header_info["z_offset"] = float(header[52].split(":")[1])
 
         header_info["number_pages"] = int(header[57].split(":")[1])
+        # Turns out the frequency might be written European style (, instead of .)
+        splitted = header[19].split(":")
+        sans_hz = splitted[1].replace(" Hz", "")
+        comma_safe = sans_hz.replace(",", ".")
+        header_info["frequency"] = float(comma_safe)
+        header_info["epoch"] = timedelta(seconds=1) / int(header_info["frequency"])
+
 
     elif type == "XLO":
 
@@ -259,7 +265,7 @@ def parse_header(header, type, datetime_format):
         blah = header[7].split()
         sans_meridian = blah[3].replace("AM", "")
         sans_meridian = sans_meridian.replace("PM","")
-        dt = datetime.strptime(blah[1] + " " + sans_meridian, "%d/%m/%Y %H:%M:%S")
+        dt = datetime.strptime(blah[1], "%d/%m/%Y")
         header_info["start_datetime_python"] = dt
 
         # Height and weight
@@ -268,6 +274,10 @@ def parse_header(header, type, datetime_format):
         weight = float(l3[2].strip().replace(" kg", ""))
         header_info["height"] = height
         header_info["weight"] = weight
+
+
+
+        return header_info
 
 
     return header_info
@@ -626,6 +636,7 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         x_chan.set_contents(x, timestamps)
         y_chan.set_contents(y, timestamps)
         z_chan.set_contents(z, timestamps)
+
 
         channels = [x_chan,y_chan,z_chan]
         header = header_info
