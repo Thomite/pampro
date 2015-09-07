@@ -174,6 +174,12 @@ class Channel(object):
         if datetime_end < self.timestamps[0]:
             end = -1
 
+        if start == -1 and end != -1:
+            start = 0
+
+        if start != -1 and end == -1:
+            end = len(self.timestamps)-1
+
         return (start, end)
 
     def get_data_index(self, timestamp):
