@@ -129,8 +129,18 @@ def calibrate(x,y,z, allow_overwrite=True, budget=1000, noise_cutoff_mg=13):
     # Calculate the initial error without doing any calibration
     start_error = evaluate_solution(still_x, still_y, still_z, num_samples, [0,1,0,1,0,1])
 
+    # Do offset and scale calibration by default
+    offset_only_calibration = False
+    calibration_diagnostics["calibration_method"] = "offset and scale"
+
+    # If we have less than 500 points to calibrate with, or if more than 2 octants are empty
+    if len(still_x.data) < 500 or sum(occupancy == 0) > 2:
+        offset_only_calibration = True
+        calibration_diagnostics["calibration_method"] = "offset only"
+
+
     # Search for the correct way to calibrate the data
-    calibration_parameters = find_calibration_parameters(still_x.data, still_y.data, still_z.data)
+    calibration_parameters = find_calibration_parameters(still_x.data, still_y.data, still_z.data, offset_only=offset_only_calibration)
 
     for param,value in zip("x_offset,x_scale,y_offset,y_scale,z_offset,z_scale".split(","), calibration_parameters):
         calibration_diagnostics[param] = value
