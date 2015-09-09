@@ -524,7 +524,13 @@ class Channel(object):
 
             windows.append(Bout.Bout(start_dts, end_dts))
 
-        return self.build_statistics_channels(windows, statistics)
+        channels = self.build_statistics_channels(windows, statistics)
+
+        for c in channels:
+            c.timestamps = self.timestamps
+            c.calculate_timeframe()
+
+        return channels
 
 
     def piecewise_statistics(self, window_size, statistics=[("generic", ["mean"])], time_period=False):
