@@ -68,9 +68,9 @@ class GUI(QtGui.QMainWindow):
 
 		self.label1 = QtGui.QLabel(self)
 		self.label1.setText("Job file:")
-		
+
 		grid.addWidget(self.label1, 1, 1, 1, 1)
-	
+
 		self.label2 = QtGui.QLabel(self)
 		self.label2.setText("Script:")
 		grid.addWidget(self.label2, 2, 1, 1, 1)
@@ -89,7 +89,7 @@ class GUI(QtGui.QMainWindow):
 		self.edit3.setValue(1)
 		self.edit3.setRange(1, 100000)
 		grid.addWidget(self.edit3, 3, 2, 1, 1)
-		
+
 
 		self.edit1.setToolTip('Select the job file containing details of all files to be processed.')
 		self.edit2.setToolTip('Select the script to be executed for each file.')
@@ -126,7 +126,7 @@ class GUI(QtGui.QMainWindow):
 		self.show()
 
 	def blah(self):
-		print "Hello!"
+		print ("Hello!")
 
 
 	def center(self):
@@ -156,25 +156,25 @@ class GUI(QtGui.QMainWindow):
 		num_jobs = int(self.edit3.cleanText())
 
 		if num_jobs > 1:
-			print "Batch job"
+			print ("Batch job")
 
 			for i in range(1, num_jobs+1):
-				command = "sge ~/anaconda/bin/ipython --matplotlib=None " + script + " " + job_file + " " + str(i) + " " + str(num_jobs)
-				print command
+				command = "sge ~/anaconda3/bin/ipython --matplotlib=None " + script + " " + job_file + " " + str(i) + " " + str(num_jobs)
+				print (command)
 
 				os.system(str(command))
-				time.sleep(0.5)
+				#time.sleep(0.5)
 
 
 		else:
-			print "Single process"
+			print ("Single process")
 
-			command = "sge ~/anaconda/bin/ipython --matplotlib=None " + script + " " + job_file + " 1 1"
-			print command
+			command = "sge ~/anaconda3/bin/ipython --matplotlib=None " + script + " " + job_file + " 1 1"
+			print (command)
 
 			os.system(str(command))
 
-		
+
 
 
 if __name__ == '__main__':
