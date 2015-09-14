@@ -167,8 +167,8 @@ class Channel(object):
         """ Returns the indices of the data array to use if every observation is timestamped """
 
         start = np.searchsorted(self.timestamps, datetime_start, 'left')
-        end = np.searchsorted(self.timestamps, datetime_end, 'right')-1
-
+        end = np.searchsorted(self.timestamps, datetime_end, 'left')
+        
         if datetime_start < self.timestamps[0]:
             start = -1
         if datetime_end < self.timestamps[0]:
@@ -178,7 +178,7 @@ class Channel(object):
             start = 0
 
         if start != -1 and end == -1:
-            end = len(self.timestamps)-1
+            end = len(self.timestamps)
 
         return (start, end)
 
@@ -569,7 +569,7 @@ class Channel(object):
 
     def summary_statistics(self, statistics=[("generic", ["mean"])]):
 
-        windows = [Bout.Bout(self.timeframe[0], self.timeframe[1])]
+        windows = [Bout.Bout(self.timeframe[0], self.timeframe[1]+timedelta(days=1111))]
         #results = self.window_statistics(self.timeframe[0], self.timeframe[1], statistics)
 
         return self.build_statistics_channels(windows, statistics)
@@ -609,9 +609,14 @@ class Channel(object):
                     bouts.append(Bout.Bout(start_time, end_time))
 
 
+        # Bout finished at end of file
         if state == 1:
             start_time =  self.timestamps[start_index]
             end_time = self.timestamps[end_index]
+
+            if not self.sparsely_timestamped:
+                end_time += self.timestamps[-1]-self.timestamps[-2]
+
             bouts.append(Bout.Bout(start_time, end_time))
 
         return bouts
