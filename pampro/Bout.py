@@ -9,6 +9,7 @@ class Bout(object):
 		self.label = label
 		self.start_timestamp = start_timestamp
 		self.end_timestamp = end_timestamp
+		self.length = self.end_timestamp - self.start_timestamp
 		self.draw_properties = {'lw':0, 'alpha':0.8, 'facecolor':[0.78431,0.78431,0.78431]}
 
 	def contains(self, timepoint):
@@ -16,8 +17,9 @@ class Bout(object):
 		return timepoint >= self.start_timestamp and timepoint <= self.end_timestamp
 
 	def overlaps(self, other):
-
-		return self.contains(other.start_timestamp) or self.contains(other.end_timestamp) or other.contains(self.start_timestamp) or other.contains(self.end_timestamp)
+		inter = self.intersection(other)
+		return inter.length > timedelta(microseconds=0)
+		#return self.contains(other.start_timestamp) or self.contains(other.end_timestamp) or other.contains(self.start_timestamp) or other.contains(self.end_timestamp)
 
 	def intersection(self, other):
 

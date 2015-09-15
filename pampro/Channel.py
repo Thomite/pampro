@@ -168,7 +168,7 @@ class Channel(object):
 
         start = np.searchsorted(self.timestamps, datetime_start, 'left')
         end = np.searchsorted(self.timestamps, datetime_end, 'left')
-        
+
         if datetime_start < self.timestamps[0]:
             start = -1
         if datetime_end < self.timestamps[0]:
@@ -643,41 +643,11 @@ class Channel(object):
 
     def delete_windows(self, windows, missing_value = -111):
 
-        """
-        print("A")
-        for window in windows:
-            start_index,end_index = self.get_window(window.start_timestamp, window.end_timestamp)
-            print(start_index, end_index)
-            self.data = np.delete(self.data, range(start_index, end_index), None)
-
-            if not self.sparsely_timestamped:
-                print("a1")
-                self.timestamps = np.delete(self.timestamps, range(start_index, end_index), None)
-                print("A2")
-            else:
-                print("else1")
-                start = np.searchsorted(self.timestamps, window.start_timestamp, 'left')
-                end = np.searchsorted(self.timestamps, window.end_timestamp, 'right')
-                print("else2")
-                self.timestamps = np.delete(self.timestamps, range(start,end), None)
-                print("else3")
-                self.indices[start:] -= end_index-start_index
-                print("else4")
-                self.indices = np.delete(self.indices, range(start,end), None)
-                print("else5")
-
-        print("B")
-        self.calculate_timeframe()
-
-        self.cached_indices = {}
-        """
-
         # New approach - don't delete the data, mask it with a set value
         # Then when we summarise, check if data has been masked (missing_value is not False)
         # Then analyse only unmasked data
         self.fill_windows(windows, fill_value=missing_value)
         self.missing_value = missing_value
-
 
     def restrict_timeframe(self, start, end):
 
@@ -704,7 +674,7 @@ class Channel(object):
     def fill(self, bout, fill_value=0):
 
         start_index,end_index = self.get_window(bout.start_timestamp,bout.end_timestamp)
-        print(start_index, end_index)
+        #print(start_index, end_index)
         self.data[start_index:end_index] = fill_value
 
     def fill_windows(self, bouts, fill_value=0):
