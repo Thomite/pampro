@@ -304,7 +304,7 @@ def infer_valid_days(channel, wear_bouts, valid_criterion=timedelta(hours=10)):
 
         total = Bout.total_time(intersections)
 
-        if total > valid_criterion:
+        if total >= valid_criterion:
             #window.draw_properties={"lw":0, "facecolor":[1,0,0], "alpha":0.25}
             valid_windows.append(window)
         else:

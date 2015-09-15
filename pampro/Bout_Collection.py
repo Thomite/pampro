@@ -14,10 +14,18 @@ class Bout_Collection(object):
 
         self.name = name
         self.size = 0
-        self.timeframe = 0
+        self.timeframe = [0,0]
         self.bouts = bouts
         self.draw_properties = {}
 
+        if len(bouts) > 0:
+
+            self.timeframe = [bouts[0].start_timestamp, bouts[0].end_timestamp]
+
+            for b in bouts:
+                self.timeframe[0] = min(self.timeframe[0], b.start_timestamp)
+                self.timeframe[1] = max(self.timeframe[1], b.end_timestamp)
+                
     def clone(self):
 
         return copy.deepcopy(self)
@@ -52,7 +60,7 @@ class Bout_Collection(object):
                             intersection = Bout.bout_list_intersection([window],bouts)
                             Bout.cache_lengths(intersection)
                             sum_seconds = Bout.total_time(intersection).total_seconds()
-                            
+
                             if sum_seconds >0 and len(bouts) > 0:
                                 output_row.append( sum_seconds / len(bouts) )
                             else:
