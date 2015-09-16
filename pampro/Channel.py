@@ -651,6 +651,12 @@ class Channel(object):
 
     def restrict_timeframe(self, start, end):
 
+        # Don't delete the data anymore, just mask the data outside of the range
+        bout1 = Bout.Bout(self.timestamps[0]-timedelta(days=1), start-timedelta(microseconds=1))
+        bout2 = Bout.Bout(end+timedelta(microseconds=1), self.timestamps[-1]+timedelta(days=1))
+
+        self.delete_windows([bout1, bout2])
+        """
         start_index,end_index = self.get_window(start, end)
 
         if not self.sparsely_timestamped:
@@ -658,7 +664,8 @@ class Channel(object):
         else:
             print("WARNING - can't restrict timeframe on sparsely timestamped data yet")
             pass
-
+        """
+        
     def time_derivative(self):
 
         result = Channel(self.name + "_td")
