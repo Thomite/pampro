@@ -18,7 +18,13 @@ class Bout(object):
 
 	def overlaps(self, other):
 		inter = self.intersection(other)
-		return inter.length > timedelta(microseconds=0)
+
+		overlap_type = str(type(inter))
+
+		if "int" in overlap_type:
+			return inter.length > 0
+		else:
+			return inter.length > timedelta(microseconds=0)
 		#return self.contains(other.start_timestamp) or self.contains(other.end_timestamp) or other.contains(self.start_timestamp) or other.contains(self.end_timestamp)
 
 	def intersection(self, other):
