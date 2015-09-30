@@ -19,7 +19,7 @@ class Bout(object):
 	def overlaps(self, other):
 		inter = self.intersection(other)
 
-		overlap_type = str(type(inter))
+		overlap_type = str(type(inter.length))
 
 		if "int" in overlap_type:
 			return inter.length > 0
