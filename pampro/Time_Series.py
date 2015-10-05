@@ -14,6 +14,25 @@ class Time_Series(object):
         self.earliest = 0
         self.latest = 0
 
+    def __iter__(self):
+        self.iter_index = 0
+        return self
+
+    def __next__(self):
+        if self.iter_index == self.number_of_channels:
+            raise StopIteration
+        else:
+            self.iter_index += 1
+            return self.channels[self.iter_index-1]
+
+    def __getitem__(self, key):
+
+        index_type = str(type(key))
+        if "int" in index_type:
+            return self.channels[key]
+        else:
+            return self.channel_lookup[key]
+
     def add_channel(self, channel):
 
         self.number_of_channels = self.number_of_channels + 1
@@ -179,9 +198,9 @@ class Time_Series(object):
             file_output.close()
 
 
-    def draw(self, channel_combinations, time_period=False, file_target=False):
+    def draw(self, channel_combinations, time_period=False, file_target=False, width=15, height=10):
 
-        fig = plt.figure(figsize=(15,10), frameon=False)
+        fig = plt.figure(figsize=(width,height), frameon=False)
         fig.patch.set_facecolor('#FFFFFF')
 
         axes = [fig.add_subplot(len(channel_combinations), 1, 1+index) for index in range(len(channel_combinations))]
