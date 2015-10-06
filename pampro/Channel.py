@@ -1,7 +1,7 @@
 import numpy as np
 import scipy as sp
 from datetime import datetime, date, time, timedelta
-from pampro import Bout, pampro_utilities
+from pampro import Time_Series, Bout, pampro_utilities
 import copy
 from struct import *
 from math import *
@@ -437,7 +437,7 @@ class Channel(object):
         return expected
 
 
-    def build_statistics_channels(self, windows, statistics):
+    def build_statistics_channels(self, windows, statistics, name=""):
 
         using_indices = True
         if str(type(windows[0])) == "<class 'pampro.Bout.Bout'>":
@@ -481,7 +481,9 @@ class Channel(object):
             channel.timestamps = np.array(channel.timestamps)
             channel.calculate_timeframe()
 
-        return channel_list
+        ts = Time_Series.Time_Series(name)
+        ts.add_channels(channel_list)
+        return ts
 
     def append_data(self, timestamp, data_row):
         self.timestamps.append(timestamp)
@@ -504,7 +506,7 @@ class Channel(object):
 
             return self.timestamps[max(0,start-1)] + (time_difference/index_difference)
 
-    def sliding_statistics(self, window_size, statistics=[("generic", ["mean"])], time_period=False):
+    def sliding_statistics(self, window_size, statistics=[("generic", ["mean"])], time_period=False, name=""):
 
         if time_period == False:
             start = self.timeframe[0] - timedelta(hours=self.timeframe[0].hour, minutes=self.timeframe[0].minute, seconds=self.timeframe[0].second, microseconds=self.timeframe[0].microsecond)
@@ -524,7 +526,7 @@ class Channel(object):
 
             windows.append(Bout.Bout(start_dts, end_dts))
 
-        channels = self.build_statistics_channels(windows, statistics)
+        channels = self.build_statistics_channels(windows, statistics, name=name)
 
         for c in channels:
             c.timestamps = self.timestamps
@@ -533,7 +535,7 @@ class Channel(object):
         return channels
 
 
-    def piecewise_statistics(self, window_size, statistics=[("generic", ["mean"])], time_period=False):
+    def piecewise_statistics(self, window_size, statistics=[("generic", ["mean"])], time_period=False, name=""):
 
         if time_period == False:
             start = self.timeframe[0] - timedelta(hours=self.timeframe[0].hour, minutes=self.timeframe[0].minute, seconds=self.timeframe[0].second, microseconds=self.timeframe[0].microsecond)
@@ -564,15 +566,15 @@ class Channel(object):
 
 
 
-        return self.build_statistics_channels(windows, statistics)
+        return self.build_statistics_channels(windows, statistics, name=name)
 
 
-    def summary_statistics(self, statistics=[("generic", ["mean"])]):
+    def summary_statistics(self, statistics=[("generic", ["mean"])], name=""):
 
         windows = [Bout.Bout(self.timeframe[0], self.timeframe[1]+timedelta(days=1111))]
         #results = self.window_statistics(self.timeframe[0], self.timeframe[1], statistics)
 
-        return self.build_statistics_channels(windows, statistics)
+        return self.build_statistics_channels(windows, statistics, name=name)
 
     def bouts(self, low, high):
 
@@ -665,7 +667,7 @@ class Channel(object):
             print("WARNING - can't restrict timeframe on sparsely timestamped data yet")
             pass
         """
-        
+
     def time_derivative(self):
 
         result = Channel(self.name + "_td")

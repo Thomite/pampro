@@ -2,7 +2,7 @@ from pampro import Time_Series, Channel, channel_inference, Bout, pampro_utiliti
 import numpy as np
 
 from datetime import datetime, date, time, timedelta
-from pampro import Bout, Channel
+from pampro import Time_Series, Bout, Channel
 import copy
 
 import time
@@ -25,7 +25,7 @@ class Bout_Collection(object):
             for b in bouts:
                 self.timeframe[0] = min(self.timeframe[0], b.start_timestamp)
                 self.timeframe[1] = max(self.timeframe[1], b.end_timestamp)
-                
+
     def clone(self):
 
         return copy.deepcopy(self)
@@ -96,6 +96,7 @@ class Bout_Collection(object):
 
     def build_statistics_channels(self, windows, statistics):
 
+
         channel_list = []
 
         for stat in statistics:
@@ -122,7 +123,9 @@ class Bout_Collection(object):
             channel.data = np.array(channel.data)
             channel.timestamps = np.array(channel.timestamps)
 
-        return channel_list
+        ts = Time_Series.Time_Series("")
+        ts.add_channels(channel_list)
+        return ts
 
     def piecewise_statistics(self, window_size, statistics=[("generic", "mean")], time_period=False):
 

@@ -79,26 +79,9 @@ class Time_Series(object):
         self.channel_lookup[desired_name] = chan
 
 
-    def build_statistics_channels(self, bouts, statistics, common_time=False):
+    def build_statistics_channels(self, bouts, statistics, common_time=False, name=""):
 
-        result_channels = []
-
-        for channel_name,stats in statistics.items():
-            if channel_name in self.channel_lookup.keys():
-
-                if common_time:
-                    # Once the first channel has been queried, inherit its indexes so the rest are faster
-                    self.get_channel(channel_name).inherit_time_properties(self.get_channel(list(statistics.keys())[0]))
-
-                channels = self.get_channel(channel_name).build_statistics_channels(bouts, statistics=stats)
-                result_channels = result_channels + channels
-            else:
-                print("Warning: {} not in {}".format(channel_name, self.name))
-        return result_channels
-
-    def piecewise_statistics(self, window_size, statistics, time_period=False, common_time=False):
-
-        result_channels = []
+        result_ts = Time_Series(name)
 
         for channel_name,stats in statistics.items():
             if channel_name in self.channel_lookup.keys():
@@ -107,23 +90,44 @@ class Time_Series(object):
                     # Once the first channel has been queried, inherit its indexes so the rest are faster
                     self.get_channel(channel_name).inherit_time_properties(self.get_channel(list(statistics.keys())[0]))
 
-                channels = self.get_channel(channel_name).piecewise_statistics(window_size, statistics=stats, time_period=time_period)
-                result_channels = result_channels + channels
+                ts = self.get_channel(channel_name).build_statistics_channels(bouts, statistics=stats, name=name)
+                result_ts.add_channels(ts.channels)
+
             else:
                 print("Warning: {} not in {}".format(channel_name, self.name))
-        return result_channels
 
-    def summary_statistics(self, statistics):
+        return result_ts
 
-        results = []
+    def piecewise_statistics(self, window_size, statistics, time_period=False, common_time=False, name=""):
+
+        result_ts = Time_Series(name)
+
+        for channel_name,stats in statistics.items():
+            if channel_name in self.channel_lookup.keys():
+
+                if common_time:
+                    # Once the first channel has been queried, inherit its indexes so the rest are faster
+                    self.get_channel(channel_name).inherit_time_properties(self.get_channel(list(statistics.keys())[0]))
+
+                ts = self.get_channel(channel_name).piecewise_statistics(window_size, statistics=stats, time_period=time_period)
+                result_ts.add_channels(ts.channels)
+
+            else:
+                print("Warning: {} not in {}".format(channel_name, self.name))
+
+        return result_ts
+
+    def summary_statistics(self, statistics, name=""):
+
+        result_ts = Time_Series(name)
 
         for channel_name,stats in statistics.items():
             if channel_name in self.channel_lookup.keys():
                 channel_results = self.get_channel(channel_name).summary_statistics(statistics=stats)
-                results = results + channel_results
+                result_ts.add_channels(channel_results.channels)
             else:
                 print("Warning: {} not in {}".format(channel_name, self.name))
-        return results
+        return result_ts
 
 
     def restrict_timeframe(self, start, end):
