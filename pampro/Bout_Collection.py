@@ -94,7 +94,7 @@ class Bout_Collection(object):
 
         return output_row
 
-    def build_statistics_channels(self, windows, statistics):
+    def build_statistics_channels(self, windows, statistics, name=""):
 
 
         channel_list = []
@@ -123,11 +123,11 @@ class Bout_Collection(object):
             channel.data = np.array(channel.data)
             channel.timestamps = np.array(channel.timestamps)
 
-        ts = Time_Series.Time_Series("")
+        ts = Time_Series.Time_Series(name)
         ts.add_channels(channel_list)
         return ts
 
-    def piecewise_statistics(self, window_size, statistics=[("generic", "mean")], time_period=False):
+    def piecewise_statistics(self, window_size, statistics=[("generic", "mean")], time_period=False, name=""):
 
         if time_period == False:
             start = self.timeframe[0] - timedelta(hours=self.timeframe[0].hour, minutes=self.timeframe[0].minute, seconds=self.timeframe[0].second, microseconds=self.timeframe[0].microsecond)
@@ -151,14 +151,14 @@ class Bout_Collection(object):
             start_dts = start_dts + window_size
             end_dts = end_dts + window_size
 
-        return self.build_statistics_channels(windows, statistics)
+        return self.build_statistics_channels(windows, statistics, name=name)
 
-    def summary_statistics(self, statistics=[("generic", "mean")]):
+    def summary_statistics(self, statistics=[("generic", "mean")], name=""):
 
         windows = [Bout.Bout(self.timeframe[0], self.timeframe[1])]
         #results = self.window_statistics(self.timeframe[0], self.timeframe[1], statistics)
 
-        return self.build_statistics_channels(windows, statistics)
+        return self.build_statistics_channels(windows, statistics, name=name)
 
     def expected_results(self, statistics):
         """ Calculate the number of expected results for this statistics request """
