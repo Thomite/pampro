@@ -1,25 +1,23 @@
 
 from datetime import datetime, date, time, timedelta
-from pampro import Time_Series, Channel, channel_inference, triaxial_calibration
+from pampro import data_loading, Time_Series, Channel, channel_inference, triaxial_calibration
 
 # Change filenames as appropriate
 
 # Read the data - yields 1 channel per axis
-x, y, z = Channel.load_channels("/pa/data/BIOBANK/example.cwa", "Axivity")
+ts, header = data_loading.load("/pa/data/BIOBANK/example.cwa", "Axivity")
 
-print(x.data)
-print(x.timestamps)
+x, y, z = ts.get_channels(["X", "Y", "Z"])
 
 # Autocalibrate the raw acceleration data
-x, y, z, (cal_params), (results), (misc) = triaxial_calibration.calibrate(x, y, z)
+x, y, z, calibration_diagnostics = triaxial_calibration.calibrate(x, y, z)
 
 # Infer some sample level information - Vector Magnitude (VM), Euclidean Norm Minus One (ENMO)
 vm = channel_inference.infer_vector_magnitude(x, y, z)
 enmo = channel_inference.infer_enmo(vm)
 
 # Create a time series object and add channels to it
-ts = Time_Series.Time_Series("Axivity")
-ts.add_channels([x, y, z, vm, enmo])
+ts.add_channels([vm, enmo])
 
 # Uncomment this line to write the raw data as CSV
 #ts.write_channels_to_file("C:/Data/3.csv")
@@ -28,14 +26,10 @@ ts.add_channels([x, y, z, vm, enmo])
 stats = {"ENMO":[("generic", ["mean"])]}
 
 # Get the above statistics on an hourly level - returned as channels
-hourly_results = ts.piecewise_statistics(timedelta(hours=1), statistics=stats, time_period=x.timeframe)
-
-# Add the result channels to a new time series object, and draw them
-ts_visualisation = Time_Series.Time_Series("Axivity")
-ts_visualisation.add_channels(hourly_results)
+hourly_results = ts.piecewise_statistics(timedelta(hours=1), statistics=stats)
 
 # Write the hourly analysis to a file
-ts_visualisation.write_channels_to_file("/pa/data/BIOBANK/example_output.csv")
+hourly_results.write_channels_to_file("/pa/data/BIOBANK/example_output.csv")
 
 # Visualise the hourly ENMO signal
-ts_visualisation.draw([["ENMO_mean"]], file_target="/pa/data/BIOBANK/example.png")
+hourly_results.draw([["ENMO_mean"]], file_target="/pa/data/BIOBANK/example.png")
