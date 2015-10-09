@@ -29,3 +29,6 @@ def end_of_minute(datetimestamp):
 	''' Add the excess seconds and microseconds onto a datetime stamp '''
 	end = datetimestamp + timedelta(seconds=59-datetimestamp.second, microseconds=999999-datetimestamp.microsecond)
 	return end
+
+def is_midnight(datetimestamp):
+	return datetimestamp.hour == 0 & datetimestamp.minute == 0 & datetimestamp.second == 0 & datetimestamp.microsecond==0

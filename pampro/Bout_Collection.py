@@ -153,11 +153,13 @@ class Bout_Collection(object):
 
         return self.build_statistics_channels(windows, statistics, name=name)
 
-    def summary_statistics(self, statistics=[("generic", "mean")], name=""):
+    def summary_statistics(self, statistics=[("generic", "mean")], time_period=False, name=""):
 
-        windows = [Bout.Bout(self.timeframe[0], self.timeframe[1])]
-        #results = self.window_statistics(self.timeframe[0], self.timeframe[1], statistics)
-
+        if time_period == False:
+            windows = [Bout.Bout(self.timeframe[0], self.timeframe[1]+timedelta(days=1111))]
+        else:
+            windows = [Bout.Bout(time_period[0],time_period[1])]
+            
         return self.build_statistics_channels(windows, statistics, name=name)
 
     def expected_results(self, statistics):

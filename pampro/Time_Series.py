@@ -117,13 +117,13 @@ class Time_Series(object):
 
         return result_ts
 
-    def summary_statistics(self, statistics, name=""):
+    def summary_statistics(self, statistics, time_period=False, name=""):
 
         result_ts = Time_Series(name)
 
         for channel_name,stats in statistics.items():
             if channel_name in self.channel_lookup.keys():
-                channel_results = self.get_channel(channel_name).summary_statistics(statistics=stats)
+                channel_results = self.get_channel(channel_name).summary_statistics(statistics=stats, time_period=time_period)
                 result_ts.add_channels(channel_results.channels)
             else:
                 print("Warning: {} not in {}".format(channel_name, self.name))
