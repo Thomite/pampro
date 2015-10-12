@@ -139,13 +139,15 @@ class Channel(object):
 
     def get_window(self, datetime_start, datetime_end):
 
-        key_value = str(datetime_start) + "|" + str(datetime_end)
+        key_a = str(datetime_start)
+        key_b = str(datetime_end)
         indices = [-1]
 
-        # If we already know what the indices are for this time range:
-
+        # If we already know what the indices are for these timestamps:
         try:
-            indices = self.cached_indices[key_value]
+            index_a = self.cached_indices[key_a]
+            index_b = self.cached_indices[key_b]
+            indices = (index_a, index_b)
 
         except:
 
@@ -159,7 +161,8 @@ class Channel(object):
 
 
             # Cache those for next time
-            self.cached_indices[key_value] = indices
+            self.cached_indices[key_a] = indices[0]
+            self.cached_indices[key_b] = indices[1]
 
         return indices
 
@@ -189,27 +192,25 @@ class Channel(object):
         elif timestamp > self.timestamps[-1]:
             return -1
         else:
-            #print("gdi 1")
+
             start = np.searchsorted(self.timestamps, timestamp, 'left')
+
             if self.timestamps[start] != timestamp:
 
-                previous_timestamp = self.timestamps[start-1]
-                previous_difference = self.timestamps[start]-previous_timestamp
-                sample_difference = self.indices[start]-self.indices[start-1]
+                # self.timestamps[start] > desired timestamp - but by how much?
+                overshoot = (self.timestamps[start]-timestamp).total_seconds()
+                # seconds difference * num samples per second = sample difference
+                num_samples_back = overshoot*self.frequency
+                a = int(self.indices[start] - num_samples_back)
 
-                per_sample_difference = previous_difference / sample_difference
-
-                num_samples_back = int(previous_difference / per_sample_difference)
-
-                a = max(0, self.indices[start] - num_samples_back)
-
-                self.timestamps = np.insert(self.timestamps, start, timestamp)
-                self.indices = np.insert(self.indices, start, a)
+                if a > self.indices[start-1]:
+                    self.timestamps = np.insert(self.timestamps, start, timestamp)
+                    self.indices = np.insert(self.indices, start, a)
 
             else:
                 a = self.indices[start]
 
-            return int(a)
+            return a
 
     def get_sparse_data_indices(self, datetime_start, datetime_end):
         """ Returns the indices of the data array to use if it is sparsely timestamped """
