@@ -156,8 +156,10 @@ class Channel(object):
                 indices = self.get_data_indices(datetime_start, datetime_end)
 
             else:
+                for timestamp in [datetime_start, datetime_end]:
+                    self.ensure_timestamped_at(timestamp)
 
-                indices = self.get_sparse_data_indices(datetime_start, datetime_end)
+                indices = self.get_data_indices(datetime_start, datetime_end)
 
 
             # Cache those for next time
@@ -169,8 +171,21 @@ class Channel(object):
     def get_data_indices(self, datetime_start, datetime_end):
         """ Returns the indices of the data array to use if every observation is timestamped """
 
-        start = np.searchsorted(self.timestamps, datetime_start, 'left')
-        end = np.searchsorted(self.timestamps, datetime_end, 'left')
+        if self.sparsely_timestamped:
+
+            start = np.searchsorted(self.timestamps, datetime_start, 'left')
+            end = np.searchsorted(self.timestamps, datetime_end, 'left')
+
+            #print(start,end)
+            #print("ts", len(self.timestamps))
+            #print("indices", len(self.indices))
+            start = self.indices[max(0,start)]
+            end = self.indices[min(len(self.indices)-1,end)]
+
+        else:
+
+            start = np.searchsorted(self.timestamps, datetime_start, 'left')
+            end = np.searchsorted(self.timestamps, datetime_end, 'left')
 
         if datetime_start < self.timestamps[0]:
             start = -1
@@ -185,13 +200,21 @@ class Channel(object):
 
         return (start, end)
 
-    def get_data_index(self, timestamp):
+    def inject_timestamp_index(self, timestamp, index):
 
-        if timestamp < self.timestamps[0]:
-            return -1
-        elif timestamp > self.timestamps[-1]:
-            return -1
-        else:
+        i = np.searchsorted(self.indices, index, "left")
+        if self.indices[i] != index:
+
+            self.timestamps = np.insert(self.timestamps, i, timestamp)
+            self.indices = np.insert(self.indices, i, index)
+
+
+
+
+    def ensure_timestamped_at(self, timestamp):
+
+        # Is this check necessary?
+        if timestamp >= self.timestamps[0] and timestamp < self.timestamps[-1]:
 
             start = np.searchsorted(self.timestamps, timestamp, 'left')
 
@@ -202,15 +225,17 @@ class Channel(object):
                 # seconds difference * num samples per second = sample difference
                 num_samples_back = overshoot*self.frequency
                 a = int(self.indices[start] - num_samples_back)
+                b = a + 1
 
-                if a > self.indices[start-1]:
-                    self.timestamps = np.insert(self.timestamps, start, timestamp)
-                    self.indices = np.insert(self.indices, start, a)
+                a_timestamp = self.infer_timestamp(a)
+                b_timestamp = self.infer_timestamp(b)
 
-            else:
-                a = self.indices[start]
+                self.inject_timestamp_index(a_timestamp, a)
+                self.inject_timestamp_index(b_timestamp, b)
+                #self.timestamps = np.insert(self.timestamps, start, [a_timestamp, b_timestamp])
+                #self.indices = np.insert(self.indices, start, [a,b])
 
-            return a
+
 
     def get_sparse_data_indices(self, datetime_start, datetime_end):
         """ Returns the indices of the data array to use if it is sparsely timestamped """
@@ -493,6 +518,7 @@ class Channel(object):
     def infer_timestamp(self, index):
 
         start = np.searchsorted(self.indices, index, 'left')
+        #print("infer_timestamp | start:", start)
         if self.indices[start] == index:
 
             return self.timestamps[start]
@@ -502,10 +528,11 @@ class Channel(object):
 
         else:
             # it's before "start" & after "start"-1
-            index_difference = self.indices[start]-self.indices[max(0,start-1)]
-            time_difference = self.timestamps[start]-self.timestamps[max(0,start-1)]
-
-            return self.timestamps[max(0,start-1)] + (time_difference/index_difference)
+            index_difference = self.indices[start]-index
+            time_difference = index_difference * timedelta(seconds=1)/self.frequency
+            #print("infer_timestamp | index_difference:", index_difference)
+            #print("infer_timestamp | time_difference:", time_difference)
+            return self.timestamps[start] - time_difference
 
     def sliding_statistics(self, window_size, statistics=[("generic", ["mean"])], time_period=False, name=""):
 
