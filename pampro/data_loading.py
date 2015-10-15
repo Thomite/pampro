@@ -597,7 +597,7 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         f.close()
 
         timestamps = np.array(timestamp_list)
-        counts = np.array(count_list)
+        counts = np.abs(np.array(count_list))
 
         #print timestamps[0], timestamps[-1]
         #print sum(counts)
@@ -636,6 +636,9 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         x_chan.set_contents(x, timestamps)
         y_chan.set_contents(y, timestamps)
         z_chan.set_contents(z, timestamps)
+
+        for c in [x_chan, y_chan, z_chan]:
+            c.frequency = header_info["frequency"]
 
 
         channels = [x_chan,y_chan,z_chan]
