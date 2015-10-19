@@ -167,7 +167,7 @@ class Channel(object):
             self.cached_indices[key_a] = indices[0]
             self.cached_indices[key_b] = indices[1]
         """
-        
+
         return indices
 
     def get_data_indices(self, datetime_start, datetime_end):
@@ -578,7 +578,7 @@ class Channel(object):
         windows = []
 
         if str(type(window_size)) == "<class 'datetime.timedelta'>":
-            print("a")
+            #print("a")
             start_dts = start
             end_dts = start + window_size
 
@@ -591,7 +591,7 @@ class Channel(object):
                 end_dts = end_dts + window_size
 
         elif str(type(window_size)) == "<class 'int'>":
-            print("b")
+            #print("b")
             windows = [[i,i+window_size] for i in range(0,len(self.data),window_size)]
 
 
