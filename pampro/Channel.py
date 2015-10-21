@@ -521,7 +521,7 @@ class Channel(object):
 
         start = np.searchsorted(self.indices, index, 'left')
         #print("infer_timestamp | start:", start)
-        if start == len(self.indices):
+        if start >= len(self.indices):
             return self.timestamps[-1]
 
         elif self.indices[start] == index:
