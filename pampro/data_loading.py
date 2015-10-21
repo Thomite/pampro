@@ -129,8 +129,11 @@ def axivity_parse_header(fh):
     ax_header["device"] = deviceId
     ax_header["session"] = sessionId
     ax_header["firmware"] = firmwareVersion
-    ax_header["logging_start_time"] = loggingStartTime
-    ax_header["logging_end_time"] = loggingEndTime
+    #ax_header["logging_start_time"] = axivity_read_timestamp_raw(loggingStartTime)
+    #ax_header["logging_end_time"] = axivity_read_timestamp_raw(loggingEndTime)
+
+    mapping = {72:25, 73:50, 74:100, 75:200}
+    ax_header["frequency"] = mapping[int(samplingRate)]
 
     return ax_header
 
@@ -1018,10 +1021,10 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         axivity_temperature.resize(num_pages)
         axivity_light.resize(num_pages)
 
-        approximate_frequency = timedelta(seconds=1)/ ((axivity_timestamps[-2]-axivity_timestamps[0])/num_samples)
+        #approximate_frequency = timedelta(seconds=1)/ ((axivity_timestamps[-2]-axivity_timestamps[0])/num_samples)
 
         # Timestamp the final observation
-        axivity_timestamps[-1] = axivity_timestamps[-2] + ((num_samples/num_pages)*(timedelta(seconds=1)/approximate_frequency))
+        axivity_timestamps[-1] = axivity_timestamps[-2] + ((num_samples/num_pages)*(timedelta(seconds=1)/file_header["frequency"]))
         axivity_indices[-1] = num_samples
 
         channel_x.set_contents(axivity_x, axivity_timestamps)
@@ -1034,9 +1037,9 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         for c in [channel_x, channel_y, channel_z]:
             c.indices = axivity_indices
             c.sparsely_timestamped = True
-            c.frequency = approximate_frequency
+            c.frequency = file_header["frequency"]
 
-        file_header["frequency"] = approximate_frequency
+        #file_header["frequency"] = approximate_frequency
         file_header["num_pages"] = num_pages
         file_header["num_samples"] = num_samples
         channels = [channel_x, channel_y, channel_z, channel_light, channel_temperature]

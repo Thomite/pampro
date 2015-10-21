@@ -167,7 +167,7 @@ class Channel(object):
             self.cached_indices[key_a] = indices[0]
             self.cached_indices[key_b] = indices[1]
         """
-        
+
         return indices
 
     def get_data_indices(self, datetime_start, datetime_end):
@@ -521,12 +521,12 @@ class Channel(object):
 
         start = np.searchsorted(self.indices, index, 'left')
         #print("infer_timestamp | start:", start)
-        if self.indices[start] == index:
+        if start == len(self.indices):
+            return self.timestamps[-1]
+
+        elif self.indices[start] == index:
 
             return self.timestamps[start]
-
-        elif start == len(self.indices):
-            return self.timestamps[-1]
 
         else:
             # it's before "start" & after "start"-1
