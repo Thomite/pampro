@@ -585,19 +585,19 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         while (len(line) > 0):
 
             counts = line.split()
-            for index, c in enumerate(counts):
-            #    print index, index % 2
-                if mode == 0 or mode == 4 or (mode == 1 and index % 2 == 0) or (mode == 3 and index % 2 == 0):
-                    #print("eh?")
-                    count_list.append(int(c))
-                    timestamp_list.append(time)
-                    time = time + epoch_length
-                #else:
-                    #print("eh?")
-
-
+            count_list = count_list + counts
             line = f.readline().strip()
         f.close()
+
+        count_list = [int(c) for c in count_list]
+        print(count_list)
+        if mode == 1 or mode == 3:
+            print("Removing steps")
+            sans_steps = [a for a,b in zip(*[iter(count_list)]*2)]
+            print(sans_steps)
+            count_list = sans_steps
+            print(count_list)
+        timestamp_list = [time+t*epoch_length for t in range(len(count_list))]
 
         timestamps = np.array(timestamp_list)
         counts = np.abs(np.array(count_list))
