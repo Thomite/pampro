@@ -957,12 +957,12 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
                     elif (numAxesBPS & 15) == 0:
                         bps = 4
 
-                    freq = 3200 / (1 << (15 - sampleRate & 15))
-                    if freq <= 0:
-                        freq = 1
-                    offsetStart = float(-timestampOffset) / float(freq)
+                    #freq = 3200 / (1 << (15 - sampleRate & 15))
+                    #if freq <= 0:
+                    #    freq = 1
+                    #offsetStart = float(-timestampOffset) / float(freq)
 
-                    time0 = timestamp + timedelta(milliseconds=offsetStart)
+                    time0 = timestamp# + timedelta(milliseconds=offsetStart)
                     axivity_indices[num_pages] = num_samples
                     axivity_timestamps[num_pages] = time0
                     axivity_light[num_pages] = light

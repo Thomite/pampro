@@ -139,7 +139,6 @@ class Channel(object):
 
     def get_window(self, datetime_start, datetime_end):
 
-        """
         key_a = str(datetime_start)
         key_b = str(datetime_end)
         indices = [-1]
@@ -151,48 +150,65 @@ class Channel(object):
             indices = (index_a, index_b)
 
         except:
-        """
-        if not self.sparsely_timestamped:
 
-            indices = self.get_data_indices(datetime_start, datetime_end)
+            if not self.sparsely_timestamped:
 
-        else:
-            for timestamp in [datetime_start, datetime_end]:
-                self.ensure_timestamped_at(timestamp)
+                indices = self.get_data_indices(datetime_start, datetime_end)
 
-            indices = self.get_data_indices(datetime_start, datetime_end)
+            else:
+                for timestamp in [datetime_start, datetime_end]:
+                    self.ensure_timestamped_at(timestamp)
 
-        """
+                indices = self.get_data_indices(datetime_start, datetime_end)
+
+
             # Cache those for next time
             self.cached_indices[key_a] = indices[0]
             self.cached_indices[key_b] = indices[1]
-        """
 
         return indices
 
     def get_data_indices(self, datetime_start, datetime_end):
         """ Returns the indices of the data array to use if every observation is timestamped """
 
-        if self.sparsely_timestamped:
-
-            start = np.searchsorted(self.timestamps, datetime_start, 'left')
-            end = np.searchsorted(self.timestamps, datetime_end, 'left')
-
-            #print(start,end)
-            #print("ts", len(self.timestamps))
-            #print("indices", len(self.indices))
-            start = self.indices[max(0,start)]
-            end = self.indices[min(len(self.indices)-1,end)]
-
+        if datetime_start > self.timestamps[-1] or datetime_end < self.timestamps[0]:
+            start = -1
+            end = -1
         else:
 
-            start = np.searchsorted(self.timestamps, datetime_start, 'left')
-            end = np.searchsorted(self.timestamps, datetime_end, 'left')
+            if self.sparsely_timestamped:
 
-        if datetime_start < self.timestamps[0]:
-            start = -1
-        if datetime_end < self.timestamps[0]:
-            end = -1
+                if datetime_start < self.timestamps[0]:
+                    start = -1
+                else:
+
+                    start = np.searchsorted(self.timestamps, datetime_start, 'left')
+                    try:
+                        start = self.indices[max(0,start)]
+                    except:
+                        print("!!!!!!!! EXCEPTION !!!!!!!!!!")
+                        print(start, end)
+                        print(datetime_start, datetime_end)
+                        print("!!!!!!!! EXCEPTION !!!!!!!!!!")
+
+                if datetime_end < self.timestamps[0]:
+                    end = -1
+                else:
+                    end = np.searchsorted(self.timestamps, datetime_end, 'left')
+                    end = self.indices[min(len(self.indices)-1,end)]
+
+            else:
+
+                if datetime_start < self.timestamps[0]:
+                    start = -1
+                else:
+                    start = np.searchsorted(self.timestamps, datetime_start, 'left')
+
+                if datetime_end < self.timestamps[0]:
+                    end = -1
+                else:
+                    end = np.searchsorted(self.timestamps, datetime_end, 'left')
+
 
         if start == -1 and end != -1:
             start = 0
@@ -521,12 +537,12 @@ class Channel(object):
 
         start = np.searchsorted(self.indices, index, 'left')
         #print("infer_timestamp | start:", start)
-        if start >= len(self.indices):
-            return self.timestamps[-1]
-
-        elif self.indices[start] == index:
+        if self.indices[start] == index:
 
             return self.timestamps[start]
+
+        elif start == len(self.indices):
+            return self.timestamps[-1]
 
         else:
             # it's before "start" & after "start"-1
@@ -578,7 +594,7 @@ class Channel(object):
         windows = []
 
         if str(type(window_size)) == "<class 'datetime.timedelta'>":
-            #print("a")
+
             start_dts = start
             end_dts = start + window_size
 
@@ -591,7 +607,7 @@ class Channel(object):
                 end_dts = end_dts + window_size
 
         elif str(type(window_size)) == "<class 'int'>":
-            #print("b")
+
             windows = [[i,i+window_size] for i in range(0,len(self.data),window_size)]
 
 
