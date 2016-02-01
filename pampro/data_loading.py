@@ -380,16 +380,7 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         filesize = len(data)
         data = io.BytesIO(data)
 
-
-        #print("File read in")
-
-        #print("filesize", filesize)
-
         A = unpack('1024s', data.read(1024))[0]
-
-        #print((A[276]) << 8 | (A[277]))
-        #print((A[278]) << 8 | (A[279]))
-
 
         start_time = str((A[256])).rjust(2, "0") + ":" + str((A[257])).rjust(2, "0") + ":" + str((A[258])).rjust(2, "0")
         start_date = str((A[259])).rjust(2, "0") + "/" + str((A[260])).rjust(2, "0") + "/" + str(2000 + (A[261]))
@@ -418,9 +409,7 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
 
         #print("expected records:", num_records)
         #print("sampling frequency", (A[35]))
-
         #print("header end", A[1012:1023])
-
 
         n = 0
         data_cache = False
@@ -526,6 +515,10 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         for c in [x_channel, y_channel, z_channel]:
             c.sparsely_timestamped = False
             c.frequency = sampling_frequency
+
+        header["frequency"] = sampling_frequency
+        header["dynamic_range"] = dynamic_range
+
 
         channels = [x_channel, y_channel, z_channel]
 
@@ -727,7 +720,6 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
             c = Channel.Channel(name)
             c.set_contents(np.array(data[:,col], dtype=np.float64), timestamps)
             channels.append(c)
-
 
     elif (source_type == "Axivity"):
 
@@ -1054,7 +1046,7 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         first_lines = [data.readline().strip().decode() for i in range(59)]
         #print(first_lines)
         header_info = parse_header(first_lines, "GeneActiv", "")
-        print(header_info)
+        #print(header_info)
 
         n = header_info["number_pages"]
         obs_num = 0
@@ -1104,7 +1096,7 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         ga_timestamps[-1] = page_time + (num*(timedelta(seconds=1)/header_info["frequency"]))
         ga_indices[-1] = obs_num
 
-        #print("A")
+
         x_values = np.array([(x * 100.0 - header_info["x_offset"]) / header_info["x_gain"] for x in x_values])
         y_values = np.array([(y * 100.0 - header_info["y_offset"]) / header_info["y_gain"] for y in y_values])
         z_values = np.array([(z * 100.0 - header_info["z_offset"]) / header_info["z_gain"] for z in z_values])
@@ -1117,12 +1109,12 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         y_channel.set_contents(y_values, ga_timestamps)
         z_channel.set_contents(z_values, ga_timestamps)
 
-        #print("B")
+
         for c in [x_channel, y_channel, z_channel]:
             c.indices = ga_indices
             c.sparsely_timestamped = True
             c.frequency = header_info["frequency"]
-        #print("C")
+
         channels = [x_channel, y_channel, z_channel]
         header = header_info
 
@@ -1168,4 +1160,10 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         header = header_info
 
     ts.add_channels(channels)
+
+    header["generic_num_channels"] = ts.number_of_channels
+    header["generic_first_timestamp"] = ts.earliest.strftime("%d/%m/%Y %H:%M:%S:%f")
+    header["generic_last_timestamp"] = ts.latest.strftime("%d/%m/%Y %H:%M:%S:%f")
+    header["generic_num_samples"] = len(ts.channels[0].data)
+
     return ts, header
