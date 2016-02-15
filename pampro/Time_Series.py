@@ -1,3 +1,6 @@
+import matplotlib
+matplotlib.use("Agg") # So that plotting doesn't require X and can be done remotely
+
 import matplotlib.pyplot as plt
 from datetime import datetime, date, time, timedelta
 import numpy as np

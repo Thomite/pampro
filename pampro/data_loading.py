@@ -94,7 +94,7 @@ def axivity_parse_header(fh):
 
     reserved = axivity_read(fh,22)
 
-    annotationBlock = axivity_read(fh,448 + 512)
+    annotationBlock = axivity_read(fh, 448 + 512)
 
     if len(annotationBlock) < 448 + 512:
         annotationBlock = ""
