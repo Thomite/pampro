@@ -68,46 +68,36 @@ def find_calibration_parameters(x_input, y_input, z_input, num_iterations=1000, 
     return final_x_offset, final_x_scale, final_y_offset, final_y_scale, final_z_offset, final_z_scale
 
 def calibrate(x,y,z, allow_overwrite=True, budget=1000, noise_cutoff_mg=13):
+    """ Use still bouts in the given triaxial data to calibrate it and return the calibrated channels """
 
     calibration_diagnostics = OrderedDict()
 
     vm = channel_inference.infer_vector_magnitude(x,y,z)
+
+    # Get a list of bouts where standard deviation in each axis is below given threshold ("still")
     still_bouts = channel_inference.infer_still_bouts_triaxial(x,y,z, noise_cutoff_mg=noise_cutoff_mg)
 
-    if vm.sparsely_timestamped:
+    # Summarise VM in 10s intervals
+    vm_windows = vm.piecewise_statistics( timedelta(seconds=10), [("generic", ["mean"])], time_period=(time_utilities.start_of_hour(x.timeframe[0]), time_utilities.end_of_hour(x.timeframe[1])) )[0]
 
-        vm_windows = vm.piecewise_statistics( 10*int(x.frequency), [("generic", ["mean"])], time_period=(time_utilities.start_of_hour(x.timeframe[0]), time_utilities.end_of_hour(x.timeframe[1])) )[0]
-
-    else:
-
-        vm_windows = vm.piecewise_statistics( timedelta(seconds=10), [("generic", ["mean"])], time_period=(time_utilities.start_of_hour(x.timeframe[0]), time_utilities.end_of_hour(x.timeframe[1])) )[0]
-
+    # Get a list where VM was between 0.5 and 1.5g ("reasonable")
     reasonable_bouts = vm_windows.bouts(0.5, 1.5)
 
+    # Get the number of times the monitor was "still"
     num_still_bouts = len(still_bouts)
 
-    if vm.sparsely_timestamped:
-
-        num_still_seconds = sum([b.end_timestamp-b.start_timestamp for b in still_bouts])/int(x.frequency)
-        num_reasonable_seconds = sum([b.end_timestamp-b.start_timestamp for b in reasonable_bouts])/int(x.frequency)
-
-    else:
-        num_still_seconds = Bout.total_time(still_bouts).total_seconds()
-        num_reasonable_seconds = Bout.total_time(reasonable_bouts).total_seconds()
+    num_still_seconds = Bout.total_time(still_bouts).total_seconds()
+    num_reasonable_seconds = Bout.total_time(reasonable_bouts).total_seconds()
 
     num_reasonable_bouts = len(reasonable_bouts)
 
+    # We only want still bouts where the VM level was within 0.5g of 1g
+    # Therefore insersect "still" time with "reasonable" time
     still_bouts = Bout.bout_list_intersection(reasonable_bouts, still_bouts)
-    Bout.cache_lengths(still_bouts)
 
-    if vm.sparsely_timestamped:
-        still_bouts = Bout.limit_to_lengths(still_bouts, min_length = 10*int(x.frequency))
-        num_final_seconds = sum([b.end_timestamp-b.start_timestamp for b in still_bouts])/int(x.frequency)
-        # Convert bout objects into lists of indices for efficiency
-        still_bouts = [[b.start_timestamp, b.end_timestamp] for b in still_bouts]
-    else:
-        still_bouts = Bout.limit_to_lengths(still_bouts, min_length = timedelta(seconds=10))
-        num_final_seconds = Bout.total_time(still_bouts).total_seconds()
+    # And we only want bouts where it was still and reasonable for 10s or longer
+    still_bouts = Bout.limit_to_lengths(still_bouts, min_length = timedelta(seconds=10))
+    num_final_seconds = Bout.total_time(still_bouts).total_seconds()
 
     num_final_bouts = len(still_bouts)
 

@@ -71,6 +71,9 @@ def axivity_read(fh, bytes):
         raise IOError
 
 def axivity_parse_header(fh):
+
+    ax_header = OrderedDict()
+
     blockSize = unpack('H', axivity_read(fh,2))[0]
     performClear = unpack('B', axivity_read(fh,1))[0]
     deviceId = unpack('H', axivity_read(fh,2))[0]
@@ -106,25 +109,25 @@ def axivity_parse_header(fh):
 
     annotationElements = annotation.split('&')
     annotationNames = {'_c': 'studyCentre', '_s': 'studyCode', '_i': 'investigator', '_x': 'exerciseCode', '_v': 'volunteerNum', '_p': 'bodyLocation', '_so': 'setupOperator', '_n': 'notes', '_b': 'startTime', '_e': 'endTime', '_ro': 'recoveryOperator', '_r': 'retrievalTime', '_co': 'comments'}
-    annotations = dict()
+
     for element in annotationElements:
         kv = element.split('=', 2)
         if kv[0] in annotationNames:
-            annotations[annotationNames[kv[0]]] = kv[1]
+            ax_header[annotationNames[kv[0]]] = kv[1]
 
     for x in ('startTime', 'endTime', 'retrievalTime'):
-        if x in annotations:
-            if '/' in annotations[x]:
-                annotations[x] = time.strptime(annotations[x], '%d/%m/%Y')
+        if x in ax_header:
+            if '/' in ax_header[x]:
+                ax_header[x] = time.strptime(ax_header[x], '%d/%m/%Y')
             else:
-                annotations[x] = time.strptime(annotations[x], '%Y-%m-%d %H:%M:%S')
+                ax_header[x] = time.strptime(ax_header[x], '%Y-%m-%d %H:%M:%S')
 
 
     lastClearTime = axivity_read_timestamp(lastClearTime)
     lastChangeTime = axivity_read_timestamp(lastChangeTime)
     firmwareVersion = firmwareVersion if firmwareVersion != 255 else 0
 
-    ax_header = OrderedDict()
+
     ax_header["sample_rate"] = samplingRate
     ax_header["device"] = deviceId
     ax_header["session"] = sessionId
@@ -1039,10 +1042,12 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
 
     elif (source_type == "GeneActiv"):
 
+        # Open the file in read binary mode, read it into a data block
         f = open(source, "rb")
         data = io.BytesIO(f.read())
         #print("File read in")
 
+        # First 59 lines contain header information
         first_lines = [data.readline().strip().decode() for i in range(59)]
         #print(first_lines)
         header_info = parse_header(first_lines, "GeneActiv", "")
@@ -1050,25 +1055,35 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
 
         n = header_info["number_pages"]
         obs_num = 0
+        ts_num = 0
+        # Data format contains 300 XYZ values per page
         num = 300
         x_values = np.empty(num*n)
         y_values = np.empty(num*n)
         z_values = np.empty(num*n)
-        #time_values = np.array([header_info["start_datetime_python"]])
-        #time_values = np.resize(time_values, num*n)
 
-        ga_timestamps = np.empty(header_info["number_pages"]+1, dtype=type(header_info["start_datetime_python"]))
-        ga_indices = np.empty(header_info["number_pages"]+1)
+        # We will timestamp every 1 second of data to the nearest second
+        # 300 / frequency = number of timestamps per page
+        timestamps_per_page = int(num / header_info["frequency"])
+        num_timestamps = (timestamps_per_page * header_info["number_pages"]) + 1
+
+        ga_timestamps = np.empty(num_timestamps, dtype=type(header_info["start_datetime_python"]))
+        ga_indices = np.empty(num_timestamps)
 
         # For each page
         for i in range(n):
 
             #xs,ys,zs,times = read_block(data, header_info)
-            lines = [data.readline().strip().decode() for i in range(9)]
-            page_time = datetime.strptime(lines[3][10:29], "%Y-%m-%d %H:%M:%S") + timedelta(microseconds=int(lines[3][30:])*1000)
+            lines = [data.readline().strip().decode() for l in range(9)]
+            page_time = datetime.strptime(lines[3][10:29], "%Y-%m-%d %H:%M:%S")# + timedelta(microseconds=int(lines[3][30:])*1000)
 
-            ga_timestamps[i] = page_time
-            ga_indices[i] = obs_num
+            ga_timestamps[ts_num] = page_time
+            ga_indices[ts_num] = obs_num
+
+            for k in range(timestamps_per_page):
+                ga_timestamps[ts_num+1] = page_time + (timedelta(seconds=1) * (k+1))
+                ga_indices[ts_num+1] = obs_num + (int(header_info["frequency"]) * (k+1))
+                ts_num += 1
 
             # For each 12 byte measurement in page (300 of them)
             for j in range(num):

@@ -230,12 +230,13 @@ class Channel(object):
 
 
     def ensure_timestamped_at(self, timestamp):
-
+        """ Guarantees a timestamp will be in the timestamps array """
         # Is this check necessary?
         if timestamp >= self.timestamps[0] and timestamp < self.timestamps[-1]:
 
             start = np.searchsorted(self.timestamps, timestamp, 'left')
 
+            # If this timestamp didn't exactly match an existing timestamp in the array
             if self.timestamps[start] != timestamp:
 
                 # self.timestamps[start] > desired timestamp - but by how much?
@@ -482,17 +483,18 @@ class Channel(object):
 
 
     def build_statistics_channels(self, windows, statistics, name=""):
+        """ Describe the contents of this channel in the given time windows using the given statistics  """
 
         using_indices = True
         if str(type(windows[0])) == "<class 'pampro.Bout.Bout'>":
             using_indices = False
-        #print(using_indices)
+
         channel_list = []
 
         for stat in statistics:
-            #print(stat)
+
             channel_names = pampro_utilities.design_variable_names(self.name, stat)
-            #print(channel_names)
+
             for cn in channel_names:
                 channel_list.append(Channel(cn))
 
@@ -521,6 +523,7 @@ class Channel(object):
                     channel_list[i].append_data(window.start_timestamp, results[i])
 
         for channel in channel_list:
+            channel.missing_value = -1
             channel.data = np.array(channel.data)
             channel.timestamps = np.array(channel.timestamps)
             channel.calculate_timeframe()
@@ -530,10 +533,13 @@ class Channel(object):
         return ts
 
     def append_data(self, timestamp, data_row):
+        """Append a single observation to the end of the timestamp and data arrays. """
+
         self.timestamps.append(timestamp)
         self.data.append(data_row)
 
     def infer_timestamp(self, index):
+        """ Given an index of the data array, approximate its timestamp using the sparse timestamps around it """
 
         start = np.searchsorted(self.indices, index, 'left')
         #print("infer_timestamp | start:", start)
@@ -593,6 +599,7 @@ class Channel(object):
         #print("Piecewise statistics: {}".format(self.name))
         windows = []
 
+        # If we passed a timedelta object as our window size
         if str(type(window_size)) == "<class 'datetime.timedelta'>":
 
             start_dts = start
@@ -606,6 +613,7 @@ class Channel(object):
                 start_dts = start_dts + window_size
                 end_dts = end_dts + window_size
 
+        # Else if we passed an integer as our window size
         elif str(type(window_size)) == "<class 'int'>":
 
             windows = [[i,i+window_size] for i in range(0,len(self.data),window_size)]
@@ -626,29 +634,42 @@ class Channel(object):
 
     def bouts(self, low, high):
 
+        # 0 indicates not currently in a bout, 1 indicates in
         state = 0
+
+        # start_index will be the variable that tracks the start of bouts
         start_index = 0
+
+        # end_index will track the end
         end_index = 1
         bouts = []
 
         for i, value in enumerate(self.data):
 
+            # If we're currently not in a bout
             if state == 0:
 
+                # And if this value is in the range we want
                 if value >= low and value <= high:
 
+                    # Start a bout
                     state = 1
                     start_index = i
                     end_index = i
 
+            # Else, we're currently in a bout
             else:
 
+                # And this value is in the range we want
                 if value >= low and value <= high:
 
+                    # So the bout expands to include this value
                     end_index = i
 
+                # But this value is out of our range
                 else:
 
+                    # So we end the bout at the previous value
                     state = 0
 
                     start_time =  self.timestamps[start_index]
@@ -659,7 +680,7 @@ class Channel(object):
                     bouts.append(Bout.Bout(start_time, end_time))
 
 
-        # Bout finished at end of file
+        # Bout finishes at end of file
         if state == 1:
             start_time =  self.timestamps[start_index]
             end_time = self.timestamps[end_index]

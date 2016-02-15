@@ -210,44 +210,18 @@ def infer_nonwear_actigraph(counts, zero_minutes=timedelta(minutes=60)):
     #print("Num nonwear bouts: ", len(nonwear_bouts))
     wear_bouts = Bout.time_period_minus_bouts([counts.timeframe[0], counts.timeframe[1]], nonwear_bouts)
 
-    """
-    wear = counts.subset_using_bouts(wear_bouts, "Wear_only", substitute_value=-1)
-    #wear.delete_windows(nonwear_bouts)
-
-
-    print("wear.data length: " + str(len(wear.data)))
-    bad_indices = np.where(wear.data == -1)
-    print("Bad indices length:")
-    print(len(bad_indices[0]))
-    wear.data = np.delete(wear.data, bad_indices[0], None)
-    wear.timestamps = np.delete(wear.timestamps, bad_indices[0], None)
-    print("Here")
-    wear.calculate_timeframe()
-
-    print("Calculated timeframe")
-    wear_with_missings = counts.subset_using_bouts(wear_bouts, "Wear_minuses", substitute_value=-1)
-    print("Done infer_nonwear")
-
-    return [wear, wear_with_missings, wear_bouts, nonwear_bouts]
-    """
     return nonwear_bouts, wear_bouts
 
 
 
-def infer_still_bouts_triaxial(x, y, z, window_size=timedelta(seconds=10), noise_cutoff_mg=13, approximate_timestamps=False):
+def infer_still_bouts_triaxial(x, y, z, window_size=timedelta(seconds=10), noise_cutoff_mg=13):
 
     results = Time_Series.Time_Series("Results")
     timeframe = (time_utilities.start_of_hour(x.timeframe[0]), time_utilities.end_of_hour(x.timeframe[1]))
 
-    if x.sparsely_timestamped:
-        results.add_channels(x.piecewise_statistics(window_size.seconds*int(x.frequency), statistics=[("generic",["std"])], time_period=timeframe))
-        results.add_channels(y.piecewise_statistics(window_size.seconds*int(x.frequency), statistics=[("generic",["std"])], time_period=timeframe))
-        results.add_channels(z.piecewise_statistics(window_size.seconds*int(x.frequency), statistics=[("generic",["std"])], time_period=timeframe))
-
-    else:
-        results.add_channels(x.piecewise_statistics(window_size, statistics=[("generic",["std"])], time_period=timeframe))
-        results.add_channels(y.piecewise_statistics(window_size, statistics=[("generic",["std"])], time_period=timeframe))
-        results.add_channels(z.piecewise_statistics(window_size, statistics=[("generic",["std"])], time_period=timeframe))
+    results.add_channels(x.piecewise_statistics(window_size, statistics=[("generic",["std"])], time_period=timeframe))
+    results.add_channels(y.piecewise_statistics(window_size, statistics=[("generic",["std"])], time_period=timeframe))
+    results.add_channels(z.piecewise_statistics(window_size, statistics=[("generic",["std"])], time_period=timeframe))
 
     x_std = results.get_channel(x.name + "_std")
     y_std = results.get_channel(y.name + "_std")
@@ -262,9 +236,6 @@ def infer_still_bouts_triaxial(x, y, z, window_size=timedelta(seconds=10), noise
     x_intersect_y = Bout.bout_list_intersection(x_bouts, y_bouts)
     x_intersect_y_intersect_z = Bout.bout_list_intersection(x_intersect_y, z_bouts)
 
-    if approximate_timestamps:
-        Bout.approximate_timestamps(x_intersect_y_intersect_z, x)
-
     return x_intersect_y_intersect_z
 
 
@@ -272,13 +243,13 @@ def infer_nonwear_triaxial(x, y, z, minimum_length=timedelta(hours=1), noise_cut
 
     ''' Use the 3 channels of triaxial acceleration to infer periods of nonwear '''
 
-    x_intersect_y_intersect_z = infer_still_bouts_triaxial(x,y,z, noise_cutoff_mg=noise_cutoff_mg, approximate_timestamps=x.sparsely_timestamped)
+    # Get an exhaustive list of bouts where the monitor was still
+    x_intersect_y_intersect_z = infer_still_bouts_triaxial(x,y,z, noise_cutoff_mg=noise_cutoff_mg)
 
-    Bout.cache_lengths(x_intersect_y_intersect_z)
-
-
+    # Restrict those bouts to only those with a length that exceeds the minimum length criterion
     x_intersect_y_intersect_z = Bout.limit_to_lengths(x_intersect_y_intersect_z, min_length=minimum_length)
 
+    # Legacy code - probably going to delete this
     if return_nonwear_binary:
         # Create a parallel, binary channel indicating if that time point was in or out of wear
         nonwear_binary = Channel.channel_from_bouts(x_intersect_y_intersect_z, x.timeframe, False, "nonwear", skeleton=x)
@@ -304,6 +275,7 @@ def infer_valid_days(channel, wear_bouts, valid_criterion=timedelta(hours=10)):
 
         total = Bout.total_time(intersections)
 
+        # If the amount of overlap exceeds the valid criterion, it is valid
         if total >= valid_criterion:
             #window.draw_properties={"lw":0, "facecolor":[1,0,0], "alpha":0.25}
             valid_windows.append(window)
