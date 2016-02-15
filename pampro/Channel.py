@@ -1,22 +1,15 @@
 import numpy as np
 import scipy as sp
 from datetime import datetime, date, time, timedelta
-from pampro import Time_Series, Bout, pampro_utilities
 import copy
 from struct import *
 from math import *
-import time
-from datetime import datetime
 import sys
-import io
 import re
-import string
 from scipy.io.wavfile import write
 import zipfile
 
-
-
-percentile_pattern = re.compile("\A([p])([0-9]*)")
+from pampro import Time_Series, Bout, pampro_utilities
 
 class Channel(object):
 
