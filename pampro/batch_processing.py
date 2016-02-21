@@ -42,7 +42,7 @@ def write_feedback(feedback, filename):
 
 def load_job_details(job_file):
 
-    data = np.genfromtxt(job_file, delimiter=',', dtype='str', skiprows=0)
+    data = np.loadtxt(job_file, delimiter=',', dtype='S', skiprows=0).astype("U")
 
     master_dictionary = collections.OrderedDict()
 
