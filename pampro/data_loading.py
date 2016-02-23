@@ -156,7 +156,9 @@ def parse_header(header, type, datetime_format):
         for i,row in enumerate(header):
             try:
                 values = row.split(delimiter)
-                header_info[values[0]] = values[1]
+
+                if ":" not in values[0]:
+                    header_info[values[0]] = values[1]
                 #print("["+str(values[0])+"]")
             except:
                 pass
