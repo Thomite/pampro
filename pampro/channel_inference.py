@@ -25,26 +25,7 @@ def produce_binary_channels(bouts, lengths, skeleton_channel):
     return channels
 
 
-def infer_sleep_triaxial_wrist(vm,enmo,pitch,roll):
 
-
-
-    print("A")
-    result = Channel.Channel("Sleep")
-    enmo_prob = enmo.piecewise_statistics(timedelta(minutes=10), statistics=["sum"], time_period=enmo.timeframe)[0]
-    pitch_prob = pitch.piecewise_statistics(timedelta(minutes=10), statistics=["std"], time_period=pitch.timeframe)[0]
-    roll_prob = roll.piecewise_statistics(timedelta(minutes=10), statistics=["std"], time_period=roll.timeframe)[0]
-    print("C")
-    pitch_prob.normalise()
-    roll_prob.normalise()
-    enmo_prob.normalise()
-    print("D")
-    product = np.multiply(np.multiply(pitch_prob.data, roll_prob.data), enmo_prob.data)
-    print("E")
-    result.set_contents(product, pitch_prob.timestamps)
-    print("F")
-
-    return result
 
 
 
@@ -52,7 +33,7 @@ def activpal_classification(pitch):
 
     transition_sit_stand = 32 # Sit -> Stand if angle >= 32
     transition_stand_sit = 22 # Stand -> Sit if angle <= 22
-    ten_seconds_in_samples = 200 #20Hz
+    ten_seconds_in_samples = int(pitch.frequency * 10) #20Hz
 
     # This should be faster than pointlessly copying the input array
     classification = Channel.Channel("activPAL_class")
@@ -148,6 +129,8 @@ def infer_vector_magnitude(x,y,z):
 
     result.inherit_time_properties(x)
 
+    result.draw_properties = {"c":[0.05,0.8,0.05], "lw":2}
+
     return result
 
 def infer_pitch_roll(x,y,z):
@@ -167,6 +150,7 @@ def infer_pitch_roll(x,y,z):
     return [pitch, roll]
 
 def infer_enmo(vm):
+    """ Subtract 1g from Vector Magnitude signal, truncate results below 0 to 0 """
 
     result = Channel.Channel("ENMO")
 
@@ -175,6 +159,8 @@ def infer_enmo(vm):
     result.data[np.where(result.data < 0)] = 0
 
     result.inherit_time_properties(vm)
+
+    result.draw_properties = {"c":[0.05,0.8,0.05], "lw":2}
 
     return result
 
@@ -197,17 +183,20 @@ def infer_vm_hpf(vm):
 
     vm_hpf.inherit_time_properties(vm)
 
+    vm_hpf.draw_properties = {"c":[0.8,0.05,0.8], "lw":2}
+
     return vm_hpf
 
 def infer_nonwear_actigraph(counts, zero_minutes=timedelta(minutes=60)):
+    """Given an Actigraph counts signal, infer nonwear as consecutive zeros of a given duration. """
 
-    #nonwear = Channel.Channel("Nonwear")
-
+    # List all bouts where the signal was <= 0
     nonwear_bouts = counts.bouts(-999999, 0)
-    Bout.cache_lengths(nonwear_bouts)
+
+    # Limit those bouts to the minimum duration specified in "zero_minutes"
     nonwear_bouts = Bout.limit_to_lengths(nonwear_bouts, min_length=zero_minutes)
 
-    #print("Num nonwear bouts: ", len(nonwear_bouts))
+    # Invert the nonwear bouts to get wear bouts
     wear_bouts = Bout.time_period_minus_bouts([counts.timeframe[0], counts.timeframe[1]], nonwear_bouts)
 
     return nonwear_bouts, wear_bouts

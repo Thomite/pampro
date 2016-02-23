@@ -345,11 +345,14 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         ecg = ecg[indices1]
         timestamps2 = timestamps[indices1]
 
-        actiheart_activity = Channel.Channel("AH_Activity")
+        actiheart_activity = Channel.Channel("Chest")
         actiheart_activity.set_contents(activity, timestamps2)
 
-        actiheart_ecg = Channel.Channel("AH_ECG")
+        actiheart_ecg = Channel.Channel("HR")
         actiheart_ecg.set_contents(ecg, timestamps2)
+
+        actiheart_ecg.draw_properties = {"c":[0.8,0.05,0.05]}
+        actiheart_activity.draw_properites = {"c":[0.05,0.8,0.8]}
 
         header = header_info
         channels = [actiheart_activity, actiheart_ecg]
