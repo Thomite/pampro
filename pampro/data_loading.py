@@ -146,15 +146,23 @@ def parse_header(header, type, datetime_format):
 
     if type == "Actiheart":
 
+        delimiter = "\t"
+        if "," in header[0]:
+            delimiter = ","
+
+        safe = {"\t":"tab", ",":"comma"}
+        header_info["delimiter"] = safe[delimiter]
+
         for i,row in enumerate(header):
             try:
-                values = row.split(",")
+                values = row.split(delimiter)
                 header_info[values[0]] = values[1]
+                #print("["+str(values[0])+"]")
             except:
                 pass
 
-        time1 = datetime.strptime(header[-2].split(",")[0], "%H:%M:%S")
-        time2 = datetime.strptime(header[-1].split(",")[0], "%H:%M:%S")
+        time1 = datetime.strptime(header[-2].split(delimiter)[0], "%H:%M:%S")
+        time2 = datetime.strptime(header[-1].split(delimiter)[0], "%H:%M:%S")
         header_info["epoch_length"] = time2 - time1
 
         header_info["start_date"] = datetime.strptime(header_info["Started"], "%d-%b-%Y  %H:%M")
@@ -165,7 +173,7 @@ def parse_header(header, type, datetime_format):
 
         for i,row in enumerate(header):
 
-            if row.split(",")[0] == "Time":
+            if row.split(delimiter)[0] == "Time":
                 header_info["data_start"] = i+1
                 break
 
@@ -316,7 +324,9 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         #    timestamp_list.append(start_date)
         #    start_date = start_date + epoch_length
 
-        activity, ecg  = np.loadtxt(source, delimiter=',', unpack=True, skiprows=data_start, usecols=[1,2])
+        mapping = {"comma":",", "tab":"\t"}
+
+        activity, ecg  = np.loadtxt(source, delimiter=mapping[header_info["delimiter"]], unpack=True, skiprows=data_start, usecols=[1,2])
 
         timestamp_list = [start_date+i*epoch_length for i in range(len(activity))]
         timestamps = np.array(timestamp_list)
