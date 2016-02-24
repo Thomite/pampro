@@ -75,7 +75,7 @@ def calibrate(x,y,z, allow_overwrite=True, budget=1000, noise_cutoff_mg=13):
     vm = channel_inference.infer_vector_magnitude(x,y,z)
 
     # Get a list of bouts where standard deviation in each axis is below given threshold ("still")
-    still_bouts = channel_inference.infer_still_bouts_triaxial(x,y,z, noise_cutoff_mg=noise_cutoff_mg, minimum_length=timedelta(minutes=2))
+    still_bouts = channel_inference.infer_still_bouts_triaxial(x,y,z, noise_cutoff_mg=noise_cutoff_mg, minimum_length=timedelta(minutes=1))
     num_still_bouts = len(still_bouts)
     num_still_seconds = Bout.total_time(still_bouts).total_seconds()
 

@@ -780,8 +780,8 @@ class Channel(object):
             window_data = self.data[start_index:end_index]
             window_timestamps = self.timestamps[start_index:end_index]
 
-            if self.missing_value is not False:
-                window_data[window_data == self.missing_value] = float('nan')
+            #if self.missing_value is not False:
+            #    window_data[window_data == self.missing_value] = float('nan')
 
             axis.plot(window_timestamps, window_data, label=self.name, **self.draw_properties)
 
