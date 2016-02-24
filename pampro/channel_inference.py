@@ -203,23 +203,21 @@ def infer_nonwear_actigraph(counts, zero_minutes=timedelta(minutes=60)):
 
 
 
-def infer_still_bouts_triaxial(x, y, z, window_size=timedelta(seconds=10), noise_cutoff_mg=13):
+def infer_still_bouts_triaxial(x, y, z, window_size=timedelta(seconds=10), noise_cutoff_mg=13, minimum_length=timedelta(seconds=10)):
 
-    results = Time_Series.Time_Series("Results")
-    timeframe = (time_utilities.start_of_hour(x.timeframe[0]), time_utilities.end_of_hour(x.timeframe[1]))
+    # Get windows of standard deviation in each axis
+    x_std = x.piecewise_statistics(window_size, statistics=[("generic", ["std"])], time_period=x.timeframe)[0]
+    y_std = y.piecewise_statistics(window_size, statistics=[("generic", ["std"])], time_period=y.timeframe)[0]
+    z_std = z.piecewise_statistics(window_size, statistics=[("generic", ["std"])], time_period=z.timeframe)[0]
 
-    results.add_channels(x.piecewise_statistics(window_size, statistics=[("generic",["std"])], time_period=timeframe))
-    results.add_channels(y.piecewise_statistics(window_size, statistics=[("generic",["std"])], time_period=timeframe))
-    results.add_channels(z.piecewise_statistics(window_size, statistics=[("generic",["std"])], time_period=timeframe))
-
-    x_std = results.get_channel(x.name + "_std")
-    y_std = results.get_channel(y.name + "_std")
-    z_std = results.get_channel(z.name + "_std")
-
-    # Find bouts where monitor was still for long periods
+    # Find bouts where standard deviation is below threshold for long periods
     x_bouts = x_std.bouts(0, float(noise_cutoff_mg)/1000.0)
     y_bouts = y_std.bouts(0, float(noise_cutoff_mg)/1000.0)
     z_bouts = z_std.bouts(0, float(noise_cutoff_mg)/1000.0)
+
+    x_bouts = Bout.limit_to_lengths(x_bouts, min_length=minimum_length)
+    y_bouts = Bout.limit_to_lengths(y_bouts, min_length=minimum_length)
+    z_bouts = Bout.limit_to_lengths(z_bouts, min_length=minimum_length)
 
     # Get the times where those bouts overlap
     x_intersect_y = Bout.bout_list_intersection(x_bouts, y_bouts)
@@ -233,7 +231,7 @@ def infer_nonwear_triaxial(x, y, z, minimum_length=timedelta(hours=1), noise_cut
     ''' Use the 3 channels of triaxial acceleration to infer periods of nonwear '''
 
     # Get an exhaustive list of bouts where the monitor was still
-    x_intersect_y_intersect_z = infer_still_bouts_triaxial(x,y,z, noise_cutoff_mg=noise_cutoff_mg)
+    x_intersect_y_intersect_z = infer_still_bouts_triaxial(x,y,z, noise_cutoff_mg=noise_cutoff_mg, minimum_length=minimum_length)
 
     # Restrict those bouts to only those with a length that exceeds the minimum length criterion
     x_intersect_y_intersect_z = Bout.limit_to_lengths(x_intersect_y_intersect_z, min_length=minimum_length)

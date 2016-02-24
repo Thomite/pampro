@@ -75,21 +75,17 @@ def calibrate(x,y,z, allow_overwrite=True, budget=1000, noise_cutoff_mg=13):
     vm = channel_inference.infer_vector_magnitude(x,y,z)
 
     # Get a list of bouts where standard deviation in each axis is below given threshold ("still")
-    still_bouts = channel_inference.infer_still_bouts_triaxial(x,y,z, noise_cutoff_mg=noise_cutoff_mg)
+    still_bouts = channel_inference.infer_still_bouts_triaxial(x,y,z, noise_cutoff_mg=noise_cutoff_mg, minimum_length=timedelta(minutes=2))
+    num_still_bouts = len(still_bouts)
+    num_still_seconds = Bout.total_time(still_bouts).total_seconds()
 
     # Summarise VM in 10s intervals
-    vm_windows = vm.piecewise_statistics( timedelta(seconds=10), [("generic", ["mean"])], time_period=(time_utilities.start_of_hour(x.timeframe[0]), time_utilities.end_of_hour(x.timeframe[1])) )[0]
+    vm_windows = vm.piecewise_statistics(timedelta(seconds=10), [("generic", ["mean"])], time_period=vm.timeframe)[0]
 
     # Get a list where VM was between 0.5 and 1.5g ("reasonable")
     reasonable_bouts = vm_windows.bouts(0.5, 1.5)
-
-    # Get the number of times the monitor was "still"
-    num_still_bouts = len(still_bouts)
-
-    num_still_seconds = Bout.total_time(still_bouts).total_seconds()
-    num_reasonable_seconds = Bout.total_time(reasonable_bouts).total_seconds()
-
     num_reasonable_bouts = len(reasonable_bouts)
+    num_reasonable_seconds = Bout.total_time(reasonable_bouts).total_seconds()
 
     # We only want still bouts where the VM level was within 0.5g of 1g
     # Therefore insersect "still" time with "reasonable" time
@@ -97,9 +93,8 @@ def calibrate(x,y,z, allow_overwrite=True, budget=1000, noise_cutoff_mg=13):
 
     # And we only want bouts where it was still and reasonable for 10s or longer
     still_bouts = Bout.limit_to_lengths(still_bouts, min_length = timedelta(seconds=10))
-    num_final_seconds = Bout.total_time(still_bouts).total_seconds()
-
     num_final_bouts = len(still_bouts)
+    num_final_seconds = Bout.total_time(still_bouts).total_seconds()
 
     # Get the average X,Y,Z for each still bout (inside which, by definition, XYZ should not change)
     still_x, num_samples = x.build_statistics_channels(still_bouts, [("generic", ["mean", "n"])])
