@@ -773,11 +773,20 @@ class Channel(object):
 
         write(filename, rate, tone)
 
-    def draw(self, axis):
+    def draw(self, axis, time_period=False):
 
-        axis.plot(self.timestamps, self.data, label=self.name, **self.draw_properties)
-        for a in self.annotations:
-            axis.axvspan(xmin=a.start_timestamp, xmax=a.end_timestamp, **a.draw_properties)
+        if not self.sparsely_timestamped:
+            start_index,end_index = self.get_window(time_period[0], time_period[1])
+            window_data = self.data[start_index:end_index]
+            window_timestamps = self.timestamps[start_index:end_index]
+
+            if self.missing_value is not False:
+                window_data[window_data == self.missing_value] = float('nan')
+
+            axis.plot(window_timestamps, window_data, label=self.name, **self.draw_properties)
+
+            for a in self.annotations:
+                axis.axvspan(xmin=a.start_timestamp, xmax=a.end_timestamp, **a.draw_properties)
 
 def channel_from_coefficients(coefs, timestamps):
     chan = Channel("Recreated")

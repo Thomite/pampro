@@ -210,17 +210,19 @@ class Time_Series(object):
         fig = plt.figure(figsize=(width,height), frameon=False)
         fig.patch.set_facecolor('#FFFFFF')
 
+        if time_period == False:
+            axis_xlim = (self.earliest, self.latest)
+        else:
+            axis_xlim = (time_period[0], time_period[1])
+
         axes = [fig.add_subplot(len(channel_combinations), 1, 1+index) for index in range(len(channel_combinations))]
 
         for channels, axis in zip(channel_combinations, axes):
 
-            if time_period == False:
-                axis.set_xlim(self.earliest, self.latest)
-            else:
-                axis.set_xlim(time_period[0], time_period[1])
+            axis.set_xlim(axis_xlim)
 
             for c in channels:
-                self.get_channel(c).draw(axis)
+                self.get_channel(c).draw(axis, time_period=axis_xlim)
 
             legend = axis.legend(loc='upper right')
             legend.get_frame().set_alpha(0.5)
