@@ -27,6 +27,7 @@ class Channel(object):
         self.missing_value = False
 
     def clone(self):
+        """ Return an independent copy of this Channel. """
 
         return copy.deepcopy(self)
 
@@ -38,19 +39,16 @@ class Channel(object):
         self.calculate_timeframe()
 
     def append(self, other_channel):
+        """ Take the data and timestamps from another Channel and incorporate them into this one. """
 
-        #print(self.name + " " + str(len(self.data)))
         self.data = np.concatenate((self.data, other_channel.data))
         self.timestamps = np.concatenate((self.timestamps, other_channel.timestamps))
 
-
         indices = np.argsort(self.timestamps)
-
 
         self.timestamps = np.array(self.timestamps)[indices]
         self.data = np.array(self.data)[indices]
-        #print(self.name + " " + str(len(self.data)))
-        #print("")
+
         self.calculate_timeframe()
 
     def calculate_timeframe(self):
@@ -63,6 +61,7 @@ class Channel(object):
             self.timeframe = False,False
 
     def inherit_time_properties(self, channel):
+        """ Make this Channel inherit all the time properties of the given Channel. """
 
         self.timestamps = channel.timestamps
         self.missing_value = channel.missing_value
@@ -98,9 +97,6 @@ class Channel(object):
         min_value = min(self.data)
         increment = float(max_value - min_value)/float(bins)
 
-        #print(min_value)
-        #print(max_value)
-
         ranges = []
         low = min_value
         for i in range(bins):
@@ -113,11 +109,12 @@ class Channel(object):
             ranges.append((low, high, i))
             low += increment
 
-        print(str(ranges))
+        #print(str(ranges))
 
         return self.collapse(ranges)
 
     def collapse(self, ranges):
+        """ Replace a range of data with a static value. """
 
         # Each range is a tuple: (>= low, <= high, replacement)
 
@@ -131,6 +128,7 @@ class Channel(object):
         return clone
 
     def get_window(self, datetime_start, datetime_end):
+        """ Return the indices of the data array that contain the given timestamps """
 
         key_a = str(datetime_start)
         key_b = str(datetime_end)
@@ -212,6 +210,7 @@ class Channel(object):
         return (start, end)
 
     def inject_timestamp_index(self, timestamp, index):
+        """ Add a new timestamp pointing at the given index in the data array. Used to be more specific with timestamps when data is spasrely timestamped. """
 
         i = np.searchsorted(self.indices, index, "left")
         if self.indices[i] != index:
@@ -219,11 +218,9 @@ class Channel(object):
             self.timestamps = np.insert(self.timestamps, i, timestamp)
             self.indices = np.insert(self.indices, i, index)
 
-
-
-
     def ensure_timestamped_at(self, timestamp):
         """ Guarantees a timestamp will be in the timestamps array """
+
         # Is this check necessary?
         if timestamp >= self.timestamps[0] and timestamp < self.timestamps[-1]:
 
@@ -264,6 +261,7 @@ class Channel(object):
         return (a, b)
 
     def window_statistics(self, start_dts, end_dts, statistics):
+        """ Summarise the data between these timestamps using the statistics listed. """
 
         # Allow direct indexing numerically, or by timestamp
         index_type = str(type(start_dts))
@@ -485,9 +483,10 @@ class Channel(object):
         channel_list = []
 
         for stat in statistics:
-
+            # For each statistic, decide what should it be called
             channel_names = pampro_utilities.design_variable_names(self.name, stat)
 
+            # Create a Channel for each output
             for cn in channel_names:
                 channel_list.append(Channel(cn))
 

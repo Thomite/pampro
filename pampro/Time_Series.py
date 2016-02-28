@@ -8,7 +8,7 @@ import numpy as np
 
 class Time_Series(object):
 
-    def __init__(self, name):
+    def __init__(self, name="Blank"):
 
         self.name = name
         self.channels = []
@@ -16,6 +16,7 @@ class Time_Series(object):
         self.channel_lookup = {}
         self.earliest = 0
         self.latest = 0
+        self.time_period = (self.earliest, self.latest)
 
     def __iter__(self):
         self.iter_index = 0
@@ -37,6 +38,7 @@ class Time_Series(object):
             return self.channel_lookup[key]
 
     def add_channel(self, channel):
+        """ Insert a Channel into the Time_Series and index it appropriately. """
 
         self.number_of_channels = self.number_of_channels + 1
         self.channels.append(channel)
@@ -45,10 +47,8 @@ class Time_Series(object):
 
         self.channel_lookup[channel.name] = channel
 
-        #print("Added channel {} to time series {}.".format(channel.name, self.name))
-        #print("Earliest: {}, latest: {}".format(self.earliest, self.latest))
-
     def add_channels(self, new_channels):
+        """ Iteratively call add_channel on each Channel given. """
 
         for c in new_channels:
             self.add_channel(c)
@@ -62,6 +62,7 @@ class Time_Series(object):
         return [self.get_channel(c) for c in channel_names]
 
     def calculate_timeframe(self):
+        """ Find the earliest and latest observations contained by Channels inside this Time_Series. """
 
         chan = self.channels[0]
         self.earliest, self.latest = chan.timeframe
@@ -74,7 +75,10 @@ class Time_Series(object):
             if tf[1] > self.latest:
                 self.latest = tf[1]
 
+        self.time_period = (self.earliest, self.latest)
+
     def rename_channel(self, current_name, desired_name):
+        """ Change the name of a contained Channel. """
 
         chan = self.get_channel(current_name)
         chan.name = desired_name
@@ -134,6 +138,7 @@ class Time_Series(object):
 
 
     def restrict_timeframe(self, start, end):
+        """ Calls restrict_timeframe on each Channel inside this Time_Series. """
 
         for channel in self.channels:
             channel.restrict_timeframe(start,end)

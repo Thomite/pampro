@@ -13,10 +13,13 @@ class Bout(object):
 		self.draw_properties = {'lw':0, 'alpha':0.8, 'facecolor':[0.78431,0.78431,0.78431]}
 
 	def contains(self, timepoint):
+		""" Returns true if a time value is contained by the start and end of this bout. """
 
 		return timepoint >= self.start_timestamp and timepoint <= self.end_timestamp
 
 	def overlaps(self, other):
+		""" Returns true if there is some overlapping time between this Bout and the other. """
+
 		inter = self.intersection(other)
 
 		overlap_type = str(type(inter.length))
@@ -25,14 +28,16 @@ class Bout(object):
 			return inter.length > 0
 		else:
 			return inter.length > timedelta(microseconds=0)
-		#return self.contains(other.start_timestamp) or self.contains(other.end_timestamp) or other.contains(self.start_timestamp) or other.contains(self.end_timestamp)
+
 
 	def intersection(self, other):
+		""" Create a Bout object that represents the overlap of this Bout object and another. """
 
 		return Bout(max(self.start_timestamp, other.start_timestamp), min(self.end_timestamp, other.end_timestamp))
 
 	def approximate_timestamps(self, channel):
-		"""If start_timestamp and end_timestamp are indices, convert them to timestamps"""
+		"""If start_timestamp and end_timestamp are indices, convert them to timestamps. """
+
 		self.start_timestamp = channel.infer_timestamp(self.start_timestamp)
 		self.end_timestamp = channel.infer_timestamp(self.end_timestamp)
 
@@ -42,6 +47,7 @@ def approximate_timestamps(bouts, channel):
 		b.approximate_timestamps(channel)
 
 def total_time(bouts):
+	""" Calculate the total time contained by the given list of Bouts. Returns a datetime.timedelta object. """
 
 	total = timedelta(minutes=0)
 	for bout in bouts:
@@ -60,15 +66,7 @@ def bout_list_intersection(bouts_a, bouts_b):
 				if bout_a.overlaps(bout_b):
 
 					bout_c = bout_a.intersection(bout_b)
-					#print bout_a.start_timestamp, bout_a.end_timestamp, "overlaps", bout_b.start_timestamp, bout_b.end_timestamp, "=", bout_c.start_timestamp, bout_c.end_timestamp
 					intersection.append(bout_c)
-
-	#print "Bouts a", len(bouts_a)
-	#print "Bouts b", len(bouts_b)
-	#print "Intersections", len(intersection)
-
-	#for i in intersection:
-	#	i.draw_properties = {"lw":1, "facecolor":[1.0,0.2,0.2], "alpha":0.38}
 
 	return intersection
 
@@ -101,7 +99,7 @@ def time_period_minus_bouts(time_period, bouts):
 
 def bout_confusion_matrix(a1_bouts, b1_bouts, time_period):
 
-	#Calculate time spent in and out of bouts_a and bouts_b with respect to each other, within time_period
+	""" Calculate time spent in and out of bouts_a and bouts_b with respect to each other, within time_period """
 
 
 	a0_bouts = time_period_minus_bouts(time_period, a1_bouts)
@@ -130,10 +128,11 @@ def bout_confusion_matrix(a1_bouts, b1_bouts, time_period):
 	return results
 
 def limit_to_lengths(bouts, min_length=False, max_length=False, sorted=False):
+	""" Given a list of Bouts, return those whose length is >= min_length and <= max_length. """
 
 	within_length = []
 	for bout in bouts:
-		#bout_length = bout.end_timestamp - bout.start_timestamp
+
 		if (min_length==False or bout.length >= min_length) and (max_length==False or bout.length <= max_length):
 			within_length.append(bout)
 
@@ -144,27 +143,25 @@ def limit_to_lengths(bouts, min_length=False, max_length=False, sorted=False):
 	return within_length
 
 def cache_lengths(bouts):
+	pass
+
+
+
+def write_bouts_to_file(bouts, file_target, date_format="%d/%m/%Y %H:%M:%S:%f"):
+	""" Write the given list of Bouts to a file, 1 bout per row. """
+
+	file_output = open(file_target, "w")
 
 	for bout in bouts:
-		bout.length = bout.end_timestamp - bout.start_timestamp
-
-
-
-
-def write_bouts_to_file(bouts, file_target):
-
-	file_output = open(file_target,"w")
-
-	for bout in bouts:
-
-		pretty_start = str(bout.start_timestamp.strftime("%d/%m/%Y %H:%M:%S:%f"))
-		pretty_end = str(bout.end_timestamp.strftime("%d/%m/%Y %H:%M:%S:%f"))
+		# Format the timestamps as requested
+		pretty_start = str(bout.start_timestamp.strftime(date_format))
+		pretty_end = str(bout.end_timestamp.strftime(date_format))
 		file_output.write(pretty_start + "," + pretty_end + "\n")
 
 	file_output.close()
 
 def read_bouts(file_source, date_format="%d/%m/%Y %H:%M:%S:%f"):
-
+	""" Read a list of Bouts from a file, 1 bout per row. """
 
 	data = np.loadtxt(file_source, delimiter=',', dtype='S').astype("U")
 
