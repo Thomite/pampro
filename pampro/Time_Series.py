@@ -156,7 +156,7 @@ class Time_Series(object):
                 self.latest = tf[1]
 
 
-    def write_channels_to_file(self, file_target, channel_list=False):
+    def write_channels_to_file(self, file_target, channel_list=False, timestamp_format="%d/%m/%Y %H:%M:%S:%f"):
 
         channel_sources = []
 
@@ -165,6 +165,12 @@ class Time_Series(object):
         else:
             for channel_name in channel_list:
                 channel_sources.append(self.get_channel(channel_name))
+
+        # Error checking - only allows data to be written if all channels have equal number of data/timestamps
+        for c1,c2 in zip(channel_sources, channel_sources[1:]):
+            if (len(c1.data) != len(c2.data)) or (len(c1.timestamps) != len(c2.timestamps)) or (len(c1.data) != len(c1.timestamps)):
+                raise Exception("Channels must have equal amount of data to be written to a file.")
+
 
         file_output = False
         if isinstance(file_target, str):
@@ -190,7 +196,7 @@ class Time_Series(object):
 
         for i in range(0,len(channel_sources[0].data)):
 
-            pretty_timestamp = channel_sources[0].timestamps[i].strftime("%d/%m/%Y %H:%M:%S:%f")
+            pretty_timestamp = channel_sources[0].timestamps[i].strftime(timestamp_format)
             file_output.write(self.name + "," + pretty_timestamp + ",")
 
             for n,chan in enumerate(channel_sources):
@@ -235,5 +241,4 @@ class Time_Series(object):
             return fig
         else:
             plt.savefig(file_target, dpi=300, frameon=False, facecolor='#FFFFFF')
-
-            plt.clf()
+            plt.close("all")
