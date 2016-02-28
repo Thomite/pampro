@@ -321,10 +321,6 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         start_date = header_info["start_date"]
         epoch_length = header_info["epoch_length"]
         data_start = header_info["data_start"]
-        #timestamp_list = []
-        #for i in range(0,len(activity)):
-        #    timestamp_list.append(start_date)
-        #    start_date = start_date + epoch_length
 
         mapping = {"comma":",", "tab":"\t"}
 
@@ -334,22 +330,21 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         timestamps = np.array(timestamp_list)
 
 
-        indices1 = []
-
         if "Start trimmed to" in header_info:
-            indices1 = np.where((ecg > 0) & (timestamps > header_info["Start trimmed to"]))
-        else:
-            indices1 = np.where(ecg > 0)
+            indices1 = (timestamps > header_info["Start trimmed to"])
+            activity = activity[indices1]
+            ecg = ecg[indices1]
+            timestamps = timestamps[indices1]
 
-        activity = activity[indices1]
-        ecg = ecg[indices1]
-        timestamps2 = timestamps[indices1]
+        ecg[(ecg <= 0)] = -1
 
         actiheart_activity = Channel.Channel("Chest")
-        actiheart_activity.set_contents(activity, timestamps2)
+        actiheart_activity.set_contents(activity, timestamps)
 
         actiheart_ecg = Channel.Channel("HR")
-        actiheart_ecg.set_contents(ecg, timestamps2)
+        actiheart_ecg.set_contents(ecg, timestamps)
+
+        actiheart_ecg.missing_value = -1
 
         actiheart_ecg.draw_properties = {"c":[0.8,0.05,0.05]}
         actiheart_activity.draw_properites = {"c":[0.05,0.8,0.8]}

@@ -29,7 +29,6 @@ class Bout(object):
 		else:
 			return inter.length > timedelta(microseconds=0)
 
-
 	def intersection(self, other):
 		""" Create a Bout object that represents the overlap of this Bout object and another. """
 
@@ -40,6 +39,10 @@ class Bout(object):
 
 		self.start_timestamp = channel.infer_timestamp(self.start_timestamp)
 		self.end_timestamp = channel.infer_timestamp(self.end_timestamp)
+
+	def __str__(self):
+		""" Printing a Bout yields a string of the form: start -> end (duration) """
+		return str(self.start_timestamp) + " -> " + str(self.end_timestamp) + " (" + str(self.length) + ")"
 
 def approximate_timestamps(bouts, channel):
 

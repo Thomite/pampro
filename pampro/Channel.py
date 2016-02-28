@@ -8,6 +8,7 @@ import sys
 import re
 from scipy.io.wavfile import write
 import zipfile
+from collections import OrderedDict
 
 from pampro import Time_Series, Bout, pampro_utilities
 
@@ -32,6 +33,7 @@ class Channel(object):
         return copy.deepcopy(self)
 
     def set_contents(self, data, timestamps):
+        """ Override current contents of data and timestamp arrays, and update timeframe accordingly. """
 
         self.data = data
         self.timestamps = timestamps
@@ -52,6 +54,7 @@ class Channel(object):
         self.calculate_timeframe()
 
     def calculate_timeframe(self):
+        """ Update timeframe and time_period variables to reflect start and end of timestamps. """
 
         self.size = len(self.data)
 
@@ -59,6 +62,8 @@ class Channel(object):
             self.timeframe = self.timestamps[0], self.timestamps[-1]
         else:
             self.timeframe = False,False
+
+        self.time_period = self.timeframe # Sick of getting these the wrong way around!
 
     def inherit_time_properties(self, channel):
         """ Make this Channel inherit all the time properties of the given Channel. """
@@ -75,15 +80,6 @@ class Channel(object):
             self.frequency = channel.frequency
         except:
             pass
-
-    def add_annotation(self, annotation):
-
-        self.annotations.append(annotation)
-
-    def add_annotations(self, annotations):
-
-        for a in annotations:
-            self.add_annotation(a)
 
     def normalise(self, floor=0, ceil=1):
 
@@ -210,7 +206,7 @@ class Channel(object):
         return (start, end)
 
     def inject_timestamp_index(self, timestamp, index):
-        """ Add a new timestamp pointing at the given index in the data array. Used to be more specific with timestamps when data is spasrely timestamped. """
+        """ Add a new timestamp pointing at the given index in the data array. Used to be more specific with timestamps when data is sparsely timestamped. """
 
         i = np.searchsorted(self.indices, index, "left")
         if self.indices[i] != index:
@@ -525,7 +521,7 @@ class Channel(object):
         return ts
 
     def append_data(self, timestamp, data_row):
-        """Append a single observation to the end of the timestamp and data arrays. """
+        """ Append a single observation to the end of the timestamp and data arrays. """
 
         self.timestamps.append(timestamp)
         self.data.append(data_row)
@@ -549,6 +545,13 @@ class Channel(object):
             #print("infer_timestamp | index_difference:", index_difference)
             #print("infer_timestamp | time_difference:", time_difference)
             return self.timestamps[start] - time_difference
+
+    def infer_timestamp_delta(self):
+
+        deltas = np.diff(self.timestamps)
+        self.mean_timedelta = np.mean(deltas)
+        self.max_timedelta = np.max(deltas)
+        self.min_timedelta = np.min(deltas)
 
     def sliding_statistics(self, window_size, statistics=[("generic", ["mean"])], time_period=False, name=""):
 
@@ -610,8 +613,6 @@ class Channel(object):
 
             windows = [[i,i+window_size] for i in range(0,len(self.data),window_size)]
 
-
-
         return self.build_statistics_channels(windows, statistics, name=name)
 
 
@@ -625,6 +626,7 @@ class Channel(object):
         return self.build_statistics_channels(windows, statistics, name=name)
 
     def bouts(self, low, high):
+        """ Return a list of Bout objects where data is >= low and <= high. """
 
         # 0 indicates not currently in a bout, 1 indicates in
         state = 0
@@ -674,7 +676,7 @@ class Channel(object):
 
         # Bout finishes at end of file
         if state == 1:
-            start_time =  self.timestamps[start_index]
+            start_time = self.timestamps[start_index]
             end_time = self.timestamps[end_index]
 
             if not self.sparsely_timestamped:
@@ -684,27 +686,8 @@ class Channel(object):
 
         return bouts
 
-    def subset_using_bouts(self, bout_list, name, substitute_value=-1):
-        # Given a list of bouts, create a new channel from this taking only the data from inside those bouts
-        c = Channel(name)
-
-        filled = np.empty(self.size)
-        filled.fill(substitute_value)
-        #print(len(filled))
-
-        c.set_contents(filled, self.timestamps)
-
-        for bout in bout_list:
-            #print(bout)
-
-            start_index,end_index = self.bout.start_timestamp, bout.end_timestamp
-
-            #c.data[bout[2]:bout[3]] = self.data[bout[2]:bout[3]]
-            c.data[indices] = self.data[start_index:end_index]
-
-        return c
-
     def delete_windows(self, windows, missing_value = -111):
+        """ Given a list of Bouts, replace any data inside those time windows with the given missing_value. This masks the data when being summarised by any statistic methods. """
 
         # New approach - don't delete the data, mask it with a set value
         # Then when we summarise, check if data has been masked (missing_value is not False)
@@ -713,41 +696,26 @@ class Channel(object):
         self.missing_value = missing_value
 
     def restrict_timeframe(self, start, end):
+        """ Mask all the data outside of the given time range, by calling delete_windows. """
 
         # Don't delete the data anymore, just mask the data outside of the range
+
+        # First bout represents all time up to "start"
         bout1 = Bout.Bout(self.timestamps[0]-timedelta(days=1), start-timedelta(microseconds=1))
+        # Second bout represents all time after "end"
         bout2 = Bout.Bout(end+timedelta(microseconds=1), self.timestamps[-1]+timedelta(days=1))
 
         self.delete_windows([bout1, bout2])
-        """
-        start_index,end_index = self.get_window(start, end)
-
-        if not self.sparsely_timestamped:
-            self.set_contents(self.data[start_index:end_index], self.timestamps[start_index:end_index])
-        else:
-            print("WARNING - can't restrict timeframe on sparsely timestamped data yet")
-            pass
-        """
-
-    def time_derivative(self):
-
-        result = Channel(self.name + "_td")
-        result.set_contents(np.diff(self.data), self.timestamps[:-1])
-        return result
-
-    def absolute(self):
-
-        result = Channel(self.name + "_abs")
-        result.set_contents(np.abs(self.data), self.timestamps)
-        return result
 
     def fill(self, bout, fill_value=0):
+        """ Given a Bout representing a window of time, replace all the data values of this Channel within the time window with a given fill_value. """
 
         start_index,end_index = self.get_window(bout.start_timestamp,bout.end_timestamp)
         #print(start_index, end_index)
         self.data[start_index:end_index] = fill_value
 
     def fill_windows(self, bouts, fill_value=0):
+        """ Given a list of Bouts, iteratively call self.fill() with each Bout."""
 
         for b in bouts:
             self.fill(b, fill_value = fill_value)
@@ -772,6 +740,15 @@ class Channel(object):
 
         write(filename, rate, tone)
 
+    def add_annotation(self, annotation):
+
+        self.annotations.append(annotation)
+
+    def add_annotations(self, annotations):
+
+        for a in annotations:
+            self.add_annotation(a)
+
     def draw(self, axis, time_period=False):
 
         if not self.sparsely_timestamped:
@@ -779,13 +756,35 @@ class Channel(object):
             window_data = self.data[start_index:end_index]
             window_timestamps = self.timestamps[start_index:end_index]
 
-            #if self.missing_value is not False:
-            #    window_data[window_data == self.missing_value] = float('nan')
-
             axis.plot(window_timestamps, window_data, label=self.name, **self.draw_properties)
 
             for a in self.annotations:
                 axis.axvspan(xmin=a.start_timestamp, xmax=a.end_timestamp, **a.draw_properties)
+
+    def __str__(self):
+
+        description = OrderedDict()
+        description["Channel name"] = self.name
+        description["Start"] = self.timeframe[0]
+        description["End"] = self.timeframe[1]
+        description["Duration"] = self.timeframe[1] - self.timeframe[0]
+        description["Data count"] = len(self.data)
+        description["Timestamp count"] = len(self.timestamps)
+        description["Sparsely timestamped"] = self.sparsely_timestamped
+
+        if not hasattr(self, "mean_timedelta"):
+            self.infer_timestamp_delta()
+            
+        description["mean_timedelta"] = self.mean_timedelta
+        description["max_timedelta"] = self.max_timedelta
+        description["min_timedelta"] = self.min_timedelta
+
+        output = ""
+        for k,v in description.items():
+            output += str(k) + ": " + str(v) + "\n"
+        output = output[:-1]
+
+        return output
 
 def channel_from_coefficients(coefs, timestamps):
     chan = Channel("Recreated")
