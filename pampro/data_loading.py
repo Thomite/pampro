@@ -1022,7 +1022,7 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         axivity_y.resize(num_samples+1)
         axivity_z.resize(num_samples+1)
         axivity_timestamps.resize(num_pages+1)
-        axivity_indices.resize(num_pages)
+        axivity_indices.resize(num_pages+1)
         axivity_temperature.resize(num_pages)
         axivity_light.resize(num_pages)
 

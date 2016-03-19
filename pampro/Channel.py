@@ -217,30 +217,35 @@ class Channel(object):
     def ensure_timestamped_at(self, timestamp):
         """ Guarantees a timestamp will be in the timestamps array """
 
+
         # Is this check necessary?
         if timestamp >= self.timestamps[0] and timestamp < self.timestamps[-1]:
 
             start = np.searchsorted(self.timestamps, timestamp, 'left')
 
             # If this timestamp didn't exactly match an existing timestamp in the array
-            if self.timestamps[start] != timestamp:
+            # And the index is a useable range in the timestamp array
+            if self.timestamps[start] != timestamp and (start > 0) and (start < len(self.timestamps)):
 
-                # self.timestamps[start] > desired timestamp - but by how much?
-                overshoot = (self.timestamps[start]-timestamp).total_seconds()
-                # seconds difference * num samples per second = sample difference
-                num_samples_back = overshoot*self.frequency
-                a = int(self.indices[start] - num_samples_back)
-                b = a + 1
+                try:
+                    # self.timestamps[start] > desired timestamp - but by how much?
+                    overshoot = (self.timestamps[start]-timestamp).total_seconds()
+                    # seconds difference * num samples per second = sample difference
+                    num_samples_back = overshoot*self.frequency
+                    a = int(self.indices[start] - num_samples_back)
+                    b = a + 1
 
-                a_timestamp = self.infer_timestamp(a)
-                b_timestamp = self.infer_timestamp(b)
+                    a_timestamp = self.infer_timestamp(a)
+                    b_timestamp = self.infer_timestamp(b)
 
-                self.inject_timestamp_index(a_timestamp, a)
-                self.inject_timestamp_index(b_timestamp, b)
-                #self.timestamps = np.insert(self.timestamps, start, [a_timestamp, b_timestamp])
-                #self.indices = np.insert(self.indices, start, [a,b])
+                    self.inject_timestamp_index(a_timestamp, a)
+                    self.inject_timestamp_index(b_timestamp, b)
 
-
+                except:
+                    print("timestamp", timestamp)
+                    print("start", start)
+                    print(len(self.indices))
+                    print(len(self.timestamps))
 
     def get_sparse_data_indices(self, datetime_start, datetime_end):
         """ Returns the indices of the data array to use if it is sparsely timestamped """
@@ -774,7 +779,7 @@ class Channel(object):
 
         if not hasattr(self, "mean_timedelta"):
             self.infer_timestamp_delta()
-            
+
         description["mean_timedelta"] = self.mean_timedelta
         description["max_timedelta"] = self.max_timedelta
         description["min_timedelta"] = self.min_timedelta
