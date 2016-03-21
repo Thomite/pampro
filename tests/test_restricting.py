@@ -1,7 +1,7 @@
 
 from pampro import data_loading, Time_Series, Channel, Bout, Bout_Collection
 from datetime import datetime, timedelta
-
+import os
 
 ts, header, counts = False, False, False
 
@@ -9,7 +9,7 @@ def setup_func():
     global ts
     global header
     global counts
-    ts, header = data_loading.load("_data/testfile18.dat", "Actigraph", datetime_format="%d/%m/%Y")
+    ts, header = data_loading.load(os.path.abspath(__file__).replace(os.path.basename(__file__), "") + "_data/testfile18.dat", "Actigraph", datetime_format="%d/%m/%Y")
     counts = ts.get_channel("AG_Counts")
 
     #print(counts.data)

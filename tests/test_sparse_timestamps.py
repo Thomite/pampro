@@ -3,6 +3,7 @@ from pampro import Channel, Time_Series
 import numpy as np
 from datetime import datetime, timedelta
 import copy
+import os
 
 start = datetime.strptime("01/01/2000 00:00", "%d/%m/%Y %H:%M")
 data = np.array([0 for i in range(500)] + [1 for i in range(500)])

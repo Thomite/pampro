@@ -1,7 +1,7 @@
 
 from pampro import data_loading, Time_Series, Channel, Bout, Bout_Collection, channel_inference
 from datetime import datetime, timedelta
-
+import os
 
 ts, header, counts = False, False, False
 
@@ -9,7 +9,7 @@ def setup_func():
     global ts
     global header
     global counts
-    ts, header = data_loading.load("_data/testfile18.dat", "Actigraph", datetime_format="%d/%m/%Y")
+    ts, header = data_loading.load(os.path.abspath(__file__).replace(os.path.basename(__file__), "") + "_data/testfile18.dat", "Actigraph", datetime_format="%d/%m/%Y")
     counts = ts.get_channel("AG_Counts")
 
     #print(counts.data)
@@ -114,17 +114,17 @@ test_invalid_days.teardown = teardown_func
 def test_nonwear_positions():
 
     # Case 1: Nonwear at very beginning of file
-    ts1, header1 = data_loading.load("_data/testfile23.dat", "Actigraph", datetime_format="%d/%m/%Y")
+    ts1, header1 = data_loading.load(os.path.abspath(__file__).replace(os.path.basename(__file__), "") + "_data/testfile23.dat", "Actigraph", datetime_format="%d/%m/%Y")
     counts1 = ts1.get_channel("AG_Counts")
     nonwear_bouts1, wear_bouts1 = channel_inference.infer_nonwear_actigraph(counts1)
 
     # Case 2: Nonwear in middle of file
-    ts2, header2 = data_loading.load("_data/testfile24.dat", "Actigraph", datetime_format="%d/%m/%Y")
+    ts2, header2 = data_loading.load(os.path.abspath(__file__).replace(os.path.basename(__file__), "") + "_data/testfile24.dat", "Actigraph", datetime_format="%d/%m/%Y")
     counts2 = ts2.get_channel("AG_Counts")
     nonwear_bouts2, wear_bouts2 = channel_inference.infer_nonwear_actigraph(counts2)
 
     # Case 3: Nonwear at very end of file
-    ts3, header3 = data_loading.load("_data/testfile25.dat", "Actigraph", datetime_format="%d/%m/%Y")
+    ts3, header3 = data_loading.load(os.path.abspath(__file__).replace(os.path.basename(__file__), "") + "_data/testfile25.dat", "Actigraph", datetime_format="%d/%m/%Y")
     counts3 = ts3.get_channel("AG_Counts")
     nonwear_bouts3, wear_bouts3 = channel_inference.infer_nonwear_actigraph(counts3)
 
