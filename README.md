@@ -1,8 +1,8 @@
-## PAMPRO - Physical Activity Monitor Processing
+## pampro - physical activity monitor processing
 
 ### Introduction
 
-PAMPRO is a software project for the systematic analysis of physical activity data collected in epidemiological studies. The ultimate goal is to provide a turn-key solution for physical activity data analysis, replicating published methodologies in a monitor-agnostic framework.
+pampro is a software project for the systematic analysis of physical activity data collected in epidemiological studies. The ultimate goal is to provide a turn-key solution for physical activity data analysis, replicating published methodologies in a monitor-agnostic framework.
 
 
 ### Features
@@ -26,7 +26,7 @@ PAMPRO is a software project for the systematic analysis of physical activity da
 
 ### Usage
 
-Click [here](http://nbviewer.ipython.org/github/Thomite/pampro/blob/master/examples/pampro_introduction.ipynb) for a walkthrough of PAMPRO's most basic features. Please note that designing an analysis currently requires extensive knowledge of the Python programming language. See [/examples](https://github.com/Thomite/pampro/tree/master/examples) for example scripts demonstrating various more advanced features. The growing [/methods](https://github.com/Thomite/pampro/tree/master/methods) section provides detailed explanations of the methods implemented in PAMPRO, linking to the relevant literature where appropriate. Finally, see [here](https://github.com/Thomite/pampro/tree/master/documents/Future.md) for a list of upcoming features.
+Click [here](http://nbviewer.ipython.org/github/Thomite/pampro/blob/master/examples/pampro_introduction.ipynb) for a walkthrough of pampro's most basic features. Please note that designing an analysis currently requires extensive knowledge of the Python programming language. See [/examples](https://github.com/Thomite/pampro/tree/master/examples) for example scripts demonstrating various more advanced features. The growing [/methods](https://github.com/Thomite/pampro/tree/master/methods) section provides detailed explanations of the methods implemented in pampro, linking to the relevant literature where appropriate. Finally, see [here](https://github.com/Thomite/pampro/tree/master/documents/Future.md) for a list of upcoming features.
 
 
 ### Installation
