@@ -597,12 +597,14 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
 
         count_list = [int(c) for c in count_list]
         #print(count_list)
-        if mode == 1 or mode == 3:
-            #print("Removing steps")
-            sans_steps = [a for a,b in zip(*[iter(count_list)]*2)]
-            #print(sans_steps)
-            count_list = sans_steps
-            #print(count_list)
+        if mode == 1 or mode == 3 or mode == 4:
+
+            count_list = [a for a,b in zip(*[iter(count_list)]*2)]
+
+        elif mode == 5:
+
+            count_list = [a for a,b,c in zip(*[iter(count_list)]*3)]
+
         timestamp_list = [time+t*epoch_length for t in range(len(count_list))]
 
         timestamps = np.array(timestamp_list)
