@@ -15,6 +15,8 @@ from scipy.io.wavfile import write
 import zipfile
 from collections import OrderedDict
 
+import h5py
+
 # Axivity import code adapted from source provided by Open Movement: https://code.google.com/p/openmovement/. Their license terms are reproduced here in full, and apply only to the Axivity related code:
 # Copyright (c) 2009-2014, Newcastle University, UK. All rights reserved.
 # Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -1185,6 +1187,26 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
                     chan.data /= header_info["weight"]
 
         header = header_info
+
+    elif (source_type == "HDF5"):
+
+        f = h5py.File(source, "r+")
+
+        header["hdf5_file"] = f
+
+        start = datetime.strptime(f.attrs["start"], "%d/%m/%Y %H:%M:%S")
+
+        #print(timestamps)
+        for dataset_name in f:
+
+            if dataset_name != "offsets":
+                d = f[dataset_name]
+
+                chan = Channel.Channel(dataset_name)
+                chan.start = start
+                chan.set_contents(d, f["offsets"], timestamp_policy="offset")
+
+                channels.append(chan)
 
     ts.add_channels(channels)
 

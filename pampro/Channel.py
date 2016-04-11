@@ -1,5 +1,4 @@
 import numpy as np
-import scipy as sp
 from datetime import datetime, date, time, timedelta
 import copy
 from struct import *
@@ -10,7 +9,10 @@ from scipy.io.wavfile import write
 import zipfile
 from collections import OrderedDict
 
-from pampro import Time_Series, Bout, pampro_utilities
+from pampro import Time_Series, Bout, pampro_utilities, time_utilities
+
+from bisect import bisect_left, bisect_right
+
 
 class Channel(object):
 
@@ -18,27 +20,42 @@ class Channel(object):
 
         self.name = name
         self.size = 0
-        self.timeframe = 0
+        self.timeframe = (0,0)
+        self.time_period = (0,0)
         self.data = []
         self.timestamps = []
+        self.indices = []
         self.annotations = []
         self.draw_properties = {}
         self.cached_indices = {}
-        self.sparsely_timestamped = False
+        self.timestamp_policy = "normal" # sparse, offset
         self.missing_value = False
+
 
     def clone(self):
         """ Return an independent copy of this Channel. """
 
         return copy.deepcopy(self)
 
-    def set_contents(self, data, timestamps):
+    def set_contents(self, data, timestamps, timestamp_policy="normal"):
         """ Override current contents of data and timestamp arrays, and update timeframe accordingly. """
 
         self.data = data
         self.timestamps = timestamps
 
+        self.timestamp_policy = timestamp_policy
         self.calculate_timeframe()
+
+        self.determine_appropriate_methods()
+
+    def determine_appropriate_methods(self):
+        """
+        Create some interface shortcuts to certain methods to optimise speed.
+        """
+
+        # This allows us to call self.get_index_appropriately() rather than be slowed down by various if statements.
+        get_index_methods = {"normal":self.get_data_index, "sparse":self.get_sparse_data_index, "offset":self.get_offset_data_index}
+        self.get_index_appropriately = get_index_methods[self.timestamp_policy]
 
     def append(self, other_channel):
         """ Take the data and timestamps from another Channel and incorporate them into this one. """
@@ -58,10 +75,17 @@ class Channel(object):
 
         self.size = len(self.data)
 
-        if self.size > 0:
+        if self.timestamp_policy == "normal":
+
             self.timeframe = self.timestamps[0], self.timestamps[-1]
-        else:
-            self.timeframe = False,False
+
+        elif self.timestamp_policy == "sparse":
+
+            self.timeframe = self.timestamps[0], self.timestamps[-1]
+
+        elif self.timestamp_policy == "offset":
+
+            self.timeframe = self.start + self.timestamps[0]*timedelta(microseconds=1000), self.start + self.timestamps[-1]*timedelta(microseconds=1000)
 
         self.time_period = self.timeframe # Sick of getting these the wrong way around!
 
@@ -70,11 +94,11 @@ class Channel(object):
 
         self.timestamps = channel.timestamps
         self.missing_value = channel.missing_value
-
-        if channel.sparsely_timestamped:
-            self.sparsely_timestamped = True
-            self.indices = channel.indices
-            self.cached_indices = channel.cached_indices
+        self.timestamp_policy = channel.timestamp_policy
+        self.indices = channel.indices
+        self.cached_indices = channel.cached_indices
+        self.timeframe = channel.timeframe
+        self.time_period = channel.time_period
 
         try:
             self.frequency = channel.frequency
@@ -123,92 +147,68 @@ class Channel(object):
 
         return clone
 
-    def get_window(self, datetime_start, datetime_end):
-        """ Return the indices of the data array that contain the given timestamps """
+    def get_index(self, datetimestamp):
+        """
+        Return the data index of the given datetimestamp.
+        If it has already been cached, return the cached value.
+        Otherwise, call the appropriate method based on timestamp_policy, cache the result, and return it.
+        """
 
-        key_a = str(datetime_start)
-        key_b = str(datetime_end)
-        indices = [-1]
-
-        # If we already know what the indices are for these timestamps:
         try:
-            index_a = self.cached_indices[key_a]
-            index_b = self.cached_indices[key_b]
-            indices = (index_a, index_b)
-
+            i = self.cached_indices[datetimestamp]
         except:
+            i = self.get_index_appropriately(datetimestamp)
+            self.cached_indices[datetimestamp] = i
 
-            if not self.sparsely_timestamped:
+        return i
 
-                indices = self.get_data_indices(datetime_start, datetime_end)
+    def get_window(self, datetime_start, datetime_end):
+        """
+        Return the indices of the data array that contain the given timestamps
+        """
 
-            else:
-                for timestamp in [datetime_start, datetime_end]:
-                    self.ensure_timestamped_at(timestamp)
+        if datetime_start > self.time_period[1] or datetime_end < self.time_period[0]:
 
-                indices = self.get_data_indices(datetime_start, datetime_end)
+            (start, end) = (-1,-1)
 
-
-            # Cache those for next time
-            self.cached_indices[key_a] = indices[0]
-            self.cached_indices[key_b] = indices[1]
-
-        return indices
-
-    def get_data_indices(self, datetime_start, datetime_end):
-        """ Returns the indices of the data array to use if every observation is timestamped """
-
-        if datetime_start > self.timestamps[-1] or datetime_end < self.timestamps[0]:
-            start = -1
-            end = -1
         else:
 
-            if self.sparsely_timestamped:
-
-                if datetime_start < self.timestamps[0]:
-                    start = -1
-                else:
-
-                    start = np.searchsorted(self.timestamps, datetime_start, 'left')
-                    try:
-                        start = self.indices[max(0,start)]
-                    except:
-                        print("!!!!!!!! EXCEPTION !!!!!!!!!!")
-                        print(start, end)
-                        print(datetime_start, datetime_end)
-                        print("!!!!!!!! EXCEPTION !!!!!!!!!!")
-
-                if datetime_end < self.timestamps[0]:
-                    end = -1
-                else:
-                    end = np.searchsorted(self.timestamps, datetime_end, 'left')
-                    end = self.indices[min(len(self.indices)-1,end)]
-
-            else:
-
-                if datetime_start < self.timestamps[0]:
-                    start = -1
-                else:
-                    start = np.searchsorted(self.timestamps, datetime_start, 'left')
-
-                if datetime_end < self.timestamps[0]:
-                    end = -1
-                else:
-                    end = np.searchsorted(self.timestamps, datetime_end, 'left')
-
-
-        if start == -1 and end != -1:
-            start = 0
-
-        if start != -1 and end == -1:
-            end = len(self.timestamps)
+            start = self.get_index(datetime_start)
+            end = self.get_index(datetime_end)
 
         return (start, end)
+
+    def get_data_index(self, datetimestamp):
+        """
+        Returns the indices of the data array to use if every observation is timestamped
+        """
+
+        index = bisect_left(self.timestamps, datetimestamp)
+
+        return index
+
+    def get_sparse_data_index(self, datetimestamp):
+        """ Returns the indices of the data array to use if it is sparsely timestamped """
+
+        self.ensure_timestamped_at(datetimestamp)
+
+        search = bisect_left(self.timestamps, datetimestamp)
+        index = self.indices[max(0,search)]
+
+        return index
+
+    def get_offset_data_index(self, datetimestamp):
+
+        start_index = (datetimestamp - self.time_period[0])/timedelta(microseconds=1000)
+
+        index = bisect_left(self.timestamps, start_index)
+
+        return index
 
     def inject_timestamp_index(self, timestamp, index):
         """ Add a new timestamp pointing at the given index in the data array. Used to be more specific with timestamps when data is sparsely timestamped. """
 
-        i = np.searchsorted(self.indices, index, "left")
+        i = bisect_left(self.indices, index)
         if self.indices[i] != index:
 
             self.timestamps = np.insert(self.timestamps, i, timestamp)
@@ -221,7 +221,7 @@ class Channel(object):
         # Is this check necessary?
         if timestamp >= self.timestamps[0] and timestamp < self.timestamps[-1]:
 
-            start = np.searchsorted(self.timestamps, timestamp, 'left')
+            start = bisect_left(self.timestamps, timestamp)
 
             # If this timestamp didn't exactly match an existing timestamp in the array
             # And the index is a useable range in the timestamp array
@@ -242,24 +242,7 @@ class Channel(object):
                     self.inject_timestamp_index(b_timestamp, b)
 
                 except:
-                    print("timestamp", timestamp)
-                    print("start", start)
-                    print(len(self.indices))
-                    print(len(self.timestamps))
-
-    def get_sparse_data_indices(self, datetime_start, datetime_end):
-        """ Returns the indices of the data array to use if it is sparsely timestamped """
-
-        a = self.get_data_index(datetime_start)
-        b = self.get_data_index(datetime_end)
-
-        if a == -1 and b != -1:
-            a = 0
-
-        if a != -1 and b == -1:
-            b = len(self.timestamps)-1
-
-        return (a, b)
+                    pass
 
     def window_statistics(self, start_dts, end_dts, statistics):
         """ Summarise the data between these timestamps using the statistics listed. """
@@ -352,8 +335,8 @@ class Channel(object):
                 if data_found:
                     sorted_vals = np.sort(window_data)
                     for low,high in stat[1]:
-                        start = np.searchsorted(sorted_vals, low, 'left')
-                        end = np.searchsorted(sorted_vals, high, 'right')
+                        start = bisect_left(sorted_vals, low)
+                        end = bisect_right(sorted_vals, high)
 
                         output_row.append(end-start)
                 else:
@@ -395,8 +378,8 @@ class Channel(object):
                 for low,high in stat[1]:
 
                     if data_found:
-                        start = np.searchsorted(frequencies, low, 'left')
-                        end = np.searchsorted(frequencies, high, 'right')
+                        start = bisect_left(frequencies, low)
+                        end = bisect_left(frequencies, high)
                         index_range = np.arange(start, end-1)
                         sum_range = sum(spectrum[index_range])
 
@@ -447,7 +430,6 @@ class Channel(object):
 
         return output_row
 
-
     def expected_results(self, statistics):
         """ Calculate the number of expected results for this statistics request """
 
@@ -473,10 +455,9 @@ class Channel(object):
 
         return expected
 
-
     def build_statistics_channels(self, windows, statistics, name=""):
         """ Describe the contents of this channel in the given time windows using the given statistics  """
-
+        print("test1")
         using_indices = True
         if str(type(windows[0])) == "<class 'pampro.Bout.Bout'>":
             using_indices = False
@@ -490,11 +471,13 @@ class Channel(object):
             # Create a Channel for each output
             for cn in channel_names:
                 channel_list.append(Channel(cn))
-
+        print("test2")
         num_expected_results = len(channel_list)
-
+        print(windows[0])
+        print(len(windows))
         for window in windows:
 
+            #print(window.start_timestamp, window.end_timestamp)
             if using_indices:
                 results = self.window_statistics(window[0], window[1], statistics)
 
@@ -515,6 +498,8 @@ class Channel(object):
                 for i in range(len(results)):
                     channel_list[i].append_data(window.start_timestamp, results[i])
 
+        print("test3")
+
         for channel in channel_list:
             channel.missing_value = -1
             channel.data = np.array(channel.data)
@@ -534,7 +519,7 @@ class Channel(object):
     def infer_timestamp(self, index):
         """ Given an index of the data array, approximate its timestamp using the sparse timestamps around it """
 
-        start = np.searchsorted(self.indices, index, 'left')
+        start = bisect_left(self.indices, index)
         #print("infer_timestamp | start:", start)
         if self.indices[start] == index:
 
@@ -586,12 +571,11 @@ class Channel(object):
 
         return channels
 
-
     def piecewise_statistics(self, window_size, statistics=[("generic", ["mean"])], time_period=False, name=""):
 
         if time_period == False:
-            start = self.timeframe[0] - timedelta(hours=self.timeframe[0].hour, minutes=self.timeframe[0].minute, seconds=self.timeframe[0].second, microseconds=self.timeframe[0].microsecond)
-            end = self.timeframe[1] + timedelta(hours=23-self.timeframe[1].hour, minutes=59-self.timeframe[1].minute, seconds=59-self.timeframe[1].second, microseconds=999999-self.timeframe[1].microsecond)
+            start = time_utilities.start_of_day(self.timeframe[0])
+            end = time_utilities.end_of_day(self.timeframe[1])
         else:
             start = time_period[0]
             end = time_period[1]
@@ -619,7 +603,6 @@ class Channel(object):
             windows = [[i,i+window_size] for i in range(0,len(self.data),window_size)]
 
         return self.build_statistics_channels(windows, statistics, name=name)
-
 
     def summary_statistics(self, statistics=[("generic", ["mean"])], time_period=False, name=""):
 
@@ -684,8 +667,8 @@ class Channel(object):
             start_time = self.timestamps[start_index]
             end_time = self.timestamps[end_index]
 
-            if not self.sparsely_timestamped:
-                end_time += self.timestamps[-1]-self.timestamps[-2]
+            #if not self.sparsely_timestamped:
+            end_time += self.timestamps[-1]-self.timestamps[-2]
 
             bouts.append(Bout.Bout(start_time, end_time))
 
@@ -729,7 +712,6 @@ class Channel(object):
 
         return np.fft.fft(self.data)
 
-
     def output_as_tone(self, filename, note_duration=0.15, volume=10000):
 
         rate = 1378.125
@@ -756,15 +738,15 @@ class Channel(object):
 
     def draw(self, axis, time_period=False):
 
-        if not self.sparsely_timestamped:
-            start_index,end_index = self.get_window(time_period[0], time_period[1])
-            window_data = self.data[start_index:end_index]
-            window_timestamps = self.timestamps[start_index:end_index]
+        #if not self.sparsely_timestamped:
+        start_index,end_index = self.get_window(time_period[0], time_period[1])
+        window_data = self.data[start_index:end_index]
+        window_timestamps = self.timestamps[start_index:end_index]
 
-            axis.plot(window_timestamps, window_data, label=self.name, **self.draw_properties)
+        axis.plot(window_timestamps, window_data, label=self.name, **self.draw_properties)
 
-            for a in self.annotations:
-                axis.axvspan(xmin=a.start_timestamp, xmax=a.end_timestamp, **a.draw_properties)
+        for a in self.annotations:
+            axis.axvspan(xmin=a.start_timestamp, xmax=a.end_timestamp, **a.draw_properties)
 
     def __str__(self):
 
@@ -775,7 +757,7 @@ class Channel(object):
         description["Duration"] = self.timeframe[1] - self.timeframe[0]
         description["Data count"] = len(self.data)
         description["Timestamp count"] = len(self.timestamps)
-        description["Sparsely timestamped"] = self.sparsely_timestamped
+        description["Timestamp policy"] = self.timestamp_policy
 
         if not hasattr(self, "mean_timedelta"):
             self.infer_timestamp_delta()

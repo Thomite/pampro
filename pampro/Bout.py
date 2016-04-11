@@ -4,9 +4,9 @@ import numpy as np
 
 class Bout(object):
 
-	def __init__(self, start_timestamp, end_timestamp, label=""):
+	def __init__(self, start_timestamp, end_timestamp):
 
-		self.label = label
+		#self.label = label
 		self.start_timestamp = start_timestamp
 		self.end_timestamp = end_timestamp
 		self.length = self.end_timestamp - self.start_timestamp

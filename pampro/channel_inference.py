@@ -24,11 +24,6 @@ def produce_binary_channels(bouts, lengths, skeleton_channel):
 
     return channels
 
-
-
-
-
-
 def activpal_classification(pitch):
 
     transition_sit_stand = 32 # Sit -> Stand if angle >= 32
@@ -200,8 +195,6 @@ def infer_nonwear_actigraph(counts, zero_minutes=timedelta(minutes=60)):
     wear_bouts = Bout.time_period_minus_bouts([counts.timeframe[0], counts.timeframe[1]], nonwear_bouts)
 
     return nonwear_bouts, wear_bouts
-
-
 
 def infer_still_bouts_triaxial(x, y, z, window_size=timedelta(seconds=10), noise_cutoff_mg=13, minimum_length=timedelta(seconds=10)):
 
