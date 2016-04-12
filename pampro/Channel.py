@@ -63,12 +63,12 @@ class Channel(object):
         self.data = np.concatenate((self.data, other_channel.data))
         self.timestamps = np.concatenate((self.timestamps, other_channel.timestamps))
 
-        indices = np.argsort(self.timestamps)
+        #indices = np.argsort(self.timestamps)
 
-        self.timestamps = np.array(self.timestamps)[indices]
-        self.data = np.array(self.data)[indices]
+        #self.timestamps = np.array(self.timestamps)[indices]
+        #self.data = np.array(self.data)[indices]
 
-        self.calculate_timeframe()
+        #self.calculate_timeframe()
 
     def calculate_timeframe(self):
         """ Update timeframe and time_period variables to reflect start and end of timestamps. """
@@ -527,25 +527,18 @@ class Channel(object):
         self.max_timedelta = np.max(deltas)
         self.min_timedelta = np.min(deltas)
 
-    def sliding_statistics(self, window_size, statistics=[("generic", ["mean"])], time_period=False, name=""):
-
-        if time_period == False:
-            start = self.timeframe[0] - timedelta(hours=self.timeframe[0].hour, minutes=self.timeframe[0].minute, seconds=self.timeframe[0].second, microseconds=self.timeframe[0].microsecond)
-            end = self.timeframe[1] + timedelta(hours=23-self.timeframe[1].hour, minutes=59-self.timeframe[1].minute, seconds=59-self.timeframe[1].second, microseconds=999999-self.timeframe[1].microsecond)
-        else:
-            start = time_period[0]
-            end = time_period[1]
-
-        #print("Sliding statistics: {}".format(self.name))
-
-        windows = []
+    def generate_sliding_windows(self, window_size):
 
         for timestamp in self.timestamps:
 
             start_dts = timestamp - (window_size/2.0)
             end_dts = timestamp + (window_size/2.0)
 
-            windows.append(Bout.Bout(start_dts, end_dts))
+            yield Bout.Bout(start_dts, end_dts)
+
+    def sliding_statistics(self, window_size, statistics=[("generic", ["mean"])], time_period=False, name=""):
+
+        windows = self.generate_sliding_windows(window_size)
 
         channels = self.build_statistics_channels(windows, statistics, name=name)
 
@@ -557,23 +550,15 @@ class Channel(object):
 
     def generate_piecewise_windows(self, start, end, window_size):
 
-        #windows = []
+        start_dts = start
+        end_dts = start + window_size
 
-        # If we passed a timedelta object as our window size
-        if str(type(window_size)) == "<class 'datetime.timedelta'>":
+        while start_dts < end:
 
-            start_dts = start
-            end_dts = start + window_size
+            yield Bout.Bout(start_dts, end_dts)
 
-            while start_dts < end:
-
-                yield Bout.Bout(start_dts, end_dts)
-                #windows.append(window)
-
-                start_dts = start_dts + window_size
-                end_dts = end_dts + window_size
-
-        #return windows
+            start_dts = start_dts + window_size
+            end_dts = end_dts + window_size
 
     def piecewise_statistics(self, window_size, statistics=[("generic", ["mean"])], time_period=False, name=""):
 
