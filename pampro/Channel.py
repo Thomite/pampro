@@ -458,9 +458,6 @@ class Channel(object):
     def build_statistics_channels(self, windows, statistics, name=""):
         """ Describe the contents of this channel in the given time windows using the given statistics  """
         print("test1")
-        using_indices = True
-        if str(type(windows[0])) == "<class 'pampro.Bout.Bout'>":
-            using_indices = False
 
         channel_list = []
 
@@ -473,30 +470,17 @@ class Channel(object):
                 channel_list.append(Channel(cn))
         print("test2")
         num_expected_results = len(channel_list)
-        print(windows[0])
-        print(len(windows))
+
         for window in windows:
 
-            #print(window.start_timestamp, window.end_timestamp)
-            if using_indices:
-                results = self.window_statistics(window[0], window[1], statistics)
-
-            else:
-
-                results = self.window_statistics(window.start_timestamp, window.end_timestamp, statistics)
+            results = self.window_statistics(window.start_timestamp, window.end_timestamp, statistics)
 
             if len(results) != num_expected_results:
 
                 raise Exception("Incorrect number of statistics yielded. {} expected, {} given. Channel: {}. Statistics: {}.".format(num_expected_results, len(results), self.name, statistics))
 
-            if using_indices:
-                for i in range(len(results)):
-                    channel_list[i].append_data(window[0], results[i])
-
-            else:
-
-                for i in range(len(results)):
-                    channel_list[i].append_data(window.start_timestamp, results[i])
+            for i in range(len(results)):
+                channel_list[i].append_data(window.start_timestamp, results[i])
 
         print("test3")
 
@@ -571,6 +555,26 @@ class Channel(object):
 
         return channels
 
+    def generate_piecewise_windows(self, start, end, window_size):
+
+        #windows = []
+
+        # If we passed a timedelta object as our window size
+        if str(type(window_size)) == "<class 'datetime.timedelta'>":
+
+            start_dts = start
+            end_dts = start + window_size
+
+            while start_dts < end:
+
+                yield Bout.Bout(start_dts, end_dts)
+                #windows.append(window)
+
+                start_dts = start_dts + window_size
+                end_dts = end_dts + window_size
+
+        #return windows
+
     def piecewise_statistics(self, window_size, statistics=[("generic", ["mean"])], time_period=False, name=""):
 
         if time_period == False:
@@ -581,26 +585,12 @@ class Channel(object):
             end = time_period[1]
 
         #print("Piecewise statistics: {}".format(self.name))
-        windows = []
-
-        # If we passed a timedelta object as our window size
-        if str(type(window_size)) == "<class 'datetime.timedelta'>":
-
-            start_dts = start
-            end_dts = start + window_size
-
-            while start_dts < end:
-
-                window = Bout.Bout(start_dts, end_dts)
-                windows.append(window)
-
-                start_dts = start_dts + window_size
-                end_dts = end_dts + window_size
+        windows = self.generate_piecewise_windows(start,end, window_size)
 
         # Else if we passed an integer as our window size
-        elif str(type(window_size)) == "<class 'int'>":
+        #elif str(type(window_size)) == "<class 'int'>":
 
-            windows = [[i,i+window_size] for i in range(0,len(self.data),window_size)]
+        #    windows = [[i,i+window_size] for i in range(0,len(self.data),window_size)]
 
         return self.build_statistics_channels(windows, statistics, name=name)
 
