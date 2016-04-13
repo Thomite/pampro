@@ -103,3 +103,45 @@ def test_custom_time_period():
 
 test_custom_time_period.setup = setup_func
 test_custom_time_period.teardown = teardown_func
+
+def test_piecewise_sequence_a():
+
+    # Test that doing piecewise_statistics twice gets identical results
+    results1 = counts.piecewise_statistics(timedelta(minutes=30), statistics=[("generic", ["mean"])])
+    results2 = counts.piecewise_statistics(timedelta(minutes=30), statistics=[("generic", ["mean"])])
+
+    for a,b in zip(results1.channels[0].data, results2.channels[0].data):
+        assert(a == b)
+
+test_piecewise_sequence_a.setup = setup_func
+test_piecewise_sequence_a.teardown = teardown_func
+
+def test_piecewise_sequence_b():
+
+    # Test that doing piecewise statistics at a shorter level doesn't affect the results at longer level
+    results1 = counts.piecewise_statistics(timedelta(minutes=2), statistics=[("generic", ["mean"])])
+    test_hourly()
+
+test_piecewise_sequence_b.setup = setup_func
+test_piecewise_sequence_b.teardown = teardown_func
+
+def test_piecewise_sequence_c():
+
+    # Test that doing piecewise statistics at a longer level doesn't affect the results at shorter level
+    results1 = counts.piecewise_statistics(timedelta(hours=3), statistics=[("generic", ["mean"])])
+    test_hourly()
+
+test_piecewise_sequence_c.setup = setup_func
+test_piecewise_sequence_c.teardown = teardown_func
+
+def test_piecewise_sequence_d():
+
+    # Test that doing piecewise statistics at various levels doesn't affect the results at hourly or half hourly level
+    for i in [1,5,15]:
+        print(i)
+        results1 = counts.piecewise_statistics(timedelta(minutes=i), statistics=[("generic", ["mean"])])
+        test_half_hourly()
+        test_hourly()
+
+test_piecewise_sequence_d.setup = setup_func
+test_piecewise_sequence_d.teardown = teardown_func
