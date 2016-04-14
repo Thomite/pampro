@@ -1,7 +1,6 @@
 import numpy as np
 import scipy as sp
 from datetime import datetime, date, time, timedelta
-from pampro import Time_Series, Channel, Bout, pampro_utilities
 import copy
 from struct import *
 from math import *
@@ -14,8 +13,9 @@ import string
 from scipy.io.wavfile import write
 import zipfile
 from collections import OrderedDict
-
 import h5py
+
+from pampro import Time_Series, Channel, Bout, pampro_utilities, hdf5
 
 # Axivity import code adapted from source provided by Open Movement: https://code.google.com/p/openmovement/. Their license terms are reproduced here in full, and apply only to the Axivity related code:
 # Copyright (c) 2009-2014, Newcastle University, UK. All rights reserved.
@@ -1192,19 +1192,8 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
 
         header["hdf5_file"] = f
 
-        start = datetime.strptime(f.attrs["start"], "%d/%m/%Y %H:%M:%S")
-
-        #print(timestamps)
-        for dataset_name in f:
-
-            if dataset_name != "offsets":
-                d = f[dataset_name]
-
-                chan = Channel.Channel(dataset_name)
-                chan.start = start
-                chan.set_contents(d, f["offsets"], timestamp_policy="offset")
-
-                channels.append(chan)
+        raw_group = f["Raw"]
+        ts = hdf5.load_time_series(raw_group)
 
     ts.add_channels(channels)
 
