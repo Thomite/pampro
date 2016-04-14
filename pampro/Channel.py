@@ -154,13 +154,17 @@ class Channel(object):
         Otherwise, call the appropriate method based on timestamp_policy, cache the result, and return it.
         """
 
-        try:
-            i = self.cached_indices[datetimestamp]
-        except:
-            i = self.get_index_appropriately(datetimestamp)
-            self.cached_indices[datetimestamp] = i
+        if datetimestamp < self.time_period[0] or datetimestamp > self.time_period[1]:
+            return -1
+        else:
 
-        return i
+            try:
+                i = self.cached_indices[datetimestamp]
+            except:
+                i = self.get_index_appropriately(datetimestamp)
+                self.cached_indices[datetimestamp] = i
+
+            return i
 
     def get_window(self, datetime_start, datetime_end):
         """
@@ -175,6 +179,11 @@ class Channel(object):
 
             start = self.get_index(datetime_start)
             end = self.get_index(datetime_end)
+
+        if start == -1 and end != -1:
+            start = 0
+        elif start != -1 and end == -1:
+            end = len(self.data)
 
         return (start, end)
 

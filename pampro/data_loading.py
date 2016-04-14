@@ -869,18 +869,17 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         axivity_temperature.resize(num_pages)
         axivity_light.resize(num_pages)
 
-        channel_x.set_contents(axivity_x, axivity_timestamps)
-        channel_y.set_contents(axivity_y, axivity_timestamps)
-        channel_z.set_contents(axivity_z, axivity_timestamps)
+        channel_x.set_contents(axivity_x, axivity_timestamps, timestamp_policy="sparse")
+        channel_y.set_contents(axivity_y, axivity_timestamps, timestamp_policy="sparse")
+        channel_z.set_contents(axivity_z, axivity_timestamps, timestamp_policy="sparse")
 
-        channel_light.set_contents(axivity_light, axivity_timestamps)
-        channel_temperature.set_contents(axivity_temperature, axivity_timestamps)
+        channel_light.set_contents(axivity_light, axivity_timestamps, timestamp_policy="sparse")
+        channel_temperature.set_contents(axivity_temperature, axivity_timestamps, timestamp_policy="sparse")
 
         approximate_frequency = timedelta(seconds=1)/ ((axivity_timestamps[-1]-axivity_timestamps[0])/num_samples)
 
         for c in [channel_x, channel_y, channel_z]:
             c.indices = axivity_indices
-            c.sparsely_timestamped = True
             c.frequency = approximate_frequency
 
         file_header["frequency"] = approximate_frequency
@@ -1036,16 +1035,16 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         axivity_timestamps[-1] = axivity_timestamps[-2] + ((num_samples/num_pages)*(timedelta(seconds=1)/file_header["frequency"]))
         axivity_indices[-1] = num_samples
 
-        channel_x.set_contents(axivity_x, axivity_timestamps)
-        channel_y.set_contents(axivity_y, axivity_timestamps)
-        channel_z.set_contents(axivity_z, axivity_timestamps)
+        channel_x.set_contents(axivity_x, axivity_timestamps, timestamp_policy="sparse")
+        channel_y.set_contents(axivity_y, axivity_timestamps, timestamp_policy="sparse")
+        channel_z.set_contents(axivity_z, axivity_timestamps, timestamp_policy="sparse")
 
-        channel_light.set_contents(axivity_light, axivity_timestamps)
-        channel_temperature.set_contents(axivity_temperature, axivity_timestamps)
+        channel_light.set_contents(axivity_light, axivity_timestamps, timestamp_policy="sparse")
+        channel_temperature.set_contents(axivity_temperature, axivity_timestamps, timestamp_policy="sparse")
 
         for c in [channel_x, channel_y, channel_z]:
             c.indices = axivity_indices
-            c.sparsely_timestamped = True
+            #c.sparsely_timestamped = True
             c.frequency = file_header["frequency"]
 
         #file_header["frequency"] = approximate_frequency
@@ -1134,14 +1133,13 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         y_channel = Channel.Channel("Y")
         z_channel = Channel.Channel("Z")
 
-        x_channel.set_contents(x_values, ga_timestamps)
-        y_channel.set_contents(y_values, ga_timestamps)
-        z_channel.set_contents(z_values, ga_timestamps)
+        x_channel.set_contents(x_values, ga_timestamps, timestamp_policy="sparse")
+        y_channel.set_contents(y_values, ga_timestamps, timestamp_policy="sparse")
+        z_channel.set_contents(z_values, ga_timestamps, timestamp_policy="sparse")
 
 
         for c in [x_channel, y_channel, z_channel]:
             c.indices = ga_indices
-            c.sparsely_timestamped = True
             c.frequency = header_info["frequency"]
 
         channels = [x_channel, y_channel, z_channel]
