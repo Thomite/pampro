@@ -6,7 +6,7 @@ pampro is a software project for the systematic analysis of physical activity da
 
 ### New in version 0.4
 
-The main feature of this version is a [HDF5](https://www.hdfgroup.org/HDF5/) module, which provides functions to store pampro Time_Series objects inside HDF5 containers. This has numerous advantages, the most important being incredibly fast loading times (<10 seconds for a week long 100 Hz file). In the future, it will become a low-memory solution for pampro analyses, which will minimise the RAM footprint by writing results directly to disk.
+The main feature of this version is a [HDF5](https://www.hdfgroup.org/HDF5/) module, which provides functions to store pampro Time_Series objects inside HDF5 containers. This has numerous advantages, the most important being incredibly fast loading times (<10 seconds for a week long 100 Hz file). In the future, it will become a low-memory solution for pampro analyses, which will minimise the RAM footprint by writing results directly to disk. A demonstration of how to use the new format in pampro can be found [here](http://nbviewer.ipython.org/github/Thomite/pampro/blob/master/examples/example_hdf5.ipynb).
 
 All other changes are optimisations made on under-the-hood code, either to improve speed or memory efficiency, that have no impact on how users will write their analyses.
 
