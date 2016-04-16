@@ -21,7 +21,7 @@ def load_time_series(hdf5_group):
 
             chan = Channel.Channel(dataset_name)
             chan.start = start
-            chan.set_contents(d, timestamps, timestamp_policy="offset")
+            chan.set_contents(d[:], timestamps, timestamp_policy="offset")
 
             ts.add_channel(chan)
 
@@ -63,10 +63,17 @@ def interpolate_offsets(offsets, data_length):
 
     return full_offsets
 
-def convert(ts,  output_filename, groups=[("Raw", ["X", "Y", "Z"])]):
+
+def save(ts, output_filename, groups=[("Raw", ["X", "Y", "Z"])]):
+    """
+    Output a Time_Series object to a HDF5 container, for super-fast loading by the data_loading module.
+    For information on HDF5: https://www.hdfgroup.org/HDF5/
+    For information on the Python HDF5 implementation used here: http://www.h5py.org/
     """
 
-    """
+    if not output_filename.endswith(".hdf5"):
+        output_filename += ".hdf5"
+        print("Adding .hdf5 extension to filename - file will be saved in " + output_filename)
 
     f = h5py.File(output_filename, "w")
 
@@ -82,7 +89,7 @@ def convert(ts,  output_filename, groups=[("Raw", ["X", "Y", "Z"])]):
         data_length = len(first_channel.data)
         timestamp_length = len(timestamps)
 
-        group.attrs["start"] = timestamps[0].strftime("%d/%m/%Y %H:%M:%S")
+        group.attrs["start"] = first_channel.time_period[0].strftime("%d/%m/%Y %H:%M:%S")
 
         # Convert timestamps to offsets from the first timestamp - makes storing them easier as ints
         start, offsets = timestamps_to_offsets(timestamps)

@@ -466,7 +466,6 @@ class Channel(object):
 
     def build_statistics_channels(self, windows, statistics, name=""):
         """ Describe the contents of this channel in the given time windows using the given statistics  """
-        print("test1")
 
         channel_list = []
 
@@ -477,7 +476,7 @@ class Channel(object):
             # Create a Channel for each output
             for cn in channel_names:
                 channel_list.append(Channel(cn))
-        print("test2")
+
         num_expected_results = len(channel_list)
 
         for window in windows:
@@ -491,13 +490,12 @@ class Channel(object):
             for i in range(len(results)):
                 channel_list[i].append_data(window.start_timestamp, results[i])
 
-        print("test3")
-
         for channel in channel_list:
             channel.missing_value = -1
             channel.data = np.array(channel.data)
             channel.timestamps = np.array(channel.timestamps)
             channel.calculate_timeframe()
+            channel.determine_appropriate_methods()
 
         ts = Time_Series.Time_Series(name)
         ts.add_channels(channel_list)
