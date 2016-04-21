@@ -7,13 +7,20 @@ import math
 
 
 def load_time_series(hdf5_group):
+    """
+    Given a HDF5 group reference, load the contained data as a Time_Series.
+    """
+
+    #if hdf5_group.attrs["pampro_type"] == "channels":
 
     ts = Time_Series.Time_Series("")
 
     for dataset_name in hdf5_group:
 
+        # The start attribute is the anchor that timestamps are expressed relative to
         start = datetime.strptime(hdf5_group.attrs["start"], "%d/%m/%Y %H:%M:%S")
 
+        # The saving module guarantees there will be a dataset called "timestamps"
         timestamps = hdf5_group["timestamps"][:]
 
         if dataset_name != "timestamps":
@@ -26,6 +33,10 @@ def load_time_series(hdf5_group):
             ts.add_channel(chan)
 
     return ts
+
+    #else:
+
+    #    raise Exception("HDF5 group does not contain a Time_Series.")
 
 def timestamps_to_offsets(timestamps):
 
@@ -116,12 +127,12 @@ def save_bouts(bouts, output, group_name):
         raise Exception("Incompatible type of output supplied: {}".format(str(type(output))))
 
     group = f.create_group(group_name)
-
+    group.attrs["pampro_type"] = "bouts"
     save_bouts_to_hdf5_group(bouts, group)
 
 
 
-def save(ts, output, groups=[("Raw", ["X", "Y", "Z"])], compression=9):
+def save(ts, output, groups=[("Raw", ["X", "Y", "Z"])], data_type="float64", compression=9):
     """
     Output a Time_Series object to a HDF5 container, for super-fast loading by the data_loading module.
     For information on HDF5: https://www.hdfgroup.org/HDF5/
@@ -150,6 +161,8 @@ def save(ts, output, groups=[("Raw", ["X", "Y", "Z"])], compression=9):
 
         group = f.create_group(group_name)
 
+        group.attrs["pampro_type"] = "channels"
+
         first_channel = ts[channels[0]]
         timestamps = first_channel.timestamps
         data_length = len(first_channel.data)
@@ -158,7 +171,7 @@ def save(ts, output, groups=[("Raw", ["X", "Y", "Z"])], compression=9):
         group.attrs["start"] = first_channel.time_period[0].strftime("%d/%m/%Y %H:%M:%S")
 
         # Convert timestamps to offsets from the first timestamp - makes storing them easier as ints
-        start, offsets = timestamps_to_offsets(timestamps)
+        start, offsets = timestamps_to_offsets(timestamps)fkoat
 
         # If the timestamps are sparse, expand them to 1 per observation
         if timestamp_length < data_length:
@@ -175,7 +188,7 @@ def save(ts, output, groups=[("Raw", ["X", "Y", "Z"])], compression=9):
         for channel_name in channels:
 
             channel = ts[channel_name]
-            dset = group.create_dataset(channel.name, (data_length,), chunks=True, compression="gzip", shuffle=True, compression_opts=compression, dtype="float64")
+            dset = group.create_dataset(channel.name, (data_length,), chunks=True, compression="gzip", shuffle=True, compression_opts=compression, dtype=data_type)
             dset[...] = channel.data
 
         offsets_dset = group.create_dataset("timestamps", (data_length,), chunks=True, compression="gzip", shuffle=True, compression_opts=9, dtype="uint32")

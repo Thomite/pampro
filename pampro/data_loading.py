@@ -1188,7 +1188,7 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
 
     elif (source_type == "HDF5"):
 
-        f = h5py.File(source, "r+")
+        f = h5py.File(source, "r")
 
         header["hdf5_file"] = f
 
