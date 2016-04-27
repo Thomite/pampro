@@ -105,6 +105,9 @@ class Channel(object):
         except:
             pass
 
+        # If we inherit timestamps, we need to inherit the appropriate methods to interpret them!
+        self.determine_appropriate_methods()
+
     def normalise(self, floor=0, ceil=1):
 
         max_value = max(self.data)

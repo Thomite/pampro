@@ -88,6 +88,8 @@ class Time_Series(object):
 
     def build_statistics_channels(self, bouts, statistics, common_time=False, name=""):
 
+        if name == "":
+            name = self.name
         result_ts = Time_Series(name)
 
         for channel_name,stats in statistics.items():
@@ -107,6 +109,8 @@ class Time_Series(object):
 
     def piecewise_statistics(self, window_size, statistics, time_period=False, common_time=False, name=""):
 
+        if name == "":
+            name = self.name
         result_ts = Time_Series(name)
 
         for channel_name,stats in statistics.items():
@@ -126,6 +130,8 @@ class Time_Series(object):
 
     def summary_statistics(self, statistics, time_period=False, name=""):
 
+        if name == "":
+            name = self.name
         result_ts = Time_Series(name)
 
         for channel_name,stats in statistics.items():

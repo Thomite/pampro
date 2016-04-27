@@ -139,15 +139,13 @@ def save(ts, output, groups=[("Raw", ["X", "Y", "Z"])], data_type="float64", com
     For information on the Python HDF5 implementation used here: http://www.h5py.org/
     """
 
+    # If we have been given a h5py file, just use that
     if type(output) is h5py._hl.files.File:
 
         f = output
 
+    # If it's a string, assume it is a filename to create one
     elif type(output) is str:
-
-        if not output.endswith(".hdf5"):
-            output += ".hdf5"
-            print("Adding .hdf5 extension to filename - file will be saved in " + output)
 
         f = h5py.File(output, "w")
 
@@ -171,7 +169,7 @@ def save(ts, output, groups=[("Raw", ["X", "Y", "Z"])], data_type="float64", com
         group.attrs["start"] = first_channel.time_period[0].strftime("%d/%m/%Y %H:%M:%S")
 
         # Convert timestamps to offsets from the first timestamp - makes storing them easier as ints
-        start, offsets = timestamps_to_offsets(timestamps)fkoat
+        start, offsets = timestamps_to_offsets(timestamps)
 
         # If the timestamps are sparse, expand them to 1 per observation
         if timestamp_length < data_length:
