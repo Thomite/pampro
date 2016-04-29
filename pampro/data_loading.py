@@ -303,7 +303,7 @@ def parse_header(header, type, datetime_format):
 def convert_actigraph_timestamp(t):
     return datetime(*map(int, [t[6:10],t[3:5],t[0:2],t[11:13],t[14:16],t[17:19],int(t[20:])*1000]))
 
-def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_column=0, ignore_columns=False, unique_names=False):
+def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_column=0, ignore_columns=False, unique_names=False, hdf5_mode="r", hdf5_group="Raw"):
 
     header = OrderedDict()
     channels = []
@@ -1188,11 +1188,11 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
 
     elif (source_type == "HDF5"):
 
-        f = h5py.File(source, "r")
+        f = h5py.File(source, hdf5_mode)
 
         header["hdf5_file"] = f
 
-        raw_group = f["Raw"]
+        raw_group = f[hdf5_group]
         ts = hdf5.load_time_series(raw_group)
 
     ts.add_channels(channels)
