@@ -283,10 +283,12 @@ class Channel(object):
         for stat in statistics:
             if data_found and (stat[0] == "top_frequencies" or stat[0] == "frequency_ranges"):
                 spectrum = np.fft.fft(window_data)
-                spectrum = np.array([abs(e) for e in spectrum[:int((end_index-start_index)/2)]])
-                sum_spec = sum(spectrum)
-                spectrum /= sum_spec
-                frequencies = np.fft.fftfreq(int(end_index-start_index), d=1.0/self.frequency)[:int((end_index-start_index)/2)]
+                frequencies = np.fft.fftfreq(len(window_data), d=1.0/self.frequency)
+
+                frequencies = frequencies[np.where(frequencies >= 0)]
+                magnitudes = np.abs(spectrum[np.where(frequencies >= 0)])
+                magnitudes[0] = 0
+
                 break
 
 
@@ -393,7 +395,7 @@ class Channel(object):
                         start = bisect_left(frequencies, low)
                         end = bisect_left(frequencies, high)
                         index_range = np.arange(start, end-1)
-                        sum_range = sum(spectrum[index_range])
+                        sum_range = sum(magnitudes[index_range])
 
                         output_row.append(sum_range)
 
@@ -404,10 +406,10 @@ class Channel(object):
             # Example: ("top_frequencies", 5)
 
                 if data_found:
-                    sorted_spectrum = np.sort(spectrum)[::-1]
+                    sorted_spectrum = np.sort(magnitudes)[::-1]
                     dom_magnitudes = sorted_spectrum[:stat[1]]
 
-                    dom_indices = [np.where(spectrum==top)[0] for top in dom_magnitudes]
+                    dom_indices = [np.where(magnitudes==top)[0] for top in dom_magnitudes]
                     dom_frequencies = [frequencies[index] for index in dom_indices]
 
                     for freq,mag in zip(dom_frequencies,dom_magnitudes):
