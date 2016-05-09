@@ -53,7 +53,7 @@ def load_job_details(job_file):
 
     return master_dictionary
 
-def batch_process(analysis_function, job_file, job_num, num_jobs, live_feedback=False):
+def batch_process(analysis_function, job_file, job_num=1, num_jobs=1, live_feedback=False):
 
     batch_start_time = datetime.now()
 
