@@ -8,20 +8,18 @@ import math
 
 def load_time_series(hdf5_group):
     """
-    Given a HDF5 group reference, load the contained data as a Time_Series.
+    Given a reference to a hdf5_group, assume it is layed out according to pampro conventions and load a Time Series object from it.
     """
-
-    #if hdf5_group.attrs["pampro_type"] == "channels":
-
     ts = Time_Series.Time_Series("")
 
+    # "timestamps" will be a single HDF5 dataset shared by the rest of the channels
+    timestamps = hdf5_group["timestamps"][:]
+
+    # The timestamps will be expressed in milliseconds relative to the start value
+    start = datetime.strptime(hdf5_group.attrs["start"], "%d/%m/%Y %H:%M:%S")
+
+    # Each channel of data will be a HDF5 dataset, same length as timestamps
     for dataset_name in hdf5_group:
-
-        # The start attribute is the anchor that timestamps are expressed relative to
-        start = datetime.strptime(hdf5_group.attrs["start"], "%d/%m/%Y %H:%M:%S")
-
-        # The saving module guarantees there will be a dataset called "timestamps"
-        timestamps = hdf5_group["timestamps"][:]
 
         if dataset_name != "timestamps":
             d = hdf5_group[dataset_name]
@@ -34,11 +32,10 @@ def load_time_series(hdf5_group):
 
     return ts
 
-    #else:
-
-    #    raise Exception("HDF5 group does not contain a Time_Series.")
-
 def timestamps_to_offsets(timestamps):
+    """
+    Express a list of timestamps as a list of millisecond offsets from the first timestamp
+    """
 
     # Start is the first time stamp, and thus the reference point for the rest
     start = timestamps[0]
@@ -105,7 +102,7 @@ def save_bouts_to_hdf5_group(bouts, hdf5_group):
     start = hdf5_group.create_dataset("start_timestamps", (num_bouts,), chunks=True, compression="gzip", shuffle=True, compression_opts=9, dtype="uint32")
     start[...] = starts
 
-    end = hdf5_group.create_dataset("endt_timestamps", (num_bouts,), chunks=True, compression="gzip", shuffle=True, compression_opts=9, dtype="uint32")
+    end = hdf5_group.create_dataset("end_timestamps", (num_bouts,), chunks=True, compression="gzip", shuffle=True, compression_opts=9, dtype="uint32")
     end[...] = ends
 
 
@@ -129,8 +126,6 @@ def save_bouts(bouts, output, group_name):
     group = f.create_group(group_name)
     group.attrs["pampro_type"] = "bouts"
     save_bouts_to_hdf5_group(bouts, group)
-
-
 
 def save(ts, output, groups=[("Raw", ["X", "Y", "Z"])], data_type="float64", compression=9):
     """
