@@ -27,6 +27,12 @@ def get_cached_calibration(x,y,z):
 
         return None
 
+def is_calibrated(channel):
+    """
+    Return True if the channel appears to have been autocalibrated already.
+    """
+    return hasattr(channel, "calibrated") and channel.calibrated == True
+
 
 def nearest_sphere_surface(x_input, y_input, z_input):
     """Given the 3D co-ordinates of a point, return the 3D co-ordinates of the point on the surface of a unit sphere. """
@@ -197,17 +203,31 @@ def calibrate(x,y,z, allow_overwrite=True, budget=1000, noise_cutoff_mg=13, igno
             return (cal_x, cal_y, cal_z, calibration_diagnostics)
 
 def do_calibration(x,y,z,values):
-    """ Performs calibration on given channel using given parameters """
+    """
+    Performs calibration on given channel using given parameters.
+    Values should be in this order: [x_offset, x_scale, y_offset, y_scale, z_offset, z_scale]
+     """
     x.data = values[0] + (x.data * values[1])
     y.data = values[2] + (y.data * values[3])
     z.data = values[4] + (z.data * values[5])
 
+    x.calibrated = True
+    y.calibrated = True
+    z.calibrated = True
+
 def undo_calibration(x,y,z,values):
-    """ Reverses calibration on given channel using given parameters """
+    """
+    Reverses calibration on given channel using given parameters
+    Values should be in this order: [x_offset, x_scale, y_offset, y_scale, z_offset, z_scale]
+    """
 
     x.data = -values[0] + (x.data / values[1])
     y.data = -values[2] + (y.data / values[3])
     z.data = -values[4] + (z.data / values[5])
+
+    x.calibrated = False
+    y.calibrated = False
+    z.calibrated = False
 
 def evaluate_solution(still_x, still_y, still_z, still_n, calibration_parameters):
     """ Calculates the RMSE of the input XYZ signal if calibrated according to input calibration parameters"""
