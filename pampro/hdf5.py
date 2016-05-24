@@ -1,10 +1,84 @@
 from datetime import datetime, timedelta
 from pampro import Time_Series, Channel, Bout
 
+from collections import OrderedDict
 import h5py
 import numpy as np
 import math
 
+def dictionary_to_attributes(dictionary, hdf5_thing):
+    """
+    Write each item in the given dictionary as an attribute attached to the HDF5 group or dataset.
+    """
+
+    for k,v in dictionary.items():
+        hdf5_thing.attrs[k] = v
+
+def dictionary_from_attributes(hdf5_thing):
+    """
+    Load the attributes of a given HDF5 group or dataset as an ordered dictionary.
+    """
+
+    dictionary = OrderedDict()
+    for k,v in hdf5_thing.attrs.items():
+        dictionary[k] = v
+
+    return dictionary
+
+def save_bouts_to_hdf5_group(bouts, hdf5_group):
+    """
+    Given a list of bouts and a HDF5 group, save the bouts as 2 separate HDF5 datasets of starts and ends.
+    Calculate start anchor time as earliest start_timestamp of bout, calculate the rest as offsets in milliseconds since that time.
+    HDF5 datasets to be called start_timestamps and end_timestamps.
+    """
+
+    num_bouts = len(bouts)
+
+    # Get the earliest start_timestamp in the list of bouts
+    anchor = np.min([bout.start_timestamp for bout in bouts])
+
+    # Express the timestamps as number of milliseconds since "anchor"
+    starts = np.empty(num_bouts, dtype="uint32")
+    ends = np.empty(num_bouts, dtype="uint32")
+
+    for i,b in enumerate(bouts):
+
+        starts[i] = (b.start_timestamp - anchor)/timedelta(microseconds=1000)
+        ends[i] = (b.end_timestamp - anchor)/timedelta(microseconds=1000)
+
+    # Make sure they're unsigned 32 bit ints
+    starts = starts.astype("uint32")
+    ends = ends.astype("uint32")
+
+    # Save the anchor as an attribute called "start"
+    hdf5_group.attrs["start"] = anchor.strftime("%d/%m/%Y %H:%M:%S")
+
+    start = hdf5_group.create_dataset("start_timestamps", (num_bouts,), chunks=True, compression="gzip", shuffle=True, compression_opts=9, dtype="uint32")
+    start[...] = starts
+
+    end = hdf5_group.create_dataset("end_timestamps", (num_bouts,), chunks=True, compression="gzip", shuffle=True, compression_opts=9, dtype="uint32")
+    end[...] = ends
+
+def save_bouts(bouts, output, group_name):
+
+    if type(output) is h5py._hl.files.File:
+
+        f = output
+
+    elif type(output) is str:
+
+        if not output.endswith(".hdf5"):
+            output += ".hdf5"
+            print("Adding .hdf5 extension to filename - file will be saved in " + output)
+
+        f = h5py.File(output, "w")
+
+    else:
+        raise Exception("Incompatible type of output supplied: {}".format(str(type(output))))
+
+    group = f.create_group(group_name)
+    group.attrs["pampro_type"] = "bouts"
+    save_bouts_to_hdf5_group(bouts, group)
 
 def load_time_series(hdf5_group):
     """
