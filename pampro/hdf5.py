@@ -26,7 +26,12 @@ def load_time_series(hdf5_group):
 
             chan = Channel.Channel(dataset_name)
             chan.start = start
-            chan.set_contents(d[:], timestamps, timestamp_policy="offset")
+
+            # Any meta data on the dataset is copied to the Channel object
+            for attr_name, attr_value in d.attrs.items():
+                setattr(chan, attr_name, attr_value)
+
+            chan.set_contents(d[:], timestamps[:], timestamp_policy="offset")
 
             ts.add_channel(chan)
 
@@ -71,81 +76,19 @@ def interpolate_offsets(offsets, data_length):
 
     return full_offsets
 
-def save_bouts_to_hdf5_group(bouts, hdf5_group):
-    """
-    Given a list of bouts and a HDF5 group, save the bouts as 2 separate HDF5 datasets of starts and ends.
-    Calculate start anchor time as earliest start_timestamp of bout, calculate the rest as offsets in milliseconds since that time.
-    HDF5 datasets to be called start_timestamps and end_timestamps.
-    """
 
-    num_bouts = len(bouts)
-
-    # Get the earliest start_timestamp in the list of bouts
-    anchor = np.min([bout.start_timestamp for bout in bouts])
-
-    # Express the timestamps as number of milliseconds since "anchor"
-    starts = np.empty(num_bouts, dtype="uint32")
-    ends = np.empty(num_bouts, dtype="uint32")
-
-    for i,b in enumerate(bouts):
-
-        starts[i] = (b.start_timestamp - anchor)/timedelta(microseconds=1000)
-        ends[i] = (b.end_timestamp - anchor)/timedelta(microseconds=1000)
-
-    # Make sure they're unsigned 32 bit ints
-    starts = starts.astype("uint32")
-    ends = ends.astype("uint32")
-
-    # Save the anchor as an attribute called "start"
-    hdf5_group.attrs["start"] = anchor.strftime("%d/%m/%Y %H:%M:%S")
-
-    start = hdf5_group.create_dataset("start_timestamps", (num_bouts,), chunks=True, compression="gzip", shuffle=True, compression_opts=9, dtype="uint32")
-    start[...] = starts
-
-    end = hdf5_group.create_dataset("end_timestamps", (num_bouts,), chunks=True, compression="gzip", shuffle=True, compression_opts=9, dtype="uint32")
-    end[...] = ends
-
-
-def save_bouts(bouts, output, group_name):
-
-    if type(output) is h5py._hl.files.File:
-
-        f = output
-
-    elif type(output) is str:
-
-        if not output.endswith(".hdf5"):
-            output += ".hdf5"
-            print("Adding .hdf5 extension to filename - file will be saved in " + output)
-
-        f = h5py.File(output, "w")
-
-    else:
-        raise Exception("Incompatible type of output supplied: {}".format(str(type(output))))
-
-    group = f.create_group(group_name)
-    group.attrs["pampro_type"] = "bouts"
-    save_bouts_to_hdf5_group(bouts, group)
-
-def save(ts, output, groups=[("Raw", ["X", "Y", "Z"])], data_type="float64", compression=9):
+def save(ts, output_filename, groups=[("Raw", ["X", "Y", "Z"])], meta_candidates=["offset", "scale", "calibrated"]):
     """
     Output a Time_Series object to a HDF5 container, for super-fast loading by the data_loading module.
     For information on HDF5: https://www.hdfgroup.org/HDF5/
     For information on the Python HDF5 implementation used here: http://www.h5py.org/
     """
 
-    # If we have been given a h5py file, just use that
-    if type(output) is h5py._hl.files.File:
+    if not output_filename.endswith(".hdf5"):
+        output_filename += ".hdf5"
+        print("Adding .hdf5 extension to filename - file will be saved in " + output_filename)
 
-        f = output
-
-    # If it's a string, assume it is a filename to create one
-    elif type(output) is str:
-
-        f = h5py.File(output, "w")
-
-    else:
-        raise Exception("Incompatible type of output supplied: {}".format(str(type(output))))
+    f = h5py.File(output_filename, "w")
 
     # Each tuple in the variable "groups" becomes a HDF5 group inside the container
     # For example, the default groups=[("Raw", ["X", "Y", "Z"])] means create 1 group called Raw, with 3 channels
@@ -153,8 +96,6 @@ def save(ts, output, groups=[("Raw", ["X", "Y", "Z"])], data_type="float64", com
     for group_name, channels in groups:
 
         group = f.create_group(group_name)
-
-        group.attrs["pampro_type"] = "channels"
 
         first_channel = ts[channels[0]]
         timestamps = first_channel.timestamps
@@ -181,8 +122,17 @@ def save(ts, output, groups=[("Raw", ["X", "Y", "Z"])], data_type="float64", com
         for channel_name in channels:
 
             channel = ts[channel_name]
-            dset = group.create_dataset(channel.name, (data_length,), chunks=True, compression="gzip", shuffle=True, compression_opts=compression, dtype=data_type)
+            dset = group.create_dataset(channel.name, (data_length,), chunks=True, compression="gzip", shuffle=True, compression_opts=9, dtype="float64")
             dset[...] = channel.data
+
+            # If the Channel has any of these properties, preserve them as attrs in HDF5 counterpart
+            for mc in meta_candidates:
+
+                if hasattr(channel, mc):
+                    print(channel_name, mc)
+                    dset.attrs[mc] = getattr(channel, mc)
+                else:
+                    print("nope", channel_name, mc)
 
         offsets_dset = group.create_dataset("timestamps", (data_length,), chunks=True, compression="gzip", shuffle=True, compression_opts=9, dtype="uint32")
         offsets_dset[...] = offsets
