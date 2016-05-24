@@ -77,7 +77,7 @@ def interpolate_offsets(offsets, data_length):
     return full_offsets
 
 
-def save(ts, output_filename, groups=[("Raw", ["X", "Y", "Z"])], meta_candidates=["offset", "scale", "calibrated"]):
+def save(ts, output_filename, groups=[("Raw", ["X", "Y", "Z"])], meta_candidates=["offset", "scale", "calibrated", "frequency"]):
     """
     Output a Time_Series object to a HDF5 container, for super-fast loading by the data_loading module.
     For information on HDF5: https://www.hdfgroup.org/HDF5/
