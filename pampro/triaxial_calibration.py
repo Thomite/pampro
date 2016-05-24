@@ -211,8 +211,16 @@ def do_calibration(x,y,z,values):
     y.data = values[2] + (y.data * values[3])
     z.data = values[4] + (z.data * values[5])
 
+    x.offset = values[0]
+    x.scale = values[1]
     x.calibrated = True
+
+    y.offset = values[2]
+    y.scale = values[3]
     y.calibrated = True
+
+    z.offset = values[4]
+    z.scale = values[5]
     z.calibrated = True
 
 def undo_calibration(x,y,z,values):
@@ -228,6 +236,13 @@ def undo_calibration(x,y,z,values):
     x.calibrated = False
     y.calibrated = False
     z.calibrated = False
+
+def undo_calibration_using_diagnostics(x,y,z,cd):
+    """
+    Convenience function that pulls the offset and scale values out of a regular calibration diagnostics dictionary.
+    """
+    undo_calibration(x, y, z, [cd["x_offset"],cd["x_scale"],cd["y_offset"],cd["y_scale"],cd["z_offset"],cd["z_scale"]] )
+
 
 def evaluate_solution(still_x, still_y, still_z, still_n, calibration_parameters):
     """ Calculates the RMSE of the input XYZ signal if calibrated according to input calibration parameters"""

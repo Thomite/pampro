@@ -129,10 +129,7 @@ def save(ts, output_filename, groups=[("Raw", ["X", "Y", "Z"])], meta_candidates
             for mc in meta_candidates:
 
                 if hasattr(channel, mc):
-                    print(channel_name, mc)
                     dset.attrs[mc] = getattr(channel, mc)
-                else:
-                    print("nope", channel_name, mc)
 
         offsets_dset = group.create_dataset("timestamps", (data_length,), chunks=True, compression="gzip", shuffle=True, compression_opts=9, dtype="uint32")
         offsets_dset[...] = offsets
