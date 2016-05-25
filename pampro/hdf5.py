@@ -6,6 +6,88 @@ import h5py
 import numpy as np
 import math
 
+def get_appropriate_cache(name, args, parameter_names, hdf5_file):
+
+    #
+    if "cache/"+name in hdf5_file:
+        for group_name, group in hdf5_file["cache/"+name].items():
+
+            # Start by assuming this cache contains suitable results
+            suitable = True
+
+            # But disprove it by checking if each parmeter is the same
+            for param in parameter_names:
+
+                if group.attrs[param] != str(args[param]):
+
+                    suitable = False
+
+            if suitable:
+                return group
+
+    # None of the caches under "cache/name" were ran with the same parameters
+    return None
+
+def make_cache(name, args, parameter_names, hdf5_file):
+    """
+    Create a HDF5 group suitable for caching the results of a process.
+    This saves each setter() function from having to write function parameters and finding a suitable group name.
+    """
+
+    if "cache/"+name in hdf5_file:
+
+        # If no cache exists for this function, it will be 0
+        num_existing_alternatives = len(hdf5_file["cache/"+name])
+
+    else:
+
+        num_existing_alternatives = 0
+
+    # Label each group numerically
+    hdf5_group = hdf5_file.create_group("cache/"+name+"/"+str(num_existing_alternatives))
+
+    for param in parameter_names:
+
+        hdf5_group.attrs[param] = str(args[param])
+
+    return hdf5_group
+
+def do_if_not_cached(name, method, args, parameter_names, getter, setter, hdf5_file):
+    """
+    This is a wrapper for time-intensive functions. It contains the logic to reuse cached results from previous analyses.
+    The method to be executed if no cache is available
+    The method that extracts the cached result from the HDF5 file
+    The method that saves a cached result to the HDF5 file
+    """
+
+    # If the user didn't pass a HDF5 file reference, we can't get or set a cache
+    if hdf5_file is None:
+
+        r = method(**args)
+
+    else:
+        # (Convention is to store a cache under "cache/name/0", "cache/name/1", etc.)
+        # If a cache exists with the right name in the HDF5 file
+        # There may be many caches for different parameters, get the right ones
+        hdf5_group = get_appropriate_cache(name, args, parameter_names, hdf5_file)
+        if hdf5_group is not None:
+
+            # Call the appropriate method to load the cache
+            r = getter(hdf5_group)
+
+        else:
+        # A cached result was not found
+
+            # So call the nominated function to get the result
+            r = method(**args)
+
+            # Create a cache suitable to store the results in
+            # And cache the result for when the function is called again
+            hdf5_group = make_cache(name, args, parameter_names, hdf5_file)
+            setter(r, hdf5_group)
+
+    return r
+
 def dictionary_to_attributes(dictionary, hdf5_thing):
     """
     Write each item in the given dictionary as an attribute attached to the HDF5 group or dataset.

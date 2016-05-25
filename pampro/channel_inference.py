@@ -1,6 +1,6 @@
 
 from datetime import timedelta
-from pampro import Channel, Bout, Time_Series, time_utilities, pampro_fourier
+from pampro import Channel, Bout, Time_Series, time_utilities, pampro_fourier, hdf5
 import numpy as np
 import copy
 
@@ -218,25 +218,38 @@ def infer_still_bouts_triaxial(x, y, z, window_size=timedelta(seconds=10), noise
 
     return x_intersect_y_intersect_z
 
-
-def infer_nonwear_triaxial(x, y, z, minimum_length=timedelta(hours=1), noise_cutoff_mg=13, return_nonwear_binary=False):
-
-    ''' Use the 3 channels of triaxial acceleration to infer periods of nonwear '''
-
+def infer_nonwear_triaxial_method(x, y, z, minimum_length=timedelta(hours=1), noise_cutoff_mg=13):
     # Get an exhaustive list of bouts where the monitor was still
-    x_intersect_y_intersect_z = infer_still_bouts_triaxial(x,y,z, noise_cutoff_mg=noise_cutoff_mg, minimum_length=minimum_length)
+    x_intersect_y_intersect_z = infer_still_bouts_triaxial(x, y, z, noise_cutoff_mg=noise_cutoff_mg, minimum_length=minimum_length)
 
     # Restrict those bouts to only those with a length that exceeds the minimum length criterion
     x_intersect_y_intersect_z = Bout.limit_to_lengths(x_intersect_y_intersect_z, min_length=minimum_length)
 
-    # Legacy code - probably going to delete this
-    if return_nonwear_binary:
-        # Create a parallel, binary channel indicating if that time point was in or out of wear
-        nonwear_binary = Channel.channel_from_bouts(x_intersect_y_intersect_z, x.timeframe, False, "nonwear", skeleton=x)
+    return x_intersect_y_intersect_z
 
-        return (x_intersect_y_intersect_z, nonwear_binary)
-    else:
-        return x_intersect_y_intersect_z
+def get_infer_nonwear_triaxial(hdf5_group):
+    """
+    Getter method for infer_nonwear_triaxial
+    """
+
+    nonwear_bouts = hdf5.load_bouts_from_hdf5_group(hdf5_group)
+    return nonwear_bouts
+
+def set_infer_nonwear_triaxial(nonwear_bouts, hdf5_group):
+    """
+    Setter method for infer_nonwear_triaxial
+    """
+
+    hdf5.save_bouts_to_hdf5_group(nonwear_bouts, hdf5_group)
+
+def infer_nonwear_triaxial(x, y, z, minimum_length=timedelta(hours=1), noise_cutoff_mg=13, hdf5_file=None):
+    """
+    Use the 3 channels of triaxial acceleration to infer periods of nonwear
+    """
+
+    args = {"x":x, "y":y, "z":z, "minimum_length":minimum_length, "noise_cutoff_mg":noise_cutoff_mg}
+    params = ["minimum_length", "noise_cutoff_mg"]
+    return hdf5.do_if_not_cached("infer_nonwear_triaxial", infer_nonwear_triaxial_method, args, params, get_infer_nonwear_triaxial, set_infer_nonwear_triaxial, hdf5_file)
 
 def infer_valid_days(channel, wear_bouts, valid_criterion=timedelta(hours=10)):
 
