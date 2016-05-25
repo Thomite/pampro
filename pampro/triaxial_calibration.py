@@ -8,19 +8,17 @@ from scipy import stats
 import numpy as np
 from collections import OrderedDict
 
-def get_calibrate_cache(hdf5_file):
+def get_calibrate(hdf5_group):
     """
-    This hdf5 file object contains a calibate cache, load it and return the results
+    This hdf5 file object contains a calirbate cache, load it and return the results
     """
 
-    return hdf5.dictionary_from_attributes(hdf5_file["cache/calibrate"])
+    return hdf5.dictionary_from_attributes(hdf5_group)
 
-def set_calibrate_cache(hdf5_file, cache):
+def set_calibrate(cache, hdf5_group):
     """
     Create a group for the cached results of calibrate() and write the cache to it
     """
-
-    hdf5_group = hdf5_file.create_group("cache/calibrate")
 
     hdf5.dictionary_to_attributes(cache, hdf5_group)
 
@@ -176,24 +174,9 @@ def calibrate_slave(x, y, z, budget=1000, noise_cutoff_mg=13):
 def calibrate(x, y, z, budget=1000, noise_cutoff_mg=13, hdf5_file=None):
     """ Use still bouts in the given triaxial data to calibrate it and return the calibrated channels """
 
-    # If the user has opted to pass a HDF5 file object, assume they want to load a cache if possible, and cache results afterwards
-    if hdf5_file is not None:
-
-        # If there is already a cache saved for this exact method
-        if "cache/calibrate" in hdf5_file:
-
-            # Fetch from that cache
-            calibration_diagnostics = get_calibrate_cache(hdf5_file)
-
-        # We've been given a container but there was no cache - do the actual calibration and save the results
-        else:
-
-            calibration_diagnostics = calibrate_slave(x, y, z, budget, noise_cutoff_mg)
-            set_calibrate_cache(hdf5_file, calibration_diagnostics)
-
-    else:
-    # No HDF5 supplied, so no way to get cached results or save them afterwards
-        calibration_diagnostics = calibrate_slave(x, y, z, budget, noise_cutoff_mg)
+    args = {"x":x, "y":y, "z":z, "budget":budget, "noise_cutoff_mg":noise_cutoff_mg}
+    params = ["budget", "noise_cutoff_mg"]
+    calibration_diagnostics = hdf5.do_if_not_cached("calibrate", calibrate_slave, args, params, get_calibrate, set_calibrate, hdf5_file)
 
     # Regardless of how we get the results, extract the offset and scales
     calibration_parameters = [calibration_diagnostics[var] for var in ["x_offset", "x_scale", "y_offset", "y_scale", "z_offset", "z_scale"]]
