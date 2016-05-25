@@ -25,6 +25,26 @@ def dictionary_from_attributes(hdf5_thing):
 
     return dictionary
 
+def load_bouts_from_hdf5_group(hdf5_group):
+    """
+    Load and return a list of bouts stored in the given HDF5 group.
+    Assumes they are saved according to the layout defined in save_bouts_to_hdf5_group().
+    """
+
+    start_timestamps = hdf5_group["start_timestamps"][:]
+    end_timestamps = hdf5_group["end_timestamps"][:]
+
+    start = datetime.strptime(hdf5_group.attrs["start"], "%d/%m/%Y %H:%M:%S")
+
+    bouts = []
+
+    one_ms = timedelta(microseconds=1000)
+    for a,b in zip(start_timestamps, end_timestamps):
+
+        bouts.append(Bout.Bout(start + one_ms*a, start + one_ms*b))
+
+    return bouts
+
 def save_bouts_to_hdf5_group(bouts, hdf5_group):
     """
     Given a list of bouts and a HDF5 group, save the bouts as 2 separate HDF5 datasets of starts and ends.
@@ -66,10 +86,6 @@ def save_bouts(bouts, output, group_name):
         f = output
 
     elif type(output) is str:
-
-        if not output.endswith(".hdf5"):
-            output += ".hdf5"
-            print("Adding .hdf5 extension to filename - file will be saved in " + output)
 
         f = h5py.File(output, "w")
 
@@ -151,7 +167,7 @@ def interpolate_offsets(offsets, data_length):
     return full_offsets
 
 
-def save(ts, output_filename, groups=[("Raw", ["X", "Y", "Z"])], meta_candidates=["offset", "scale", "calibrated", "frequency"]):
+def save(ts, output_filename, groups=[("Raw", ["X", "Y", "Z"])], meta_candidates=["calibrated", "frequency"]):
     """
     Output a Time_Series object to a HDF5 container, for super-fast loading by the data_loading module.
     For information on HDF5: https://www.hdfgroup.org/HDF5/
