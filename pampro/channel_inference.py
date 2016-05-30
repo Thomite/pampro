@@ -196,8 +196,22 @@ def infer_nonwear_actigraph(counts, zero_minutes=timedelta(minutes=60)):
 
     return nonwear_bouts, wear_bouts
 
-def infer_still_bouts_triaxial(x, y, z, window_size=timedelta(seconds=10), noise_cutoff_mg=13, minimum_length=timedelta(seconds=10)):
+def get_still_bouts_triaxial(hdf5_group):
+    """
+    Getter method for infer_still_bouts_triaxial
+    """
 
+    still_bouts = hdf5.load_bouts_from_hdf5_group(hdf5_group)
+    return still_bouts
+
+def set_still_bouts_triaxial(still_bouts, hdf5_group):
+    """
+    Setter method for infer_still_bouts_triaxial
+    """
+
+    hdf5.save_bouts_to_hdf5_group(still_bouts, hdf5_group)
+
+def infer_still_bouts_triaxial_method(x, y, z, window_size=timedelta(seconds=10), noise_cutoff_mg=13, minimum_length=timedelta(seconds=10)):
     # Get windows of standard deviation in each axis
     x_std = x.piecewise_statistics(window_size, statistics=[("generic", ["std"])], time_period=x.timeframe)[0]
     y_std = y.piecewise_statistics(window_size, statistics=[("generic", ["std"])], time_period=y.timeframe)[0]
@@ -217,6 +231,15 @@ def infer_still_bouts_triaxial(x, y, z, window_size=timedelta(seconds=10), noise
     x_intersect_y_intersect_z = Bout.bout_list_intersection(x_intersect_y, z_bouts)
 
     return x_intersect_y_intersect_z
+
+def infer_still_bouts_triaxial(x, y, z, window_size=timedelta(seconds=10), noise_cutoff_mg=13, minimum_length=timedelta(seconds=10), hdf5_file=None):
+    """
+    Find a list of bouts where the standard deviation of each axis is below a given threshold, and is therefore still.
+    """
+
+    args = {"x":x, "y":y, "z":z, "window_size":window_size, "noise_cutoff_mg":noise_cutoff_mg, "minimum_length":minimum_length}
+    params = ["minimum_length", "noise_cutoff_mg", "window_size"]
+    return hdf5.do_if_not_cached("still_bouts_triaxial", infer_still_bouts_triaxial_method, args, params, get_still_bouts_triaxial, set_still_bouts_triaxial, hdf5_file)
 
 def infer_nonwear_triaxial_method(x, y, z, minimum_length=timedelta(hours=1), noise_cutoff_mg=13):
     # Get an exhaustive list of bouts where the monitor was still
