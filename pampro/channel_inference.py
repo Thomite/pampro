@@ -4,26 +4,6 @@ from pampro import Channel, Bout, Time_Series, time_utilities, pampro_fourier, h
 import numpy as np
 import copy
 
-def produce_binary_channels(bouts, lengths, skeleton_channel):
-
-    Bout.cache_lengths(bouts)
-    bouts.sort(key=lambda x: x.length, reverse=True)
-
-    channels = []
-    for length in lengths:
-
-        # Drop bouts from list if their length is less than x minutes
-        bouts = Bout.limit_to_lengths(bouts, min_length=length, sorted=True)
-
-        channel_name = "{}_mt{}".format(skeleton_channel.name,length)
-
-        # Clone the blank channel, set data to 1 where time is inside any of the bouts
-        skeleton_copy = copy.deepcopy(skeleton_channel)
-        chan = Channel.channel_from_bouts(bouts, False, False, channel_name, skeleton=skeleton_copy)
-        channels.append(chan)
-
-    return channels
-
 def activpal_classification(pitch):
 
     transition_sit_stand = 32 # Sit -> Stand if angle >= 32
@@ -78,44 +58,6 @@ def activpal_classification(pitch):
 
     return classification
 
-def infer_sleep_actiheart(actiheart_activity, actiheart_ecg):
-
-    ecg_ma = actiheart_ecg.moving_average(30)
-    activity_ma = actiheart_activity.moving_average(30)
-
-    ecg_norm = ecg_ma.clone()
-    ecg_norm.normalise()
-    activity_norm = activity_ma.clone()
-    activity_norm.normalise()
-
-    product = Channel.Channel("Probability of being awake")
-    product.set_contents( np.multiply(ecg_norm.data, activity_norm.data), ecg_norm.timestamps)
-    product.moving_average(30)
-
-    #print(product.data)
-    #print(activity_norm.data)
-    #print(ecg_norm.data)
-    return product
-
-def infer_magic(x,y,z):
-
-    xdiff = np.abs(np.diff(x.data))
-    ydiff = np.abs(np.diff(y.data))
-    zdiff = np.abs(np.diff(z.data))
-
-    xdiffchan = Channel.Channel("Xdiff")
-    ydiffchan = Channel.Channel("Ydiff")
-    zdiffchan = Channel.Channel("Zdiff")
-
-    xdiffchan.set_contents(xdiff, x.timestamps)
-    ydiffchan.set_contents(ydiff, y.timestamps)
-    zdiffchan.set_contents(zdiff, z.timestamps)
-
-    vmdiff = infer_vector_magnitude(xdiffchan, ydiffchan, zdiffchan)
-    vmdiff.name = "Magic"
-
-    return vmdiff
-
 def infer_vector_magnitude(x,y,z):
 
     result = Channel.Channel("VM")
@@ -129,6 +71,9 @@ def infer_vector_magnitude(x,y,z):
     return result
 
 def infer_pitch_roll(x,y,z):
+    """
+    Infer pitch and roll channels from raw triaxial acceleration channels.
+    """
 
     pitch = Channel.Channel("Pitch")
     roll = Channel.Channel("Roll")
@@ -145,7 +90,9 @@ def infer_pitch_roll(x,y,z):
     return [pitch, roll]
 
 def infer_enmo(vm):
-    """ Subtract 1g from Vector Magnitude signal, truncate results below 0 to 0 """
+    """
+    Subtract 1g from Vector Magnitude signal, truncate results below 0 to 0
+    """
 
     result = Channel.Channel("ENMO")
 
