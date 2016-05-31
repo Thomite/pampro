@@ -6,7 +6,21 @@ import h5py
 import numpy as np
 import math
 
+def list_caches(hdf5_file):
+    """
+    List the name of any functions that have their results cached in this file.
+    """
+
+    if "cache" in hdf5_file:
+
+        return list(hdf5_file["cache"].keys())
+    else:
+        return "Empty"
+
 def get_appropriate_cache(name, args, parameter_names, hdf5_file):
+    """
+    Return the cached results of a given method, only if the arguments passed to it are identical to those in the cache.
+    """
 
     #
     if "cache/"+name in hdf5_file:
@@ -89,14 +103,18 @@ def do_if_not_cached(name, method, args, parameter_names, getter, setter, hdf5_f
     return r
 
 def delete_cache(hdf5_file):
+    """
+    Delete the cache folder and its subfolders. Any subsequent query on the cache will conclude nothing has been cached.
+    Returns True if there was a cache to delete, False if there was not.
+    """
 
     try:
 
         del hdf5_file["cache"]
-        print("Cache deleted")
+        return True
 
     except:
-        print("No cache found")
+        return False
 
 def dictionary_to_attributes(dictionary, hdf5_thing):
     """
