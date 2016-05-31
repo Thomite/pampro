@@ -4,26 +4,6 @@ from pampro import Channel, Bout, Time_Series, time_utilities, pampro_fourier, h
 import numpy as np
 import copy
 
-def produce_binary_channels(bouts, lengths, skeleton_channel):
-
-    Bout.cache_lengths(bouts)
-    bouts.sort(key=lambda x: x.length, reverse=True)
-
-    channels = []
-    for length in lengths:
-
-        # Drop bouts from list if their length is less than x minutes
-        bouts = Bout.limit_to_lengths(bouts, min_length=length, sorted=True)
-
-        channel_name = "{}_mt{}".format(skeleton_channel.name,length)
-
-        # Clone the blank channel, set data to 1 where time is inside any of the bouts
-        skeleton_copy = copy.deepcopy(skeleton_channel)
-        chan = Channel.channel_from_bouts(bouts, False, False, channel_name, skeleton=skeleton_copy)
-        channels.append(chan)
-
-    return channels
-
 def activpal_classification(pitch):
 
     transition_sit_stand = 32 # Sit -> Stand if angle >= 32
@@ -78,44 +58,6 @@ def activpal_classification(pitch):
 
     return classification
 
-def infer_sleep_actiheart(actiheart_activity, actiheart_ecg):
-
-    ecg_ma = actiheart_ecg.moving_average(30)
-    activity_ma = actiheart_activity.moving_average(30)
-
-    ecg_norm = ecg_ma.clone()
-    ecg_norm.normalise()
-    activity_norm = activity_ma.clone()
-    activity_norm.normalise()
-
-    product = Channel.Channel("Probability of being awake")
-    product.set_contents( np.multiply(ecg_norm.data, activity_norm.data), ecg_norm.timestamps)
-    product.moving_average(30)
-
-    #print(product.data)
-    #print(activity_norm.data)
-    #print(ecg_norm.data)
-    return product
-
-def infer_magic(x,y,z):
-
-    xdiff = np.abs(np.diff(x.data))
-    ydiff = np.abs(np.diff(y.data))
-    zdiff = np.abs(np.diff(z.data))
-
-    xdiffchan = Channel.Channel("Xdiff")
-    ydiffchan = Channel.Channel("Ydiff")
-    zdiffchan = Channel.Channel("Zdiff")
-
-    xdiffchan.set_contents(xdiff, x.timestamps)
-    ydiffchan.set_contents(ydiff, y.timestamps)
-    zdiffchan.set_contents(zdiff, z.timestamps)
-
-    vmdiff = infer_vector_magnitude(xdiffchan, ydiffchan, zdiffchan)
-    vmdiff.name = "Magic"
-
-    return vmdiff
-
 def infer_vector_magnitude(x,y,z):
 
     result = Channel.Channel("VM")
@@ -129,6 +71,9 @@ def infer_vector_magnitude(x,y,z):
     return result
 
 def infer_pitch_roll(x,y,z):
+    """
+    Infer pitch and roll channels from raw triaxial acceleration channels.
+    """
 
     pitch = Channel.Channel("Pitch")
     roll = Channel.Channel("Roll")
@@ -145,7 +90,9 @@ def infer_pitch_roll(x,y,z):
     return [pitch, roll]
 
 def infer_enmo(vm):
-    """ Subtract 1g from Vector Magnitude signal, truncate results below 0 to 0 """
+    """
+    Subtract 1g from Vector Magnitude signal, truncate results below 0 to 0
+    """
 
     result = Channel.Channel("ENMO")
 
@@ -196,8 +143,22 @@ def infer_nonwear_actigraph(counts, zero_minutes=timedelta(minutes=60)):
 
     return nonwear_bouts, wear_bouts
 
-def infer_still_bouts_triaxial(x, y, z, window_size=timedelta(seconds=10), noise_cutoff_mg=13, minimum_length=timedelta(seconds=10)):
+def get_still_bouts_triaxial(hdf5_group):
+    """
+    Getter method for infer_still_bouts_triaxial
+    """
 
+    still_bouts = hdf5.load_bouts_from_hdf5_group(hdf5_group)
+    return still_bouts
+
+def set_still_bouts_triaxial(still_bouts, hdf5_group):
+    """
+    Setter method for infer_still_bouts_triaxial
+    """
+
+    hdf5.save_bouts_to_hdf5_group(still_bouts, hdf5_group)
+
+def infer_still_bouts_triaxial_method(x, y, z, window_size=timedelta(seconds=10), noise_cutoff_mg=13, minimum_length=timedelta(seconds=10)):
     # Get windows of standard deviation in each axis
     x_std = x.piecewise_statistics(window_size, statistics=[("generic", ["std"])], time_period=x.timeframe)[0]
     y_std = y.piecewise_statistics(window_size, statistics=[("generic", ["std"])], time_period=y.timeframe)[0]
@@ -217,6 +178,15 @@ def infer_still_bouts_triaxial(x, y, z, window_size=timedelta(seconds=10), noise
     x_intersect_y_intersect_z = Bout.bout_list_intersection(x_intersect_y, z_bouts)
 
     return x_intersect_y_intersect_z
+
+def infer_still_bouts_triaxial(x, y, z, window_size=timedelta(seconds=10), noise_cutoff_mg=13, minimum_length=timedelta(seconds=10), hdf5_file=None):
+    """
+    Find a list of bouts where the standard deviation of each axis is below a given threshold, and is therefore still.
+    """
+
+    args = {"x":x, "y":y, "z":z, "window_size":window_size, "noise_cutoff_mg":noise_cutoff_mg, "minimum_length":minimum_length}
+    params = ["minimum_length", "noise_cutoff_mg", "window_size"]
+    return hdf5.do_if_not_cached("still_bouts_triaxial", infer_still_bouts_triaxial_method, args, params, get_still_bouts_triaxial, set_still_bouts_triaxial, hdf5_file)
 
 def infer_nonwear_triaxial_method(x, y, z, minimum_length=timedelta(hours=1), noise_cutoff_mg=13):
     # Get an exhaustive list of bouts where the monitor was still
