@@ -88,6 +88,16 @@ def do_if_not_cached(name, method, args, parameter_names, getter, setter, hdf5_f
 
     return r
 
+def delete_cache(hdf5_file):
+
+    try:
+
+        del hdf5_file["cache"]
+        print("Cache deleted")
+
+    except:
+        print("No cache found")
+
 def dictionary_to_attributes(dictionary, hdf5_thing):
     """
     Write each item in the given dictionary as an attribute attached to the HDF5 group or dataset.
@@ -113,17 +123,20 @@ def load_bouts_from_hdf5_group(hdf5_group):
     Assumes they are saved according to the layout defined in save_bouts_to_hdf5_group().
     """
 
-    start_timestamps = hdf5_group["start_timestamps"][:]
-    end_timestamps = hdf5_group["end_timestamps"][:]
-
-    start = datetime.strptime(hdf5_group.attrs["start"], "%d/%m/%Y %H:%M:%S")
-
+    num_bouts = hdf5_group.attrs["num_bouts"]
     bouts = []
 
-    one_ms = timedelta(microseconds=1000)
-    for a,b in zip(start_timestamps, end_timestamps):
+    if num_bouts > 0:
 
-        bouts.append(Bout.Bout(start + one_ms*a, start + one_ms*b))
+        start_timestamps = hdf5_group["start_timestamps"][:]
+        end_timestamps = hdf5_group["end_timestamps"][:]
+
+        start = datetime.strptime(hdf5_group.attrs["start"], "%d/%m/%Y %H:%M:%S")
+
+        one_ms = timedelta(microseconds=1000)
+        for a,b in zip(start_timestamps, end_timestamps):
+
+            bouts.append(Bout.Bout(start + one_ms*a, start + one_ms*b))
 
     return bouts
 
@@ -135,31 +148,34 @@ def save_bouts_to_hdf5_group(bouts, hdf5_group):
     """
 
     num_bouts = len(bouts)
+    hdf5_group.attrs["num_bouts"] = num_bouts
 
-    # Get the earliest start_timestamp in the list of bouts
-    anchor = np.min([bout.start_timestamp for bout in bouts])
+    if num_bouts > 0:
 
-    # Express the timestamps as number of milliseconds since "anchor"
-    starts = np.empty(num_bouts, dtype="uint32")
-    ends = np.empty(num_bouts, dtype="uint32")
+        # Get the earliest start_timestamp in the list of bouts
+        anchor = np.min([bout.start_timestamp for bout in bouts])
 
-    for i,b in enumerate(bouts):
+        # Express the timestamps as number of milliseconds since "anchor"
+        starts = np.empty(num_bouts, dtype="uint32")
+        ends = np.empty(num_bouts, dtype="uint32")
 
-        starts[i] = (b.start_timestamp - anchor)/timedelta(microseconds=1000)
-        ends[i] = (b.end_timestamp - anchor)/timedelta(microseconds=1000)
+        for i,b in enumerate(bouts):
 
-    # Make sure they're unsigned 32 bit ints
-    starts = starts.astype("uint32")
-    ends = ends.astype("uint32")
+            starts[i] = (b.start_timestamp - anchor)/timedelta(microseconds=1000)
+            ends[i] = (b.end_timestamp - anchor)/timedelta(microseconds=1000)
 
-    # Save the anchor as an attribute called "start"
-    hdf5_group.attrs["start"] = anchor.strftime("%d/%m/%Y %H:%M:%S")
+        # Make sure they're unsigned 32 bit ints
+        starts = starts.astype("uint32")
+        ends = ends.astype("uint32")
 
-    start = hdf5_group.create_dataset("start_timestamps", (num_bouts,), chunks=True, compression="gzip", shuffle=True, compression_opts=9, dtype="uint32")
-    start[...] = starts
+        # Save the anchor as an attribute called "start"
+        hdf5_group.attrs["start"] = anchor.strftime("%d/%m/%Y %H:%M:%S")
 
-    end = hdf5_group.create_dataset("end_timestamps", (num_bouts,), chunks=True, compression="gzip", shuffle=True, compression_opts=9, dtype="uint32")
-    end[...] = ends
+        start = hdf5_group.create_dataset("start_timestamps", (num_bouts,), chunks=True, compression="gzip", shuffle=True, compression_opts=9, dtype="uint32")
+        start[...] = starts
+
+        end = hdf5_group.create_dataset("end_timestamps", (num_bouts,), chunks=True, compression="gzip", shuffle=True, compression_opts=9, dtype="uint32")
+        end[...] = ends
 
 def save_bouts(bouts, output, group_name):
 
@@ -249,7 +265,7 @@ def interpolate_offsets(offsets, data_length):
     return full_offsets
 
 
-def save(ts, output_filename, groups=[("Raw", ["X", "Y", "Z"])], meta_candidates=["calibrated", "frequency"]):
+def save(ts, output_filename, groups=[("Raw", ["X", "Y", "Z"])], meta_candidates=["calibrated", "frequency"], compression=4, data_type="float32"):
     """
     Output a Time_Series object to a HDF5 container, for super-fast loading by the data_loading module.
     For information on HDF5: https://www.hdfgroup.org/HDF5/
@@ -294,7 +310,7 @@ def save(ts, output_filename, groups=[("Raw", ["X", "Y", "Z"])], meta_candidates
         for channel_name in channels:
 
             channel = ts[channel_name]
-            dset = group.create_dataset(channel.name, (data_length,), chunks=True, compression="gzip", shuffle=True, compression_opts=9, dtype="float64")
+            dset = group.create_dataset(channel.name, (data_length,), chunks=True, compression="gzip", shuffle=True, compression_opts=compression, dtype=data_type)
             dset[...] = channel.data
 
             # If the Channel has any of these properties, preserve them as attrs in HDF5 counterpart
