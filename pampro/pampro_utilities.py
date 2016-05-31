@@ -1,5 +1,6 @@
 import re
 import collections
+import pandas as pd
 
 def design_variable_names(signal_name, stat):
 
@@ -136,10 +137,25 @@ def csv_line(vals):
     strval += "\n"
     return strval
 
-def dict_write(file_handle, id, dictionary):
-    """ Various functions now return a dictionary that needs to be outputted - this just outputs 1 line per call to the file handle of choice"""
+def dict_write(file_location, id, dictionary):
+    """
+    Append a dictionary as a row to a CSV, or create one if necessary. Indexed by the given ID.
+    """
 
-    if not file_handle.tell(): # if nothing has been written to the file yet
-        file_handle.write(csv_line(["id"]+list(dictionary.keys())))
-    file_handle.write(csv_line([id]+list(dictionary.values())))
-    file_handle.flush()
+    # Wrap each value in a list
+    for k,v in dictionary.items():
+        dictionary[k] = [v]
+    dictionary["id"] = [id]
+
+    # Create a 1 row dataset using the passed dictionary
+    df = pd.DataFrame.from_dict(dictionary).set_index("id")
+
+    try:
+        # Append the dataset from the file location
+        loaded = pd.read_csv(file_location).set_index("id")
+        df = df.append(loaded)
+    except:
+        pass
+
+    # Save everything to given location
+    df.to_csv(file_location, na_rep="-1")
