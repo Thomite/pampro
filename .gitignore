@@ -2,3 +2,4 @@
 /dist
 *.pyc
 pampro.egg-info
+tests/_data
