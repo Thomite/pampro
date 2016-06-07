@@ -8,6 +8,7 @@ import re
 from scipy.io.wavfile import write
 import zipfile
 from collections import OrderedDict
+from scipy.interpolate import interp1d
 
 from pampro import Time_Series, Bout, pampro_utilities, time_utilities
 
@@ -56,6 +57,31 @@ class Channel(object):
         # This allows us to call self.get_index_appropriately() rather than be slowed down by various if statements.
         get_index_methods = {"normal":self.get_data_index, "sparse":self.get_sparse_data_index, "offset":self.get_offset_data_index}
         self.get_index_appropriately = get_index_methods[self.timestamp_policy]
+
+    def resample(self, frequency):
+        """
+        Resample channel data to a given frequency
+        """
+
+        # This code will only produce sensible results for offset data right now!
+        if self.timestamp_policy == "offset":
+
+            # Yields a function that can be called with a new timestamp value
+            func = interp1d(self.timestamps, self.data)
+
+            # Every offset value from 0 to the highest offset seen, in increments of delta
+            # Where delta is in milliseconds (eg 100 Hz = 10 milliseconds)
+            delta = int((timedelta(seconds=1)/frequency).microseconds/1000)
+
+            new_timestamps = np.arange(0, max(self.timestamps), delta)
+
+            # func is a function, so we just give it new hypothetical offsets
+            new_data = func(new_timestamps)
+
+            self.set_contents(new_data, new_timestamps, timestamp_policy=self.timestamp_policy)
+            self.frequency = frequency
+        else:
+            print("NOPE.")
 
     def append(self, other_channel):
         """ Take the data and timestamps from another Channel and incorporate them into this one. """
