@@ -183,19 +183,31 @@ def parse_header(header, type, datetime_format):
 
     elif type == "Actigraph":
 
+        # Use lines 2 and 3 to get start date and time
         test = header[2].split(" ")
         timeval = datetime.strptime(test[-1], "%H:%M:%S")
         start_time = timedelta(hours=timeval.hour, minutes=timeval.minute, seconds=timeval.second)
         header_info["start_time"] = start_time
-
         test = header[3].split(" ")
         start_date = test[-1].replace("-", "/")
 
+        # Use lines 5 and 6 to get download date and time
+        test = header[5].split(" ")
+        timeval = datetime.strptime(test[-1], "%H:%M:%S")
+        download_time = timedelta(hours=timeval.hour, minutes=timeval.minute, seconds=timeval.second)
+        header_info["download_time"] = download_time
+        test = header[6].split(" ")
+        download_date = test[-1].replace("-", "/")
+
+        # Try to interpret the two dates using the user-provided format
         try:
             start_date = datetime.strptime(start_date, datetime_format)
+            download_date = datetime.strptime(download_date, datetime_format)
         except:
-            start_date = datetime.strptime(start_date, "%d/%m/%Y")
+            raise Exception("The given datetime format ({}) is incompatible with the start or download date.".format(datetime_format))
+
         header_info["start_date"] = start_date
+        header_info["download_date"] = download_date
 
         test = header[4].split(" ")
         delta = datetime.strptime(test[-1], "%H:%M:%S")
@@ -586,6 +598,10 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         epoch_length = header_info["epoch_length"]
         mode = header_info["mode"]
 
+        # If the mode is not one of those currently supported, raise an error
+        if mode not in [0,1,3,4,5]:
+            raise Exception("Mode {} is not currently supported.")
+
         count_list = []
         timestamp_list = []
 
@@ -597,12 +613,15 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
             line = f.readline().strip()
         f.close()
 
+        # Cast the strings to integers
         count_list = [int(c) for c in count_list]
-        #print(count_list)
+
+        # If the mode implies the data is count, steps
         if mode == 1 or mode == 3 or mode == 4:
 
             count_list = [a for a,b in zip(*[iter(count_list)]*2)]
 
+        # If the mode implies the data is count X, count Y, count Z
         elif mode == 5:
 
             count_list = [a for a,b,c in zip(*[iter(count_list)]*3)]
@@ -611,11 +630,6 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
 
         timestamps = np.array(timestamp_list)
         counts = np.abs(np.array(count_list))
-
-        #print timestamps[0], timestamps[-1]
-        #print sum(counts)
-
-
 
         chan = Channel.Channel("AG_Counts")
         chan.set_contents(counts, timestamps)
