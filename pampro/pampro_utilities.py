@@ -2,6 +2,7 @@ import re
 import collections
 import pandas as pd
 
+
 def design_variable_names(signal_name, stat):
 
     name = signal_name
@@ -141,6 +142,8 @@ def dict_write(file_location, id, dictionary):
     """
     Append a dictionary as a row to a CSV, or create one if necessary. Indexed by the given ID.
     """
+
+    dictionary = dictionary.copy()
 
     # Wrap each value in a list
     for k,v in dictionary.items():
