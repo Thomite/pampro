@@ -97,6 +97,10 @@ def calibrate_slave(x, y, z, budget=1000, noise_cutoff_mg=13):
     # calibrate() returns this dictionary, and passes it to hdf5.dictionary_to_attributes() for caching
     calibration_diagnostics = OrderedDict()
 
+    # Saving passed parameters for later reference
+    calibration_diagnostics["budget"] = budget
+    calibration_diagnostics["noise_cutoff_mg"] = noise_cutoff_mg
+    
     vm = channel_inference.infer_vector_magnitude(x,y,z)
 
     # Get a list of bouts where standard deviation in each axis is below given threshold ("still")
