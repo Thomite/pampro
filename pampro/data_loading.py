@@ -187,7 +187,7 @@ def parse_header(header, type, datetime_format):
         test = header[2].split(" ")
         timeval = datetime.strptime(test[-1], "%H:%M:%S")
         start_time = timedelta(hours=timeval.hour, minutes=timeval.minute, seconds=timeval.second)
-        header_info["start_time"] = start_time
+        header_info["start_time"] = str(start_time)
         test = header[3].split(" ")
         start_date = test[-1].replace("-", "/")
 
@@ -195,9 +195,14 @@ def parse_header(header, type, datetime_format):
         test = header[5].split(" ")
         timeval = datetime.strptime(test[-1], "%H:%M:%S")
         download_time = timedelta(hours=timeval.hour, minutes=timeval.minute, seconds=timeval.second)
-        header_info["download_time"] = download_time
+        header_info["download_time"] = str(download_time)
         test = header[6].split(" ")
         download_date = test[-1].replace("-", "/")
+
+        test = header[1].split(":")
+        header_info["serial_number"] = test[1].strip()
+
+        header_info["version_string"] = header[0].replace("-", "")
 
         # Try to interpret the two dates using the user-provided format
         try:
@@ -206,13 +211,13 @@ def parse_header(header, type, datetime_format):
         except:
             raise Exception("The given datetime format ({}) is incompatible with the start or download date.".format(datetime_format))
 
-        header_info["start_date"] = start_date
-        header_info["download_date"] = download_date
+        header_info["start_date"] = str(start_date)
+        header_info["download_date"] = str(download_date)
 
         test = header[4].split(" ")
         delta = datetime.strptime(test[-1], "%H:%M:%S")
         epoch_length = timedelta(hours=delta.hour, minutes=delta.minute, seconds=delta.second)
-        header_info["epoch_length"] = epoch_length
+        header_info["epoch_length_seconds"] = int(epoch_length.total_seconds())
 
         start_datetime = start_date + start_time
         header_info["start_datetime"] = start_datetime
@@ -595,12 +600,12 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         header_info = parse_header(first_lines, "Actigraph", datetime_format)
 
         time = header_info["start_datetime"]
-        epoch_length = header_info["epoch_length"]
+        epoch_length = timedelta(seconds=header_info["epoch_length_seconds"])
         mode = header_info["mode"]
 
         # If the mode is not one of those currently supported, raise an error
         if mode not in [0,1,3,4,5]:
-            raise Exception("Mode {} is not currently supported.")
+            raise Exception("Mode {} is not currently supported.".format(mode))
 
         count_list = []
         timestamp_list = []
