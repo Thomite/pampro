@@ -200,21 +200,33 @@ class Channel(object):
         Return the indices of the data array that contain the given timestamps
         """
 
-        if datetime_start > self.time_period[1] or datetime_end < self.time_period[0]:
-
-            (start, end) = (-1,-1)
-
-        else:
-
+        # Making this more straightforward with the 6 scenarios that can actually occur
+        # a
+        if datetime_start <= self.time_period[0] and datetime_end > self.time_period[0] and datetime_end <= self.time_period[1]:
+            start = 0
+            end = self.get_index(datetime_end)
+        # b
+        elif datetime_start >= self.time_period[0] and datetime_start <= self.time_period[1] and datetime_end >= self.time_period[0] and datetime_end <= self.time_period[1]:
             start = self.get_index(datetime_start)
             end = self.get_index(datetime_end)
-
-        if start == -1 and end != -1:
-            start = 0
-        elif start != -1 and end == -1:
+        # c
+        elif datetime_start >= self.time_period[0] and datetime_start < self.time_period[1] and datetime_end >= self.time_period[1]:
+            start = self.get_index(datetime_start)
             end = len(self.data)
+        # d
+        elif datetime_start <= self.time_period[0] and datetime_end >= self.time_period[1]:
+            start = 0
+            end = len(self.data)
+        # e and f
+        elif datetime_end <= self.time_period[0] or datetime_start >= self.time_period[1]:
+            start = -1
+            end = -1
+        else:
+            raise Exception("Corner case in get_window() of {}.\nChannel time period: {} to {}.\nQuery: {} to {}.".format(self.name, self.time_period[0], self.time_period[1], datetime_start, datetime_end))
 
-        return (start, end)
+        return (start,end)
+
+
 
     def get_data_index(self, datetimestamp):
         """
