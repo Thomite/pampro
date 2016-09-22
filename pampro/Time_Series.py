@@ -2,9 +2,13 @@ import matplotlib
 matplotlib.use("Agg") # So that plotting doesn't require X and can be done remotely
 
 import matplotlib.pyplot as plt
+from matplotlib import rcParams
+
 from datetime import datetime, date, time, timedelta
 import numpy as np
 from collections import OrderedDict
+
+
 
 class Time_Series(object):
 
@@ -222,7 +226,26 @@ class Time_Series(object):
             file_output.close()
 
 
-    def draw(self, channel_combinations, time_period=False, file_target=False, width=15, height=10):
+    def draw(self, channel_combinations, time_period=False, file_target=False, width=6.3, height=4.35):
+
+
+        rcParams['font.size'] = '8'
+
+        rcParams['legend.frameon'] = True
+        rcParams['legend.fontsize'] = "x-small"
+        rcParams['legend.labelspacing'] = 0.1
+        rcParams['legend.framealpha'] = 0.7
+
+        rcParams['xtick.labelsize'] = "x-small"
+        rcParams['ytick.labelsize'] = "x-small"
+
+        rcParams['grid.linewidth'] = 0.2
+
+        rcParams['figure.dpi'] = 300
+        rcParams['figure.facecolor'] = "white"
+        
+        rcParams['axes.linewidth'] = 0.25
+
 
         fig = plt.figure(figsize=(width,height), frameon=False)
         fig.patch.set_facecolor('#FFFFFF')
@@ -241,13 +264,10 @@ class Time_Series(object):
             for c in channels:
                 self.get_channel(c).draw(axis, time_period=axis_xlim)
 
-
             handles, labels = axis.get_legend_handles_labels()
             by_label = OrderedDict(zip(labels, handles))
-
             legend = axis.legend(by_label.values(), by_label.keys(), loc='upper right')
-            legend.get_frame().set_alpha(0.5)
-            legend.draw_frame(False)
+            legend.get_frame().set_linewidth(0.0)
             axis.grid()
 
         fig.tight_layout()
