@@ -329,7 +329,6 @@ class Channel(object):
 
                 break
 
-
         for stat in statistics:
             # Every stat is a tuple of the form ("type", [details])
 
@@ -468,6 +467,38 @@ class Channel(object):
                     for i in range(len(stat[1])):
                         output_row.append(-1)
 
+            elif stat[0] == "bouts":
+            # Example: ("bouts", [(0,99),(100,200)])
+            # Example 2: ("bouts", [(0,99,5),(100,200,5)])
+
+                for b in stat[1]:
+
+                    # Earlier in build_statistics_channels(), all bouts for this were extracted across the channel
+                    # They were indexed in a dictionary using this key format
+                    key = "{}_{}".format(b[0], b[1])
+
+                    if len(b) == 3:
+                        key += "_{}".format(b[2])
+
+                    # Bout object to represent window currently being summarised
+                    bout_window = Bout.Bout(start_dts, end_dts)
+
+                    # Get pre-computed list of bouts for the whole channel
+                    all_bouts = self.bouts_cache[key]
+
+                    # Prune the list to only those that overlap this window
+                    relevant_bouts = [b for b in all_bouts if b.overlaps(bout_window)]
+
+                    # Get the exact intersection of the relevant bouts with this window
+                    intersection = Bout.bout_list_intersection([bout_window], relevant_bouts)
+
+                    # Two variables - total time overlapping the window, and number of bouts it contains
+                    sum_seconds = Bout.total_time(intersection).total_seconds()
+                    num_bouts = len(intersection)
+
+                    output_row.append(sum_seconds)
+                    output_row.append(num_bouts)
+
             else:
                 output_row.append("Unknown statistic")
 
@@ -505,6 +536,12 @@ class Channel(object):
             elif stat[0] == "percentiles":
                 expected += len(stat[1])
 
+            elif stat[0] == "bouts":
+                expected += len(stat[1])*2
+                print("SADDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD")
+            else:
+                print(stat)
+
         return expected
 
     def build_statistics_channels(self, windows, statistics, name=""):
@@ -519,6 +556,29 @@ class Channel(object):
             # Create a Channel for each output
             for cn in channel_names:
                 channel_list.append(Channel(cn))
+
+            # If any pre-processing needs to happen for this statistic, now is the time to do it
+
+            # For bouts, we want to get an exhaustive list of bouts for the whole channel
+            # Then when we call window_statistics, we narrow that list of bouts down to what overlaps the window
+            if stat[0] == "bouts":
+
+                # To be indexed as "X_Y" or "X_Y_Z"
+                self.bouts_cache = {}
+
+                for b in stat[1]: # examples (0,99) or (0,99,5)
+
+                    low, high = b[0], b[1]
+
+                    # Extract the bouts >= X and <= Y and save them
+                    bouts = self.bouts(low, high)
+                    self.bouts_cache["{}_{}".format(low, high)] = bouts
+
+                    # Also, if they specified a minimum duration of the bouts
+                    if len(b) == 3:
+
+                        bouts_restricted = Bout.limit_to_lengths(bouts, min_length=timedelta(seconds=b[2]))
+                        self.bouts_cache["{}_{}_{}".format(low, high, b[2])] = bouts_restricted
 
         num_expected_results = len(channel_list)
 

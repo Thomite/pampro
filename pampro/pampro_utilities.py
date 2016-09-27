@@ -49,6 +49,16 @@ def design_variable_names(signal_name, stat):
 
             varnames.append(signal_name + "_sd" + str(i))
 
+    elif (stat[0] == "bouts"):
+
+        for i in stat[1]:
+            basic = "{}_{}_{}_bouts".format(signal_name, i[0], i[1])
+            if len(i) == 3:
+                basic += "_mt{}".format(i[2])
+
+            varnames.append(basic+"_sum")
+            varnames.append(basic+"_num")
+
     return varnames
 
 def design_file_header(statistics):
