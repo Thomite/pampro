@@ -131,6 +131,9 @@ class Channel(object):
         except:
             pass
 
+        if channel.timestamp_policy == "offset":
+            self.start = channel.start
+
         # If we inherit timestamps, we need to inherit the appropriate methods to interpret them!
         self.determine_appropriate_methods()
 
