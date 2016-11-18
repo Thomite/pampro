@@ -437,7 +437,7 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         end_python = datetime.strptime(end, "%d/%m/%Y %H:%M:%S")
         duration = end_python - start_python
 
-        num_records = duration.total_seconds() / (timedelta(seconds=1)/sampling_frequency).total_seconds()
+        num_records = int(duration.total_seconds() / (timedelta(seconds=1)/sampling_frequency).total_seconds())
 
         #print("expected records:", num_records)
         #print("sampling frequency", (A[35]))
