@@ -788,10 +788,10 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         axivity_x = np.empty(estimated_size)
         axivity_y = np.empty(estimated_size)
         axivity_z = np.empty(estimated_size)
-        axivity_light = np.empty(len(raw_bytes)/512*1.01)
-        axivity_temperature = np.empty(len(raw_bytes)/512*1.01)
-        axivity_timestamps = np.empty((len(raw_bytes)/512)*1.01, dtype=type(start))
-        axivity_indices = np.empty(len(raw_bytes)/512*1.01)
+        axivity_light = np.empty(int(len(raw_bytes)/512*1.01))
+        axivity_temperature = np.empty(int(len(raw_bytes)/512*1.01))
+        axivity_timestamps = np.empty(int((len(raw_bytes)/512)*1.01), dtype=type(start))
+        axivity_indices = np.empty(int(len(raw_bytes)/512*1.01))
 
         file_header = OrderedDict()
 
@@ -946,10 +946,10 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         axivity_x = np.empty(estimated_size)
         axivity_y = np.empty(estimated_size)
         axivity_z = np.empty(estimated_size)
-        axivity_light = np.empty(len(raw_bytes)/512*1.01)
-        axivity_temperature = np.empty(len(raw_bytes)/512*1.01)
-        axivity_timestamps = np.empty((len(raw_bytes)/512)*1.01, dtype=type(start))
-        axivity_indices = np.empty(len(raw_bytes)/512*1.01)
+        axivity_light = np.empty(int(len(raw_bytes)/512*1.01))
+        axivity_temperature = np.empty(int(len(raw_bytes)/512*1.01))
+        axivity_timestamps = np.empty(int((len(raw_bytes)/512)*1.01), dtype=type(start))
+        axivity_indices = np.empty(int(len(raw_bytes)/512*1.01))
 
         file_header = OrderedDict()
 
@@ -1090,17 +1090,17 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         ts_num = 0
         # Data format contains 300 XYZ values per page
         num = 300
-        x_values = np.empty(num*n)
-        y_values = np.empty(num*n)
-        z_values = np.empty(num*n)
+        x_values = np.empty(int(num*n))
+        y_values = np.empty(int(num*n))
+        z_values = np.empty(int(num*n))
 
         # We will timestamp every 1 second of data to the nearest second
         # 300 / frequency = number of timestamps per page
         timestamps_per_page = int(num / header_info["frequency"])
         num_timestamps = (timestamps_per_page * header_info["number_pages"]) + 1
 
-        ga_timestamps = np.empty(num_timestamps, dtype=type(header_info["start_datetime_python"]))
-        ga_indices = np.empty(num_timestamps)
+        ga_timestamps = np.empty(int(num_timestamps), dtype=type(header_info["start_datetime_python"]))
+        ga_indices = np.empty(int(num_timestamps))
 
         # For each page
         for i in range(n):
