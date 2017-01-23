@@ -320,11 +320,33 @@ def parse_header(header, type, datetime_format):
 def convert_actigraph_timestamp(t):
     return datetime(*map(int, [t[6:10],t[3:5],t[0:2],t[11:13],t[14:16],t[17:19],int(t[20:])*1000]))
 
-def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_column=0, ignore_columns=False, unique_names=False, hdf5_mode="r", hdf5_group="Raw"):
+def load(source, source_type="infer", datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_column=0, ignore_columns=False, unique_names=False, hdf5_mode="r", hdf5_group="Raw"):
 
     header = OrderedDict()
     channels = []
     ts = Time_Series.Time_Series("")
+
+    # when the source_type is left blank, we can assume using the filename extension
+    # throw an error if unsure
+    extension_map = {
+    "dat":"Actigraph", "DAT":"Actigraph", "Dat":"Actigraph",
+    "csv":"CSV",
+    "bin":"GeneActiv",
+    "hdf5":"HDF5", "h5":"HDF5",
+    "datx":"activPAL",
+    "cwa":"Axivity", "CWA":"Axivity"
+    }
+
+    if source_type == "infer":
+
+        extension = source.split(".")[-1]
+        if extension in extension_map:
+
+            source_type = extension_map[extension]
+        else:
+            
+            raise Exception("Cannot assume file type from extension ({}), specify source_type when trying to load this file.".format(extension))
+
 
     if (source_type == "Actiheart"):
 
@@ -403,7 +425,6 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
         z.set_contents(np.array(ap_z, dtype=np.float64), ap_timestamps)
         #print("C")
         channels = [x,y,z]
-
 
     elif (source_type == "activPAL"):
 
@@ -1163,7 +1184,6 @@ def load(source, source_type, datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_c
 
         channels = [x_channel, y_channel, z_channel]
         header = header_info
-
 
     elif (source_type == "XLO"):
 
