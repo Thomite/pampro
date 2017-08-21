@@ -760,6 +760,14 @@ class Channel(object):
 
             bouts.append(Bout.Bout(start_time, end_time))
 
+        if self.timestamp_policy == "offset":
+
+            for b in bouts:
+
+                b.start_timestamp = self.time_period[0]+timedelta(microseconds=1000)*b.start_timestamp
+                b.end_timestamp = self.time_period[0]+timedelta(microseconds=1000)*b.end_timestamp
+                b.length = b.end_timestamp - b.start_timestamp
+
         return bouts
 
     def delete_windows(self, windows, missing_value = -111):
@@ -830,6 +838,10 @@ class Channel(object):
         start_index,end_index = self.get_window(time_period[0], time_period[1])
         window_data = self.data[start_index:end_index]
         window_timestamps = self.timestamps[start_index:end_index]
+
+        if self.timestamp_policy == "offset":
+
+            window_timestamps = time_period[0] + timedelta(microseconds=1000)*window_timestamps
 
         axis.plot(window_timestamps, window_data, label=self.name, **self.draw_properties)
 
