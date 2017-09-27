@@ -10,7 +10,7 @@ import zipfile
 from collections import OrderedDict
 from scipy.interpolate import interp1d
 
-from pampro import Time_Series, Bout, pampro_utilities, time_utilities
+from pampro import Time_Series, Bout, pampro_utilities, time_utilities, hdf5
 
 from bisect import bisect_left, bisect_right
 
@@ -71,7 +71,7 @@ class Channel(object):
 
             # Every offset value from 0 to the highest offset seen, in increments of delta
             # Where delta is in milliseconds (eg 100 Hz = 10 milliseconds)
-            delta = int((timedelta(seconds=1)/frequency).microseconds/1000)
+            delta = int((timedelta(seconds=1)/frequency).total_seconds()*1000)
 
             new_timestamps = np.arange(0, max(self.timestamps), delta)
 
@@ -80,6 +80,24 @@ class Channel(object):
 
             self.set_contents(new_data, new_timestamps, timestamp_policy=self.timestamp_policy)
             self.frequency = frequency
+
+        elif self.timestamp_policy == "normal":
+
+            # This is a bit of a hack, but it works.
+            # In order to interpolate from datetimes, we have to convert to offsets, interpolate on those, and convert back again.
+
+            start, offsets = hdf5.timestamps_to_offsets(self.timestamps)
+
+            func = interp1d(offsets, self.data)
+            delta = int((timedelta(seconds=1)/1).total_seconds()*1000)
+            new_timestamps = np.arange(0, max(offsets), delta)
+            new_data = func(new_timestamps)
+
+            new_timestamps = start + new_timestamps.astype("int64") * timedelta(microseconds=1000)
+
+            self.set_contents(new_data, new_timestamps, timestamp_policy=self.timestamp_policy)
+            self.frequency = frequency
+
         else:
             print("NOPE.")
 
@@ -88,13 +106,6 @@ class Channel(object):
 
         self.data = np.concatenate((self.data, other_channel.data))
         self.timestamps = np.concatenate((self.timestamps, other_channel.timestamps))
-
-        #indices = np.argsort(self.timestamps)
-
-        #self.timestamps = np.array(self.timestamps)[indices]
-        #self.data = np.array(self.data)[indices]
-
-        #self.calculate_timeframe()
 
     def calculate_timeframe(self):
         """ Update timeframe and time_period variables to reflect start and end of timestamps. """
