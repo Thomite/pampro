@@ -78,6 +78,7 @@ class Channel(object):
             # func is a function, so we just give it new hypothetical offsets
             new_data = func(new_timestamps)
 
+            self.cached_indices = {}
             self.set_contents(new_data, new_timestamps, timestamp_policy=self.timestamp_policy)
             self.frequency = frequency
 
@@ -95,6 +96,7 @@ class Channel(object):
 
             new_timestamps = start + new_timestamps.astype("int64") * timedelta(microseconds=1000)
 
+            self.cached_indices = {}
             self.set_contents(new_data, new_timestamps, timestamp_policy=self.timestamp_policy)
             self.frequency = frequency
 
