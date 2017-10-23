@@ -4,9 +4,8 @@ import h5py
 import numpy as np
 import math
 
-from .Time_Series import *
-from .Channel import *
-from .Bout import *
+
+
 
 def list_caches(hdf5_file):
     """
@@ -142,6 +141,7 @@ def load_bouts_from_hdf5_group(hdf5_group):
     Load and return a list of bouts stored in the given HDF5 group.
     Assumes they are saved according to the layout defined in save_bouts_to_hdf5_group().
     """
+    from .Bout import Bout
 
     num_bouts = hdf5_group.attrs["num_bouts"]
     bouts = []
@@ -156,7 +156,7 @@ def load_bouts_from_hdf5_group(hdf5_group):
         one_ms = timedelta(microseconds=1000)
         for a,b in zip(start_timestamps, end_timestamps):
 
-            bouts.append(Bout.Bout(start + one_ms*a, start + one_ms*b))
+            bouts.append(Bout(start + one_ms*a, start + one_ms*b))
 
     return bouts
 
@@ -218,6 +218,9 @@ def load_time_series(hdf5_group):
     """
     Given a reference to a hdf5_group, assume it is layed out according to pampro conventions and load a Time Series object from it.
     """
+    from .Channel import Channel
+    from .Time_Series import Time_Series
+
     ts = Time_Series("")
 
     # "timestamps" will be a single HDF5 dataset shared by the rest of the channels

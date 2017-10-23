@@ -11,7 +11,6 @@ from collections import OrderedDict
 from scipy.interpolate import interp1d
 from bisect import bisect_left, bisect_right
 
-from .Channel import *
 from .Bout  import *
 from .Time_Series import *
 from .time_utilities import *
