@@ -1,6 +1,8 @@
-from pampro import Channel
+
 import numpy as np
 from scipy.signal import butter, lfilter
+
+from .Channel import *
 
 def low_pass_filter(input_channel, low, frequency=1, order=1):
 

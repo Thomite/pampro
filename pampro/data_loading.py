@@ -15,7 +15,12 @@ import zipfile
 from collections import OrderedDict
 import h5py
 
-from pampro import Time_Series, Channel, Bout, pampro_utilities, hdf5
+from .Channel import *
+from .Bout  import *
+from .Time_Series import *
+from .time_utilities import *
+from .pampro_utilities import *
+from .hdf5 import *
 
 # Axivity import code adapted from source provided by Open Movement: https://code.google.com/p/openmovement/. Their license terms are reproduced here in full, and apply only to the Axivity related code:
 # Copyright (c) 2009-2014, Newcastle University, UK. All rights reserved.
@@ -324,7 +329,7 @@ def load(source, source_type="infer", datetime_format="%d/%m/%Y %H:%M:%S:%f", da
 
     header = OrderedDict()
     channels = []
-    ts = Time_Series.Time_Series("")
+    ts = Time_Series("")
 
     # when the source_type is left blank, we can assume using the filename extension
     # throw an error if unsure
@@ -344,7 +349,7 @@ def load(source, source_type="infer", datetime_format="%d/%m/%Y %H:%M:%S:%f", da
 
             source_type = extension_map[extension]
         else:
-            
+
             raise Exception("Cannot assume file type from extension ({}), specify source_type when trying to load this file.".format(extension))
 
 
@@ -379,10 +384,10 @@ def load(source, source_type="infer", datetime_format="%d/%m/%Y %H:%M:%S:%f", da
 
         ecg[(ecg <= 0)] = -1
 
-        actiheart_activity = Channel.Channel("Chest")
+        actiheart_activity = Channel("Chest")
         actiheart_activity.set_contents(activity, timestamps)
 
-        actiheart_ecg = Channel.Channel("HR")
+        actiheart_ecg = Channel("HR")
         actiheart_ecg.set_contents(ecg, timestamps)
 
         actiheart_ecg.missing_value = -1
@@ -412,9 +417,9 @@ def load(source, source_type="infer", datetime_format="%d/%m/%Y %H:%M:%S:%f", da
 
         ap_timestamps = np.array(ap_timestamps)
         #print("B")
-        x = Channel.Channel("AP_X")
-        y = Channel.Channel("AP_Y")
-        z = Channel.Channel("AP_Z")
+        x = Channel("AP_X")
+        y = Channel("AP_Y")
+        z = Channel("AP_Z")
 
         ap_x = (ap_x-128.0)/64.0
         ap_y = (ap_y-128.0)/64.0
@@ -557,9 +562,9 @@ def load(source, source_type="infer", datetime_format="%d/%m/%Y %H:%M:%S:%f", da
         delta = timedelta(seconds=1)/sampling_frequency
         timestamps = np.array([start_python + delta*i for i in range(n)])
 
-        x_channel = Channel.Channel("X")
-        y_channel = Channel.Channel("Y")
-        z_channel = Channel.Channel("Z")
+        x_channel = Channel("X")
+        y_channel = Channel("Y")
+        z_channel = Channel("Z")
 
         x_channel.set_contents(x, timestamps)
         y_channel.set_contents(y, timestamps)
@@ -593,12 +598,12 @@ def load(source, source_type="infer", datetime_format="%d/%m/%Y %H:%M:%S:%f", da
             ga_timestamps.append(ts)
         ga_timestamps = np.array(ga_timestamps)
 
-        x = Channel.Channel("GA_X")
-        y = Channel.Channel("GA_Y")
-        z = Channel.Channel("GA_Z")
-        lux = Channel.Channel("GA_Lux")
-        event = Channel.Channel("GA_Event")
-        temperature = Channel.Channel("GA_Temperature")
+        x = Channel("GA_X")
+        y = Channel("GA_Y")
+        z = Channel("GA_Z")
+        lux = Channel("GA_Lux")
+        event = Channel("GA_Event")
+        temperature = Channel("GA_Temperature")
 
         x.set_contents(ga_x, ga_timestamps)
         y.set_contents(ga_y, ga_timestamps)
@@ -657,7 +662,7 @@ def load(source, source_type="infer", datetime_format="%d/%m/%Y %H:%M:%S:%f", da
         timestamps = np.array(timestamp_list)
         counts = np.abs(np.array(count_list))
 
-        chan = Channel.Channel("AG_Counts")
+        chan = Channel("AG_Counts")
         chan.set_contents(counts, timestamps)
 
         channels = [chan]
@@ -682,9 +687,9 @@ def load(source, source_type="infer", datetime_format="%d/%m/%Y %H:%M:%S:%f", da
         x,y,z = np.genfromtxt(source, delimiter=',', skip_header=11, usecols=(1,2,3), unpack=True)
 
 
-        x_chan = Channel.Channel("X")
-        y_chan = Channel.Channel("Y")
-        z_chan = Channel.Channel("Z")
+        x_chan = Channel("X")
+        y_chan = Channel("Y")
+        z_chan = Channel("Z")
 
         x_chan.set_contents(x, timestamps)
         y_chan.set_contents(y, timestamps)
@@ -725,9 +730,9 @@ def load(source, source_type="infer", datetime_format="%d/%m/%Y %H:%M:%S:%f", da
 
 
 
-        x_chan = Channel.Channel("X")
-        y_chan = Channel.Channel("Y")
-        z_chan = Channel.Channel("Z")
+        x_chan = Channel("X")
+        y_chan = Channel("Y")
+        z_chan = Channel("Z")
 
         x_chan.set_contents(x, timestamps)
         y_chan.set_contents(y, timestamps)
@@ -774,17 +779,17 @@ def load(source, source_type="infer", datetime_format="%d/%m/%Y %H:%M:%S:%f", da
                 name = source_split[-1] + " - " + test[col]
             else:
                 name = test[col]
-            c = Channel.Channel(name)
+            c = Channel(name)
             c.set_contents(np.array(data[:,col], dtype=np.float64), timestamps)
             channels.append(c)
 
     elif (source_type == "Axivity"):
 
-        channel_x = Channel.Channel("X")
-        channel_y = Channel.Channel("Y")
-        channel_z = Channel.Channel("Z")
-        channel_light = Channel.Channel("Light")
-        channel_temperature = Channel.Channel("Temperature")
+        channel_x = Channel("X")
+        channel_y = Channel("Y")
+        channel_z = Channel("Z")
+        channel_light = Channel("Light")
+        channel_temperature = Channel("Temperature")
 
         handle = open(source, "rb")
         raw_bytes = handle.read()
@@ -930,11 +935,11 @@ def load(source, source_type="infer", datetime_format="%d/%m/%Y %H:%M:%S:%f", da
 
     elif (source_type == "Axivity_ZIP"):
 
-        channel_x = Channel.Channel("X")
-        channel_y = Channel.Channel("Y")
-        channel_z = Channel.Channel("Z")
-        channel_light = Channel.Channel("Light")
-        channel_temperature = Channel.Channel("Temperature")
+        channel_x = Channel("X")
+        channel_y = Channel("Y")
+        channel_z = Channel("Z")
+        channel_light = Channel("Light")
+        channel_temperature = Channel("Temperature")
 
         #print("Opening file")
         archive = zipfile.ZipFile(source, "r")
@@ -1169,9 +1174,9 @@ def load(source, source_type="infer", datetime_format="%d/%m/%Y %H:%M:%S:%f", da
         y_values = np.array([(y * 100.0 - header_info["y_offset"]) / header_info["y_gain"] for y in y_values])
         z_values = np.array([(z * 100.0 - header_info["z_offset"]) / header_info["z_gain"] for z in z_values])
 
-        x_channel = Channel.Channel("X")
-        y_channel = Channel.Channel("Y")
-        z_channel = Channel.Channel("Z")
+        x_channel = Channel("X")
+        y_channel = Channel("Y")
+        z_channel = Channel("Z")
 
         x_channel.set_contents(x_values, ga_timestamps, timestamp_policy="sparse")
         y_channel.set_contents(y_values, ga_timestamps, timestamp_policy="sparse")
@@ -1212,7 +1217,7 @@ def load(source, source_type="infer", datetime_format="%d/%m/%Y %H:%M:%S:%f", da
         for i,var in enumerate(varlist):
 
             if not var in ignore:
-                chan = Channel.Channel(var)
+                chan = Channel(var)
 
                 missings = data[:, i] == '   -    '
                 data[missings,i] = 0

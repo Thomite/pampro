@@ -1,5 +1,4 @@
 
-from pampro import Time_Series, Bout, Channel, channel_inference, time_utilities, hdf5
 from datetime import datetime, date, time, timedelta
 import math
 import copy
@@ -7,6 +6,13 @@ import random
 from scipy import stats
 import numpy as np
 from collections import OrderedDict
+
+from .Time_Series import *
+from .Bout import *
+from .Channel import *
+from .channel_inference import *
+from .time_utilities import *
+from .hdf5 import *
 
 def get_calibrate(hdf5_group):
     """
@@ -100,13 +106,13 @@ def calibrate_slave(x, y, z, budget=1000, noise_cutoff_mg=13):
     # Saving passed parameters for later reference
     calibration_diagnostics["budget"] = budget
     calibration_diagnostics["noise_cutoff_mg"] = noise_cutoff_mg
-    
+
     vm = channel_inference.infer_vector_magnitude(x,y,z)
 
     # Get a list of bouts where standard deviation in each axis is below given threshold ("still")
     still_bouts = channel_inference.infer_still_bouts_triaxial(x,y,z, noise_cutoff_mg=noise_cutoff_mg, minimum_length=timedelta(minutes=1))
     num_still_bouts = len(still_bouts)
-    num_still_seconds = Bout.total_time(still_bouts).total_seconds()
+    num_still_seconds = total_time(still_bouts).total_seconds()
 
     # Summarise VM in 10s intervals
     vm_windows = vm.piecewise_statistics(timedelta(seconds=10), [("generic", ["mean"])], time_period=vm.timeframe)[0]
@@ -114,16 +120,16 @@ def calibrate_slave(x, y, z, budget=1000, noise_cutoff_mg=13):
     # Get a list where VM was between 0.5 and 1.5g ("reasonable")
     reasonable_bouts = vm_windows.bouts(0.5, 1.5)
     num_reasonable_bouts = len(reasonable_bouts)
-    num_reasonable_seconds = Bout.total_time(reasonable_bouts).total_seconds()
+    num_reasonable_seconds = total_time(reasonable_bouts).total_seconds()
 
     # We only want still bouts where the VM level was within 0.5g of 1g
     # Therefore insersect "still" time with "reasonable" time
-    still_bouts = Bout.bout_list_intersection(reasonable_bouts, still_bouts)
+    still_bouts = Bout_list_intersection(reasonable_bouts, still_bouts)
 
     # And we only want bouts where it was still and reasonable for 10s or longer
-    still_bouts = Bout.limit_to_lengths(still_bouts, min_length = timedelta(seconds=10))
+    still_bouts = limit_to_lengths(still_bouts, min_length = timedelta(seconds=10))
     num_final_bouts = len(still_bouts)
-    num_final_seconds = Bout.total_time(still_bouts).total_seconds()
+    num_final_seconds = total_time(still_bouts).total_seconds()
 
     # Get the average X,Y,Z for each still bout (inside which, by definition, XYZ should not change)
     still_x, num_samples = x.build_statistics_channels(still_bouts, [("generic", ["mean", "n"])])

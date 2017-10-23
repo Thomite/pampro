@@ -1,5 +1,5 @@
 
-from pampro import data_loading, Time_Series, Channel, Bout, Bout_Collection, channel_inference
+from pampro import data_loading, Time_Series, Channel, Bout, channel_inference
 from datetime import datetime, timedelta
 import os
 

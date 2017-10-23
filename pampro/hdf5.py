@@ -1,10 +1,12 @@
 from datetime import datetime, timedelta
-from pampro import Time_Series, Channel, Bout
-
 from collections import OrderedDict
 import h5py
 import numpy as np
 import math
+
+from .Time_Series import *
+from .Channel import *
+from .Bout import *
 
 def list_caches(hdf5_file):
     """

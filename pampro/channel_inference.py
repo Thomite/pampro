@@ -1,8 +1,14 @@
 
 from datetime import timedelta
-from pampro import Channel, Bout, Time_Series, time_utilities, pampro_fourier, hdf5
 import numpy as np
 import copy
+
+from .Channel import *
+from .Bout  import *
+from .Time_Series import *
+from .time_utilities import *
+from .pampro_fourier import *
+from .hdf5 import *
 
 def activpal_classification(pitch):
 
@@ -11,7 +17,7 @@ def activpal_classification(pitch):
     ten_seconds_in_samples = int(pitch.frequency * 10) #20Hz
 
     # This should be faster than pointlessly copying the input array
-    classification = Channel.Channel("activPAL_class")
+    classification = Channel("activPAL_class")
     classification.set_contents(np.zeros(len(pitch.data)), pitch.timestamps)
 
     current_classification = 0 # 0 = sitting, 1 = standing, 2 = stepping
@@ -60,7 +66,7 @@ def activpal_classification(pitch):
 
 def infer_vector_magnitude(x,y,z):
 
-    result = Channel.Channel("VM")
+    result = Channel("VM")
 
     result.set_contents( np.sqrt( np.multiply(x.data,x.data) + np.multiply(y.data,y.data) + np.multiply(z.data,z.data) ), x.timestamps )
 
@@ -75,8 +81,8 @@ def infer_pitch_roll(x,y,z):
     Infer pitch and roll channels from raw triaxial acceleration channels.
     """
 
-    pitch = Channel.Channel("Pitch")
-    roll = Channel.Channel("Roll")
+    pitch = Channel("Pitch")
+    roll = Channel("Roll")
 
     pitch_degrees = np.arctan(x.data/np.sqrt((y.data*y.data) + (z.data*z.data))) * 180.0/np.pi
     roll_degrees = np.arctan(y.data/np.sqrt((x.data*x.data) + (z.data*z.data))) * 180.0/np.pi
@@ -94,7 +100,7 @@ def infer_enmo(vm):
     Subtract 1g from Vector Magnitude signal, truncate results below 0 to 0
     """
 
-    result = Channel.Channel("ENMO")
+    result = Channel("ENMO")
 
     result.set_contents( (vm.data - 1.0)*1000.0 , vm.timestamps )
 
@@ -108,7 +114,7 @@ def infer_enmo(vm):
 
 def infer_enmo_a(vm):
 
-    result = Channel.Channel("ENMOa")
+    result = Channel("ENMOa")
 
     result.set_contents( np.absolute((vm.data - 1.0)*1000.0) , vm.timestamps )
 
@@ -136,10 +142,10 @@ def infer_nonwear_actigraph(counts, zero_minutes=timedelta(minutes=60)):
     nonwear_bouts = counts.bouts(-999999, 0)
 
     # Limit those bouts to the minimum duration specified in "zero_minutes"
-    nonwear_bouts = Bout.limit_to_lengths(nonwear_bouts, min_length=zero_minutes)
+    nonwear_bouts = limit_to_lengths(nonwear_bouts, min_length=zero_minutes)
 
     # Invert the nonwear bouts to get wear bouts
-    wear_bouts = Bout.time_period_minus_bouts([counts.timeframe[0], counts.timeframe[1]], nonwear_bouts)
+    wear_bouts = time_period_minus_bouts([counts.timeframe[0], counts.timeframe[1]], nonwear_bouts)
 
     return nonwear_bouts, wear_bouts
 
@@ -148,7 +154,7 @@ def get_still_bouts_triaxial(hdf5_group):
     Getter method for infer_still_bouts_triaxial
     """
 
-    still_bouts = hdf5.load_bouts_from_hdf5_group(hdf5_group)
+    still_bouts = load_bouts_from_hdf5_group(hdf5_group)
     return still_bouts
 
 def set_still_bouts_triaxial(still_bouts, hdf5_group):
@@ -156,7 +162,7 @@ def set_still_bouts_triaxial(still_bouts, hdf5_group):
     Setter method for infer_still_bouts_triaxial
     """
 
-    hdf5.save_bouts_to_hdf5_group(still_bouts, hdf5_group)
+    save_bouts_to_hdf5_group(still_bouts, hdf5_group)
 
 def infer_still_bouts_triaxial_method(x, y, z, window_size=timedelta(seconds=10), noise_cutoff_mg=13, minimum_length=timedelta(seconds=10)):
     # Get windows of standard deviation in each axis
@@ -169,13 +175,13 @@ def infer_still_bouts_triaxial_method(x, y, z, window_size=timedelta(seconds=10)
     y_bouts = y_std.bouts(0, float(noise_cutoff_mg)/1000.0)
     z_bouts = z_std.bouts(0, float(noise_cutoff_mg)/1000.0)
 
-    x_bouts = Bout.limit_to_lengths(x_bouts, min_length=minimum_length)
-    y_bouts = Bout.limit_to_lengths(y_bouts, min_length=minimum_length)
-    z_bouts = Bout.limit_to_lengths(z_bouts, min_length=minimum_length)
+    x_bouts = limit_to_lengths(x_bouts, min_length=minimum_length)
+    y_bouts = limit_to_lengths(y_bouts, min_length=minimum_length)
+    z_bouts = limit_to_lengths(z_bouts, min_length=minimum_length)
 
     # Get the times where those bouts overlap
-    x_intersect_y = Bout.bout_list_intersection(x_bouts, y_bouts)
-    x_intersect_y_intersect_z = Bout.bout_list_intersection(x_intersect_y, z_bouts)
+    x_intersect_y = bout_list_intersection(x_bouts, y_bouts)
+    x_intersect_y_intersect_z = bout_list_intersection(x_intersect_y, z_bouts)
 
     return x_intersect_y_intersect_z
 
@@ -186,14 +192,14 @@ def infer_still_bouts_triaxial(x, y, z, window_size=timedelta(seconds=10), noise
 
     args = {"x":x, "y":y, "z":z, "window_size":window_size, "noise_cutoff_mg":noise_cutoff_mg, "minimum_length":minimum_length}
     params = ["minimum_length", "noise_cutoff_mg", "window_size"]
-    return hdf5.do_if_not_cached("still_bouts_triaxial", infer_still_bouts_triaxial_method, args, params, get_still_bouts_triaxial, set_still_bouts_triaxial, hdf5_file)
+    return do_if_not_cached("still_bouts_triaxial", infer_still_bouts_triaxial_method, args, params, get_still_bouts_triaxial, set_still_bouts_triaxial, hdf5_file)
 
 def infer_nonwear_triaxial_method(x, y, z, minimum_length=timedelta(hours=1), noise_cutoff_mg=13):
     # Get an exhaustive list of bouts where the monitor was still
     x_intersect_y_intersect_z = infer_still_bouts_triaxial(x, y, z, noise_cutoff_mg=noise_cutoff_mg, minimum_length=minimum_length)
 
     # Restrict those bouts to only those with a length that exceeds the minimum length criterion
-    x_intersect_y_intersect_z = Bout.limit_to_lengths(x_intersect_y_intersect_z, min_length=minimum_length)
+    x_intersect_y_intersect_z = limit_to_lengths(x_intersect_y_intersect_z, min_length=minimum_length)
 
     return x_intersect_y_intersect_z
 
@@ -202,7 +208,7 @@ def get_infer_nonwear_triaxial(hdf5_group):
     Getter method for infer_nonwear_triaxial
     """
 
-    nonwear_bouts = hdf5.load_bouts_from_hdf5_group(hdf5_group)
+    nonwear_bouts = load_bouts_from_hdf5_group(hdf5_group)
     return nonwear_bouts
 
 def set_infer_nonwear_triaxial(nonwear_bouts, hdf5_group):
@@ -210,7 +216,7 @@ def set_infer_nonwear_triaxial(nonwear_bouts, hdf5_group):
     Setter method for infer_nonwear_triaxial
     """
 
-    hdf5.save_bouts_to_hdf5_group(nonwear_bouts, hdf5_group)
+    save_bouts_to_hdf5_group(nonwear_bouts, hdf5_group)
 
 def infer_nonwear_triaxial(x, y, z, minimum_length=timedelta(hours=1), noise_cutoff_mg=13, hdf5_file=None):
     """
@@ -219,24 +225,24 @@ def infer_nonwear_triaxial(x, y, z, minimum_length=timedelta(hours=1), noise_cut
 
     args = {"x":x, "y":y, "z":z, "minimum_length":minimum_length, "noise_cutoff_mg":noise_cutoff_mg}
     params = ["minimum_length", "noise_cutoff_mg"]
-    return hdf5.do_if_not_cached("infer_nonwear_triaxial", infer_nonwear_triaxial_method, args, params, get_infer_nonwear_triaxial, set_infer_nonwear_triaxial, hdf5_file)
+    return do_if_not_cached("infer_nonwear_triaxial", infer_nonwear_triaxial_method, args, params, get_infer_nonwear_triaxial, set_infer_nonwear_triaxial, hdf5_file)
 
 def infer_valid_days(channel, wear_bouts, valid_criterion=timedelta(hours=10)):
 
     #Generate day-long windows
-    start = time_utilities.start_of_day(channel.timestamps[0])
+    start = start_of_day(channel.timestamps[0])
     day_windows = []
     while start < channel.timeframe[1]:
-        day_windows.append(Bout.Bout(start, start+timedelta(days=1)))
+        day_windows.append(Bout(start, start+timedelta(days=1)))
         start += timedelta(days=1)
 
     valid_windows = []
     invalid_windows = []
     for window in day_windows:
         #how much does all of wear_bouts intersect with window?
-        intersections = Bout.bout_list_intersection([window], wear_bouts)
+        intersections = bout_list_intersection([window], wear_bouts)
 
-        total = Bout.total_time(intersections)
+        total = total_time(intersections)
 
         # If the amount of overlap exceeds the valid criterion, it is valid
         if total >= valid_criterion:

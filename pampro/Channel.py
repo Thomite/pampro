@@ -9,11 +9,14 @@ from scipy.io.wavfile import write
 import zipfile
 from collections import OrderedDict
 from scipy.interpolate import interp1d
-
-from pampro import Time_Series, Bout, pampro_utilities, time_utilities, hdf5
-
 from bisect import bisect_left, bisect_right
 
+from .Channel import *
+from .Bout  import *
+from .Time_Series import *
+from .time_utilities import *
+from .pampro_utilities import *
+from .hdf5 import *
 
 class Channel(object):
 
@@ -497,7 +500,7 @@ class Channel(object):
                         key += "_{}".format(b[2])
 
                     # Bout object to represent window currently being summarised
-                    bout_window = Bout.Bout(start_dts, end_dts)
+                    bout_window = Bout(start_dts, end_dts)
 
                     # Get pre-computed list of bouts for the whole channel
                     all_bouts = self.bouts_cache[key]
@@ -506,10 +509,10 @@ class Channel(object):
                     relevant_bouts = [b for b in all_bouts if b.overlaps(bout_window)]
 
                     # Get the exact intersection of the relevant bouts with this window
-                    intersection = Bout.bout_list_intersection([bout_window], relevant_bouts)
+                    intersection = Bout_list_intersection([bout_window], relevant_bouts)
 
                     # Two variables - total time overlapping the window, and number of bouts it contains
-                    sum_seconds = Bout.total_time(intersection).total_seconds()
+                    sum_seconds = total_time(intersection).total_seconds()
                     num_bouts = len(intersection)
 
                     output_row.append(sum_seconds)
@@ -554,7 +557,7 @@ class Channel(object):
 
             elif stat[0] == "bouts":
                 expected += len(stat[1])*2
-                print("SADDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD")
+
             else:
                 print(stat)
 
@@ -567,7 +570,7 @@ class Channel(object):
 
         for stat in statistics:
             # For each statistic, decide what should it be called
-            channel_names = pampro_utilities.design_variable_names(self.name, stat)
+            channel_names = design_variable_names(self.name, stat)
 
             # Create a Channel for each output
             for cn in channel_names:
@@ -593,7 +596,7 @@ class Channel(object):
                     # Also, if they specified a minimum duration of the bouts
                     if len(b) == 3:
 
-                        bouts_restricted = Bout.limit_to_lengths(bouts, min_length=timedelta(seconds=b[2]))
+                        bouts_restricted = limit_to_lengths(bouts, min_length=timedelta(seconds=b[2]))
                         self.bouts_cache["{}_{}_{}".format(low, high, b[2])] = bouts_restricted
 
         num_expected_results = len(channel_list)
@@ -616,7 +619,7 @@ class Channel(object):
             channel.calculate_timeframe()
             channel.determine_appropriate_methods()
 
-        ts = Time_Series.Time_Series(name)
+        ts = Time_Series(name)
         ts.add_channels(channel_list)
         return ts
 
@@ -660,7 +663,7 @@ class Channel(object):
             start_dts = timestamp - (window_size/2.0)
             end_dts = timestamp + (window_size/2.0)
 
-            yield Bout.Bout(start_dts, end_dts)
+            yield Bout(start_dts, end_dts)
 
     def sliding_statistics(self, window_size, statistics=[("generic", ["mean"])], time_period=False, name=""):
 
@@ -681,7 +684,7 @@ class Channel(object):
 
         while start_dts < end:
 
-            yield Bout.Bout(start_dts, end_dts)
+            yield Bout(start_dts, end_dts)
 
             start_dts = start_dts + window_size
             end_dts = end_dts + window_size
@@ -689,8 +692,8 @@ class Channel(object):
     def piecewise_statistics(self, window_size, statistics=[("generic", ["mean"])], time_period=False, name=""):
 
         if time_period == False:
-            start = time_utilities.start_of_day(self.timeframe[0])
-            end = time_utilities.end_of_day(self.timeframe[1])
+            start = start_of_day(self.timeframe[0])
+            end = end_of_day(self.timeframe[1])
         else:
             start = time_period[0]
             end = time_period[1]
@@ -708,9 +711,9 @@ class Channel(object):
     def summary_statistics(self, statistics=[("generic", ["mean"])], time_period=False, name=""):
 
         if time_period == False:
-            windows = [Bout.Bout(self.timeframe[0], self.timeframe[1]+timedelta(days=1111))]
+            windows = [Bout(self.timeframe[0], self.timeframe[1]+timedelta(days=1111))]
         else:
-            windows = [Bout.Bout(time_period[0],time_period[1])]
+            windows = [Bout(time_period[0],time_period[1])]
 
         return self.build_statistics_channels(windows, statistics, name=name)
 
@@ -760,7 +763,7 @@ class Channel(object):
                     if end_index+1 < self.size:
                         end_time = self.timestamps[end_index+1]
 
-                    bouts.append(Bout.Bout(start_time, end_time))
+                    bouts.append(Bout(start_time, end_time))
 
 
         # Bout finishes at end of file
@@ -771,7 +774,7 @@ class Channel(object):
             #if not self.sparsely_timestamped:
             end_time += self.timestamps[-1]-self.timestamps[-2]
 
-            bouts.append(Bout.Bout(start_time, end_time))
+            bouts.append(Bout(start_time, end_time))
 
         if self.timestamp_policy == "offset":
 
@@ -798,9 +801,9 @@ class Channel(object):
         # Don't delete the data anymore, just mask the data outside of the range
 
         # First bout represents all time up to "start"
-        bout1 = Bout.Bout(self.timestamps[0]-timedelta(days=1), start-timedelta(microseconds=1))
+        bout1 = Bout(self.timestamps[0]-timedelta(days=1), start-timedelta(microseconds=1))
         # Second bout represents all time after "end"
-        bout2 = Bout.Bout(end+timedelta(microseconds=1), self.timestamps[-1]+timedelta(days=1))
+        bout2 = Bout(end+timedelta(microseconds=1), self.timestamps[-1]+timedelta(days=1))
 
         self.delete_windows([bout1, bout2])
 

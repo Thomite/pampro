@@ -1,12 +1,16 @@
-from pampro import Time_Series, Channel, channel_inference, Bout, pampro_utilities, time_utilities, batch_processing
-import numpy as np
 
-from datetime import datetime, date, time, timedelta
+import numpy as np
+from datetime import datetime, timedelta
 from pampro import Time_Series, Bout, Channel
 import copy
 
-import time
-from datetime import datetime
+from .Time_Series import *
+from .Channel import *
+from .channel_inference import *
+from .Bout import *
+from .pampro_utilities import *
+from .time_utilities import *
+from .batch_processing import *
 
 class Bout_Collection(object):
 
@@ -37,7 +41,7 @@ class Bout_Collection(object):
 
     def window_statistics(self, start_dts, end_dts, statistics):
 
-        window = Bout.Bout(start_dts, end_dts)
+        window = Bout(start_dts, end_dts)
         bouts = self.bouts_involved(window)
 
         output_row = []
@@ -50,16 +54,16 @@ class Bout_Collection(object):
                     for val1 in stat[1]:
                         if val1 == "sum":
 
-                            intersection = Bout.bout_list_intersection([window],bouts)
-                            Bout.cache_lengths(intersection)
-                            sum_seconds = Bout.total_time(intersection).total_seconds()
+                            intersection = bout_list_intersection([window],bouts)
+                            cache_lengths(intersection)
+                            sum_seconds = total_time(intersection).total_seconds()
                             output_row.append(sum_seconds)
 
                         elif val1 == "mean":
 
-                            intersection = Bout.bout_list_intersection([window],bouts)
-                            Bout.cache_lengths(intersection)
-                            sum_seconds = Bout.total_time(intersection).total_seconds()
+                            intersection = bout_list_intersection([window],bouts)
+                            cache_lengths(intersection)
+                            sum_seconds = total_time(intersection).total_seconds()
 
                             if sum_seconds >0 and len(bouts) > 0:
                                 output_row.append( sum_seconds / len(bouts) )
@@ -101,10 +105,10 @@ class Bout_Collection(object):
 
         for stat in statistics:
             #print(stat)
-            channel_names = pampro_utilities.design_variable_names(self.name, stat)
+            channel_names = design_variable_names(self.name, stat)
             #print(channel_names)
             for cn in channel_names:
-                channel_list.append(Channel.Channel(cn))
+                channel_list.append(Channel(cn))
 
         num_expected_results = len(channel_list)
 
@@ -123,7 +127,7 @@ class Bout_Collection(object):
             channel.data = np.array(channel.data)
             channel.timestamps = np.array(channel.timestamps)
 
-        ts = Time_Series.Time_Series(name)
+        ts = Time_Series(name)
         ts.add_channels(channel_list)
         return ts
 
@@ -145,7 +149,7 @@ class Bout_Collection(object):
 
         while start_dts < end:
 
-            window = Bout.Bout(start_dts, end_dts)
+            window = Bout(start_dts, end_dts)
             windows.append(window)
 
             start_dts = start_dts + window_size
@@ -156,10 +160,10 @@ class Bout_Collection(object):
     def summary_statistics(self, statistics=[("generic", "mean")], time_period=False, name=""):
 
         if time_period == False:
-            windows = [Bout.Bout(self.timeframe[0], self.timeframe[1]+timedelta(days=1111))]
+            windows = [Bout(self.timeframe[0], self.timeframe[1]+timedelta(days=1111))]
         else:
-            windows = [Bout.Bout(time_period[0],time_period[1])]
-            
+            windows = [Bout(time_period[0],time_period[1])]
+
         return self.build_statistics_channels(windows, statistics, name=name)
 
     def expected_results(self, statistics):
@@ -209,9 +213,9 @@ class Bout_Collection(object):
 
 def sdx(bouts, percentages):
 
-    total_time_minutes = Bout.total_time(bouts).total_seconds()/60
+    total_time_minutes = total_time(bouts).total_seconds()/60
 
-    Bout.cache_lengths(bouts)
+    cache_lengths(bouts)
     bouts.sort(key=lambda x : x.length)
 
     highest_length_minutes = int(bouts[-1].length.total_seconds()/60)
@@ -230,7 +234,7 @@ def sdx(bouts, percentages):
 
         included_bouts = [b for b in bouts if b.length.total_seconds()/60 <= length]
         #print(included_bouts)
-        total_included_time_minutes = Bout.total_time(included_bouts).total_seconds()/60
+        total_included_time_minutes = total_time(included_bouts).total_seconds()/60
 
         #print(length, total_included_time_minutes)
         while total_included_time_minutes >= target_minutes:
