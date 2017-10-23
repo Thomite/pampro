@@ -125,7 +125,7 @@ def infer_enmo_a(vm):
 def infer_vm_hpf(vm):
     """Apply high pass filter to VM at 0.2 hertz. Absolute resulting data. Returned in mg. """
 
-    vm_hpf = pampro_fourier.high_pass_filter(vm, 0.2, frequency=vm.frequency, order=4)
+    vm_hpf = high_pass_filter(vm, 0.2, frequency=vm.frequency, order=4)
     vm_hpf.name = "VM_HPF"
     vm_hpf.data = np.multiply(1000.0, abs(vm_hpf.data))
 
