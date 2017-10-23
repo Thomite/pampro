@@ -11,7 +11,6 @@ from .Time_Series import *
 from .Bout import *
 from .Channel import *
 from .channel_inference import *
-from .time_utilities import *
 from .hdf5 import *
 
 def get_calibrate(hdf5_group):
@@ -19,14 +18,14 @@ def get_calibrate(hdf5_group):
     This hdf5 file object contains a calirbate cache, load it and return the results
     """
 
-    return hdf5.dictionary_from_attributes(hdf5_group)
+    return dictionary_from_attributes(hdf5_group)
 
 def set_calibrate(cache, hdf5_group):
     """
     Create a group for the cached results of calibrate() and write the cache to it
     """
 
-    hdf5.dictionary_to_attributes(cache, hdf5_group)
+    dictionary_to_attributes(cache, hdf5_group)
 
 def is_calibrated(channel):
     """
@@ -107,10 +106,10 @@ def calibrate_slave(x, y, z, budget=1000, noise_cutoff_mg=13):
     calibration_diagnostics["budget"] = budget
     calibration_diagnostics["noise_cutoff_mg"] = noise_cutoff_mg
 
-    vm = channel_inference.infer_vector_magnitude(x,y,z)
+    vm = infer_vector_magnitude(x,y,z)
 
     # Get a list of bouts where standard deviation in each axis is below given threshold ("still")
-    still_bouts = channel_inference.infer_still_bouts_triaxial(x,y,z, noise_cutoff_mg=noise_cutoff_mg, minimum_length=timedelta(minutes=1))
+    still_bouts = infer_still_bouts_triaxial(x,y,z, noise_cutoff_mg=noise_cutoff_mg, minimum_length=timedelta(minutes=1))
     num_still_bouts = len(still_bouts)
     num_still_seconds = total_time(still_bouts).total_seconds()
 
@@ -124,7 +123,7 @@ def calibrate_slave(x, y, z, budget=1000, noise_cutoff_mg=13):
 
     # We only want still bouts where the VM level was within 0.5g of 1g
     # Therefore insersect "still" time with "reasonable" time
-    still_bouts = Bout_list_intersection(reasonable_bouts, still_bouts)
+    still_bouts = bout_list_intersection(reasonable_bouts, still_bouts)
 
     # And we only want bouts where it was still and reasonable for 10s or longer
     still_bouts = limit_to_lengths(still_bouts, min_length = timedelta(seconds=10))
@@ -186,7 +185,7 @@ def calibrate(x, y, z, budget=1000, noise_cutoff_mg=13, hdf5_file=None):
 
     args = {"x":x, "y":y, "z":z, "budget":budget, "noise_cutoff_mg":noise_cutoff_mg}
     params = ["budget", "noise_cutoff_mg"]
-    calibration_diagnostics = hdf5.do_if_not_cached("calibrate", calibrate_slave, args, params, get_calibrate, set_calibrate, hdf5_file)
+    calibration_diagnostics = do_if_not_cached("calibrate", calibrate_slave, args, params, get_calibrate, set_calibrate, hdf5_file)
 
     # Regardless of how we get the results, extract the offset and scales
     calibration_parameters = [calibration_diagnostics[var] for var in ["x_offset", "x_scale", "y_offset", "y_scale", "z_offset", "z_scale"]]
@@ -245,7 +244,7 @@ def evaluate_solution(still_x, still_y, still_z, still_n, calibration_parameters
     do_calibration(still_x, still_y, still_z, calibration_parameters)
 
     # Get the VM of the calibrated channel
-    vm = channel_inference.infer_vector_magnitude(still_x, still_y, still_z)
+    vm = infer_vector_magnitude(still_x, still_y, still_z)
 
     # se = sum error
     se = 0.0

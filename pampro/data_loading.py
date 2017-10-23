@@ -1237,7 +1237,7 @@ def load(source, source_type="infer", datetime_format="%d/%m/%Y %H:%M:%S:%f", da
         header["hdf5_file"] = f
 
         raw_group = f[hdf5_group]
-        ts = hdf5.load_time_series(raw_group)
+        ts = load_time_series(raw_group)
 
     ts.add_channels(channels)
 
