@@ -218,7 +218,7 @@ def load_time_series(hdf5_group):
     """
     Given a reference to a hdf5_group, assume it is layed out according to pampro conventions and load a Time Series object from it.
     """
-    ts = Time_Series.Time_Series("")
+    ts = Time_Series("")
 
     # "timestamps" will be a single HDF5 dataset shared by the rest of the channels
     timestamps = hdf5_group["timestamps"][:]
@@ -232,7 +232,7 @@ def load_time_series(hdf5_group):
         if dataset_name != "timestamps":
             d = hdf5_group[dataset_name]
 
-            chan = Channel.Channel(dataset_name)
+            chan = Channel(dataset_name)
             chan.start = start
 
             # Any meta data on the dataset is copied to the Channel object
