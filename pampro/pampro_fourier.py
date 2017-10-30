@@ -25,7 +25,7 @@ def high_pass_filter(input_channel, high, frequency=1, order=1):
     b, a = butter(order, high_nyq, btype="high")
     y = lfilter(b, a, input_channel.data)
 
-    output_channel = hannel(input_channel.name + "_HPF_" + str(high))
+    output_channel = Channel(input_channel.name + "_HPF_" + str(high))
     output_channel.set_contents(y, input_channel.timestamps)
 
     output_channel.inherit_time_properties(input_channel)
