@@ -115,7 +115,19 @@ def axivity_parse_header(fh):
     annotation = annotation.strip()
 
     annotationElements = annotation.split('&')
-    annotationNames = {'_c': 'studyCentre', '_s': 'studyCode', '_i': 'investigator', '_x': 'exerciseCode', '_v': 'volunteerNum', '_p': 'bodyLocation', '_so': 'setupOperator', '_n': 'notes', '_b': 'startTime', '_e': 'endTime', '_ro': 'recoveryOperator', '_r': 'retrievalTime', '_co': 'comments'}
+    annotationNames = {
+        '_c': 'studyCentre',
+        '_s': 'studyCode',
+        '_i': 'investigator',
+        '_x': 'exerciseCode',
+        '_v': 'volunteerNum', '_p':
+        'bodyLocation', '_so':
+        'setupOperator', '_n': 'notes',
+        '_b': 'startTime', '_e': 'endTime',
+        '_ro': 'recoveryOperator',
+        '_r': 'retrievalTime',
+        '_co': 'comments'
+    }
 
     for element in annotationElements:
         kv = element.split('=', 2)
@@ -142,8 +154,9 @@ def axivity_parse_header(fh):
     #ax_header["logging_start_time"] = axivity_read_timestamp_raw(loggingStartTime)
     #ax_header["logging_end_time"] = axivity_read_timestamp_raw(loggingEndTime)
 
-    mapping = {72:25, 73:50, 74:100, 75:200}
-    ax_header["frequency"] = mapping[int(samplingRate)]
+
+    ax_header["frequency"] = 3200/(1<<(15-(int(samplingRate) & 0x0f)))
+
 
     return ax_header
 
