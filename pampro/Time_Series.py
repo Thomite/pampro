@@ -228,24 +228,26 @@ class Time_Series(object):
 
     def draw(self, channel_combinations, time_period=False, file_target=False, width=6.3, height=4.35):
 
+        try:
+            rcParams['font.size'] = '8'
 
-        rcParams['font.size'] = '8'
+            rcParams['legend.frameon'] = True
+            rcParams['legend.fontsize'] = "x-small"
+            rcParams['legend.labelspacing'] = 0.1
 
-        rcParams['legend.frameon'] = True
-        rcParams['legend.fontsize'] = "x-small"
-        rcParams['legend.labelspacing'] = 0.1
-        rcParams['legend.framealpha'] = 0.7
+            rcParams['xtick.labelsize'] = "x-small"
+            rcParams['ytick.labelsize'] = "x-small"
 
-        rcParams['xtick.labelsize'] = "x-small"
-        rcParams['ytick.labelsize'] = "x-small"
+            rcParams['grid.linewidth'] = 0.2
 
-        rcParams['grid.linewidth'] = 0.2
+            rcParams['figure.dpi'] = 300
+            rcParams['figure.facecolor'] = "white"
 
-        rcParams['figure.dpi'] = 300
-        rcParams['figure.facecolor'] = "white"
-        
-        rcParams['axes.linewidth'] = 0.25
+            rcParams['axes.linewidth'] = 0.25
+            rcParams['legend.framealpha'] = 0.7
 
+        except:
+            print("Encountered an error whilst customising the appearance of charts. This may be because you are running an outdated version of matplotlib.")
 
         fig = plt.figure(figsize=(width,height), frameon=False)
         fig.patch.set_facecolor('#FFFFFF')
