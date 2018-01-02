@@ -89,7 +89,7 @@ class Channel(object):
             # This is a bit of a hack, but it works.
             # In order to interpolate from datetimes, we have to convert to offsets, interpolate on those, and convert back again.
 
-            start, offsets = hdf5.timestamps_to_offsets(self.timestamps)
+            start, offsets = timestamps_to_offsets(self.timestamps)
 
             func = interp1d(offsets, self.data)
             delta = int((timedelta(seconds=1)/1).total_seconds()*1000)
