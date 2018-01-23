@@ -4,8 +4,7 @@ from datetime import datetime, date, time, timedelta
 import copy
 from struct import *
 from math import *
-import time
-from datetime import datetime
+import time as timestdlib
 import sys
 import io
 import re
@@ -147,7 +146,7 @@ def axivity_parse_header(fh):
     firmwareVersion = firmwareVersion if firmwareVersion != 255 else 0
 
 
-    ax_header["sample_rate"] = samplingRate
+    #ax_header["sample_rate"] = samplingRate
     ax_header["device"] = deviceId
     ax_header["session"] = sessionId
     ax_header["firmware"] = firmwareVersion
@@ -340,6 +339,8 @@ def convert_actigraph_timestamp(t):
 
 def load(source, source_type="infer", datetime_format="%d/%m/%Y %H:%M:%S:%f", datetime_column=0, ignore_columns=False, unique_names=False, hdf5_mode="r", hdf5_group="Raw"):
 
+    load_start = datetime.now()
+
     header = OrderedDict()
     channels = []
     ts = Time_Series("")
@@ -347,12 +348,12 @@ def load(source, source_type="infer", datetime_format="%d/%m/%Y %H:%M:%S:%f", da
     # when the source_type is left blank, we can assume using the filename extension
     # throw an error if unsure
     extension_map = {
-    "dat":"Actigraph", "DAT":"Actigraph", "Dat":"Actigraph",
-    "csv":"CSV",
-    "bin":"GeneActiv",
-    "hdf5":"HDF5", "h5":"HDF5",
-    "datx":"activPAL",
-    "cwa":"Axivity", "CWA":"Axivity"
+        "dat":"Actigraph", "DAT":"Actigraph", "Dat":"Actigraph",
+        "csv":"CSV",
+        "bin":"GeneActiv",
+        "hdf5":"HDF5", "h5":"HDF5",
+        "datx":"activPAL",
+        "cwa":"Axivity", "CWA":"Axivity"
     }
 
     if source_type == "infer":
@@ -820,20 +821,24 @@ def load(source, source_type="infer", datetime_format="%d/%m/%Y %H:%M:%S:%f", da
         # Rough number of pages expected = length of file / size of block (512 bytes)
         # Rough number of samples expected = pages * 120
         # Add 1% buffer just to be cautious - it's trimmed later
-        estimated_size = int(((len(raw_bytes)/512)*120)*1.01)
+        estimated_num_pages = int(len(raw_bytes)/512 * 1.01)
+        estimated_num_samples = int(estimated_num_pages*120)
+        #print("Estimated number of samples:", estimated_num_samples)
 
-        #print("Estimated number of observations:", estimated_size)
-
-        axivity_x = np.empty(estimated_size)
-        axivity_y = np.empty(estimated_size)
-        axivity_z = np.empty(estimated_size)
-        axivity_light = np.empty(int(len(raw_bytes)/512*1.01))
-        axivity_temperature = np.empty(int(len(raw_bytes)/512*1.01))
-        axivity_timestamps = np.empty(int((len(raw_bytes)/512)*1.01), dtype=type(start))
-        axivity_indices = np.empty(int(len(raw_bytes)/512*1.01))
+        axivity_x = np.empty(estimated_num_samples)
+        axivity_y = np.empty(estimated_num_samples)
+        axivity_z = np.empty(estimated_num_samples)
+        axivity_light = np.empty(estimated_num_pages)
+        axivity_temperature = np.empty(estimated_num_pages)
+        axivity_timestamps = np.empty(estimated_num_pages, dtype=type(start))
+        axivity_indices = np.empty(estimated_num_pages)
 
         file_header = OrderedDict()
 
+        lastSequenceId = None
+        lastTimestampOffset = None
+        lastTimestamp = None
+        
         try:
             header = axivity_read(fh,2)
 
@@ -852,9 +857,7 @@ def load(source, source_type="infer", datetime_format="%d/%m/%Y %H:%M:%S:%f", da
 
                     packetLength, deviceId, sessionId, sequenceId, sampleTimeData, light, temperature, events, battery, sampleRate, numAxesBPS, timestampOffset, sampleCount = unpack('HHIIIHHcBBBhH', axivity_read(fh,28))
 
-                    timestamp = axivity_read_timestamp_raw(sampleTimeData)
-
-                    if packetLength != 508 or timestamp == None or sampleRate == 0:
+                    if packetLength != 508 or sampleRate == 0:
                         continue
 
                     if ((numAxesBPS >> 4) & 15) != 3:
@@ -868,44 +871,67 @@ def load(source, source_type="infer", datetime_format="%d/%m/%Y %H:%M:%S:%f", da
                     freq = 3200 / (1 << (15 - sampleRate & 15))
                     if freq <= 0:
                         freq = 1
-                    offsetStart = float(-timestampOffset) / float(freq)
 
-                    time0 = timestamp + timedelta(milliseconds=offsetStart)
+                    timestamp_original = axivity_read_timestamp_raw(sampleTimeData)
+
+                    # if top-bit set, we have a fractional date
+                    if deviceId & 0x8000:
+                        # Need to undo backwards-compatible shim by calculating how many whole samples the fractional part of timestamp accounts for.
+                        timeFractional = (deviceId & 0x7fff) * 2     # use original deviceId field bottom 15-bits as 16-bit fractional time
+                        timestampOffset += (timeFractional * int(freq)) // 65536 # undo the backwards-compatible shift (as we have a true fractional)
+                        timeFractional = float(timeFractional) / 65536
+
+                        # Add fractional time to timestamp
+                        timestamp = timestamp_original + timedelta(seconds=timeFractional)
+   
+                    else:
+
+                        timestamp = timestamp_original
+
+                    # --- Time interpolation ---
+                    # Reset interpolator if there's a sequence break or there was no previous timestamp
+                    if lastSequenceId == None or (lastSequenceId + 1) & 0xffff != sequenceId or lastTimestampOffset == None or lastTimestamp == None:
+                        # Bootstrapping condition is a sample one second ago (assuming the ideal frequency)
+                        lastTimestampOffset = timestampOffset - freq
+                        lastTimestamp = timestamp - timedelta(seconds=1)
+                        lastSequenceId = sequenceId - 1
+
+                    localFreq = timedelta(seconds=(timestampOffset - lastTimestampOffset)) / (timestamp - lastTimestamp)
+                    final_timestamp = timestamp + -timedelta(seconds=timestampOffset) / localFreq
+                    
+                    # Update for next loop
+                    lastSequenceId = sequenceId
+                    lastTimestampOffset = timestampOffset - sampleCount
+                    lastTimestamp = timestamp
+    
                     axivity_indices[num_pages] = num_samples
-                    axivity_timestamps[num_pages] = time0
+                    axivity_timestamps[num_pages] = final_timestamp
                     axivity_light[num_pages] = light
                     axivity_temperature[num_pages] = temperature
                     num_pages += 1
 
                     for sample in range(sampleCount):
 
-                        x,y,z = 0,0,0
-
                         if bps == 6:
 
-                            x,y,z = unpack('hhh', fh.read(6))
-                            x,y,z = x/256.0,y/256.0,z/256.0
+                            x, y, z = unpack('hhh', fh.read(6))
+                            x, y, z = x/256.0, y/256.0, z/256.0
 
                         elif bps == 4:
+
                             temp = unpack('I', fh.read(4))[0]
                             temp2 = (6 - byte(temp >> 30))
                             x = short(short((ushort(65472) & ushort(temp << 6))) >> temp2) / 256.0
                             y = short(short((ushort(65472) & ushort(temp >> 4))) >> temp2) / 256.0
                             z = short(short((ushort(65472) & ushort(temp >> 14))) >> temp2) / 256.0
 
-                            # Optimisation:
-                            # Cache value of ushort(65472) ?
-
-
-                        #t = sample*sampleOffset + time0
+                            # Optimisation: cache value of ushort(65472) ?
 
                         axivity_x[num_samples] = x
                         axivity_y[num_samples] = y
                         axivity_z[num_samples] = z
 
                         num_samples += 1
-
-
 
                     checksum = unpack('H', axivity_read(fh,2))[0]
 
@@ -916,9 +942,12 @@ def load(source, source_type="infer", datetime_format="%d/%m/%Y %H:%M:%S:%f", da
                 header = axivity_read(fh,2)
 
                 n=n+1
-        except IOError:
+        except IOError: 
+            # End of file
             pass
 
+        # We created oversized arrays at the start, to make sure we could fit all the data in 
+        # Now we know how much data was there, we can shrink the arrays to size
         axivity_x.resize(num_samples)
         axivity_y.resize(num_samples)
         axivity_z.resize(num_samples)
@@ -927,6 +956,7 @@ def load(source, source_type="infer", datetime_format="%d/%m/%Y %H:%M:%S:%f", da
         axivity_temperature.resize(num_pages)
         axivity_light.resize(num_pages)
 
+        # Map the page-level timestamps to the acceleration data "sparsely"
         channel_x.set_contents(axivity_x, axivity_timestamps, timestamp_policy="sparse")
         channel_y.set_contents(axivity_y, axivity_timestamps, timestamp_policy="sparse")
         channel_z.set_contents(axivity_z, axivity_timestamps, timestamp_policy="sparse")
@@ -934,13 +964,14 @@ def load(source, source_type="infer", datetime_format="%d/%m/%Y %H:%M:%S:%f", da
         channel_light.set_contents(axivity_light, axivity_timestamps, timestamp_policy="sparse")
         channel_temperature.set_contents(axivity_temperature, axivity_timestamps, timestamp_policy="sparse")
 
+        # Approximate the frequency in hertz, based on the difference between the first and last timestamp
         approximate_frequency = timedelta(seconds=1)/ ((axivity_timestamps[-1]-axivity_timestamps[0])/num_samples)
 
         for c in [channel_x, channel_y, channel_z]:
             c.indices = axivity_indices
-            c.frequency = approximate_frequency
+            c.frequency = file_header["frequency"]
 
-        file_header["frequency"] = approximate_frequency
+        file_header["approximate_frequency"] = approximate_frequency
         file_header["num_pages"] = num_pages
         file_header["num_samples"] = num_samples
         channels = [channel_x, channel_y, channel_z, channel_light, channel_temperature]
@@ -1205,6 +1236,7 @@ def load(source, source_type="infer", datetime_format="%d/%m/%Y %H:%M:%S:%f", da
 
     elif (source_type == "XLO"):
 
+        # First 15 lines contain generic header info
         first_lines = []
         f = open(source, 'r')
         for i in range(15):
@@ -1215,6 +1247,7 @@ def load(source, source_type="infer", datetime_format="%d/%m/%Y %H:%M:%S:%f", da
         data = np.loadtxt(f, delimiter="\t", dtype="S").astype("U")
         f.close()
 
+        # Skip the "empty" artefacts
         good_rows = data[:,0] == '   -    '
         data = data[good_rows]
 
@@ -1252,11 +1285,18 @@ def load(source, source_type="infer", datetime_format="%d/%m/%Y %H:%M:%S:%f", da
         raw_group = f[hdf5_group]
         ts = load_time_series(raw_group)
 
+    # channels is a list of Channel objects, set above according to the file format
     ts.add_channels(channels)
+
+    # Calculate how long it took to load this file
+    load_end = datetime.now()
+    load_duration = (load_end - load_start).total_seconds()
 
     header["generic_num_channels"] = ts.number_of_channels
     header["generic_first_timestamp"] = ts.earliest.strftime("%d/%m/%Y %H:%M:%S:%f")
     header["generic_last_timestamp"] = ts.latest.strftime("%d/%m/%Y %H:%M:%S:%f")
     header["generic_num_samples"] = len(ts.channels[0].data)
+    header["generic_loading_time"] = load_duration
+    header["generic_processing_timestamp"] = load_start.strftime("%d/%m/%Y %H:%M:%S:%f")
 
     return ts, header
