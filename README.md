@@ -4,7 +4,7 @@
 
 pampro is a software project for the systematic analysis of physical activity data collected in epidemiological studies. The ultimate goal is to provide a turn-key solution for physical activity data analysis, replicating published methodologies in a monitor-agnostic framework.
 
-### New in version 0.4
+### New in version v0.4.0
 
 The main feature of this version is a [HDF5](https://www.hdfgroup.org/HDF5/) module, which provides functions to store pampro objects inside HDF5 containers. This has numerous advantages, the most important being incredibly fast loading times for triaxial Time Series data (<10 seconds for a week long 100 Hz file). It also provides a mechanism to automatically cache the results of various time consuming functions, such as nonwear detection and autocalibration; this means if a second analysis is performed, the results will be instantly recalled from storage. In the future, it will become a low-memory solution for pampro analyses, which will minimise the RAM footprint by writing results directly to disk. A demonstration of how to use the new format in pampro can be found [here](http://nbviewer.ipython.org/github/Thomite/pampro/blob/master/examples/example_hdf5.ipynb).
 
