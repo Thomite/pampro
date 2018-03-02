@@ -60,6 +60,42 @@ class Channel(object):
         get_index_methods = {"normal":self.get_data_index, "sparse":self.get_sparse_data_index, "offset":self.get_offset_data_index}
         self.get_index_appropriately = get_index_methods[self.timestamp_policy]
 
+    def set_timestamp_policy(self, new_timestamp_policy):
+        """
+        Not yet implemented.
+        """
+
+        if self.timestamp_policy == new_timestamp_policy:
+            print("Channel {} is already timestamped according to policy {}".format(self.name, self.timestamp_policy))
+
+        else:
+
+            if self.timestamp_policy == "sparse":
+
+                if new_timestamp_policy == "normal":
+                    print("sparse -> normal not yet implemented.")
+
+                elif new_timestamp_policy == "offset":
+                    print("sparse -> offset not yet implemented.")
+
+            elif self.timestamp_policy == "normal":
+
+                if new_timestamp_policy == "sparse":
+                    print("normal -> sparse not yet implemented.")
+
+                elif new_timestamp_policy == "offset":
+                    print("normal -> offset not yet implemented.")
+
+            elif self.timestamp_policy == "offset":
+
+                if new_timestamp_policy == "sparse":
+                    print("offset -> sparse not yet implemented.")
+
+                elif new_timestamp_policy == "normal":
+                    print("offset -> normal not yet implemented.")
+
+            self.determine_appropriate_methods()
+
     def resample(self, frequency):
         """
         Resample channel data to a given frequency
