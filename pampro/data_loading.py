@@ -838,7 +838,7 @@ def load(source, source_type="infer", datetime_format="%d/%m/%Y %H:%M:%S:%f", da
         lastSequenceId = None
         lastTimestampOffset = None
         lastTimestamp = None
-        
+
         try:
             header = axivity_read(fh,2)
 
@@ -874,6 +874,9 @@ def load(source, source_type="infer", datetime_format="%d/%m/%Y %H:%M:%S:%f", da
 
                     timestamp_original = axivity_read_timestamp_raw(sampleTimeData)
 
+                    if timestamp_original is None:
+                        continue
+
                     # if top-bit set, we have a fractional date
                     if deviceId & 0x8000:
                         # Need to undo backwards-compatible shim by calculating how many whole samples the fractional part of timestamp accounts for.
@@ -883,7 +886,7 @@ def load(source, source_type="infer", datetime_format="%d/%m/%Y %H:%M:%S:%f", da
 
                         # Add fractional time to timestamp
                         timestamp = timestamp_original + timedelta(seconds=timeFractional)
-   
+
                     else:
 
                         timestamp = timestamp_original
@@ -898,12 +901,12 @@ def load(source, source_type="infer", datetime_format="%d/%m/%Y %H:%M:%S:%f", da
 
                     localFreq = timedelta(seconds=(timestampOffset - lastTimestampOffset)) / (timestamp - lastTimestamp)
                     final_timestamp = timestamp + -timedelta(seconds=timestampOffset) / localFreq
-                    
+
                     # Update for next loop
                     lastSequenceId = sequenceId
                     lastTimestampOffset = timestampOffset - sampleCount
                     lastTimestamp = timestamp
-    
+
                     axivity_indices[num_pages] = num_samples
                     axivity_timestamps[num_pages] = final_timestamp
                     axivity_light[num_pages] = light
@@ -942,11 +945,11 @@ def load(source, source_type="infer", datetime_format="%d/%m/%Y %H:%M:%S:%f", da
                 header = axivity_read(fh,2)
 
                 n=n+1
-        except IOError: 
+        except IOError:
             # End of file
             pass
 
-        # We created oversized arrays at the start, to make sure we could fit all the data in 
+        # We created oversized arrays at the start, to make sure we could fit all the data in
         # Now we know how much data was there, we can shrink the arrays to size
         axivity_x.resize(num_samples)
         axivity_y.resize(num_samples)
