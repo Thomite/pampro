@@ -959,6 +959,8 @@ def load(source, source_type="infer", datetime_format="%d/%m/%Y %H:%M:%S:%f", da
         axivity_temperature.resize(num_pages)
         axivity_light.resize(num_pages)
 
+        axivity_indices = axivity_indices.astype(int)
+
         # Map the page-level timestamps to the acceleration data "sparsely"
         channel_x.set_contents(axivity_x, axivity_timestamps, timestamp_policy="sparse")
         channel_y.set_contents(axivity_y, axivity_timestamps, timestamp_policy="sparse")
@@ -1126,7 +1128,8 @@ def load(source, source_type="infer", datetime_format="%d/%m/%Y %H:%M:%S:%f", da
         # Timestamp the final observation
         axivity_timestamps[-1] = axivity_timestamps[-2] + ((num_samples/num_pages)*(timedelta(seconds=1)/file_header["frequency"]))
         axivity_indices[-1] = num_samples
-
+        axivity_indices = axivity_indices.astype(int)
+        
         channel_x.set_contents(axivity_x, axivity_timestamps, timestamp_policy="sparse")
         channel_y.set_contents(axivity_y, axivity_timestamps, timestamp_policy="sparse")
         channel_z.set_contents(axivity_z, axivity_timestamps, timestamp_policy="sparse")
@@ -1215,7 +1218,7 @@ def load(source, source_type="infer", datetime_format="%d/%m/%Y %H:%M:%S:%f", da
         # Timestamp the final observation
         ga_timestamps[-1] = page_time + (num*(timedelta(seconds=1)/header_info["frequency"]))
         ga_indices[-1] = obs_num
-
+        ga_indices = ga_indices.astype(int)
 
         x_values = np.array([(x * 100.0 - header_info["x_offset"]) / header_info["x_gain"] for x in x_values])
         y_values = np.array([(y * 100.0 - header_info["y_offset"]) / header_info["y_gain"] for y in y_values])
