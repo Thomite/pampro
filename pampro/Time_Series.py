@@ -1,3 +1,12 @@
+# pampro - physical activity monitor processing
+# Copyright (C) 2019  MRC Epidemiology Unit, University of Cambridge
+#   
+# This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or any later version.
+#   
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#   
+# You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+
 import matplotlib
 matplotlib.use("Agg") # So that plotting doesn't require X and can be done remotely
 
@@ -6,8 +15,8 @@ from matplotlib import rcParams
 
 from datetime import datetime, date, time, timedelta
 import numpy as np
+import math
 from collections import OrderedDict
-
 
 
 class Time_Series(object):
@@ -158,18 +167,25 @@ class Time_Series(object):
 
     def append(self, time_series):
 
+        flag = True
+
+        if "X_mean" in time_series.channels:
+            flag = False
+
         for channel in time_series.channels:
 
             match = self.get_channel(channel.name)
             match.append(channel)
 
-            tf = channel.timeframe
+            if flag:
+                tf = channel.timeframe
 
-            if self.earliest > tf[0]:
-                self.earliest = tf[0]
-            if self.latest < tf[1]:
-                self.latest = tf[1]
-
+                if self.earliest > tf[0]:
+                    self.earliest = tf[0]
+                if self.latest < tf[1]:
+                    self.latest = tf[1]
+            else:
+                pass
 
     def write_channels_to_file(self, file_target, channel_list=False, timestamp_format="%d/%m/%Y %H:%M:%S:%f"):
 
@@ -212,7 +228,7 @@ class Time_Series(object):
         for i in range(0,len(channel_sources[0].data)):
 
             pretty_timestamp = channel_sources[0].timestamps[i].strftime(timestamp_format)
-            file_output.write(self.name + "," + pretty_timestamp + ",")
+            file_output.write("{},{},".format(self.name, pretty_timestamp))
 
             for n,chan in enumerate(channel_sources):
 
@@ -249,7 +265,7 @@ class Time_Series(object):
         except:
             print("Encountered an error whilst customising the appearance of charts. This may be because you are running an outdated version of matplotlib.")
 
-        fig = plt.figure(figsize=(width,height), frameon=False)
+        fig = plt.figure(figsize=(width,height))
         fig.patch.set_facecolor('#FFFFFF')
 
         if time_period == False:
@@ -277,5 +293,121 @@ class Time_Series(object):
         if file_target==False:
             return fig
         else:
-            plt.savefig(file_target, dpi=300, frameon=False, facecolor='#FFFFFF')
+            plt.savefig(file_target, dpi=300, facecolor='#FFFFFF')
             plt.close("all")
+    
+    
+    def draw_qc(self, plotting_df, time_period=False, file_target=False, width=6.3, height=4.35):
+
+        try:
+            rcParams['font.size'] = '8'
+
+            rcParams['legend.frameon'] = True
+            rcParams['legend.fontsize'] = "x-small"
+            rcParams['legend.labelspacing'] = 0.1
+
+            rcParams['xtick.labelsize'] = "x-small"
+            rcParams['ytick.labelsize'] = "x-small"
+
+            rcParams['grid.linewidth'] = 0.2
+
+            rcParams['figure.dpi'] = 300
+            rcParams['figure.facecolor'] = "white"
+
+            rcParams['axes.linewidth'] = 0.25
+            rcParams['legend.framealpha'] = 0.7
+
+        except:
+            print("Encountered an error whilst customising the appearance of charts. This may be because you are running an outdated version of matplotlib.")
+
+        fig = plt.figure(figsize=(width,height))
+        fig.patch.set_facecolor('#FFFFFF')
+
+        if time_period == False:
+            axis_xlim = (self.earliest, self.latest)
+        else:
+            axis_xlim = (time_period[0], time_period[1])
+
+        num = len(plotting_df.index)
+        
+        for x in range(num):
+            
+            axis = fig.add_subplot(num, 1, 1+x)
+
+            axis.set_xlim(axis_xlim)
+                
+            print(plotting_df.at[x,'channel_name'])
+            
+            channel = self.get_channel(plotting_df.at[x,'channel_name'])
+            axis.set_ylim(plotting_df.at[x,'channel_min'], plotting_df.at[x,'channel_max'])
+            channel.draw(axis, time_period=axis_xlim)
+
+            handles, labels = axis.get_legend_handles_labels()
+            by_label = OrderedDict(zip(labels, handles))
+            legend = axis.legend(by_label.values(), by_label.keys(), loc='upper right')
+            legend.get_frame().set_linewidth(0.0)
+            axis.grid()
+
+
+        fig.tight_layout()
+
+        if file_target==False:
+            return fig
+        else:
+            plt.savefig(file_target, dpi=300, facecolor='#FFFFFF')
+            plt.close("all")
+
+
+    def draw_hist(self, channel_combinations, file_target, x_axis_lowerlimit, x_axis_upperlimit, bins=500, width=6.3, height=4.35):
+
+        try:
+            rcParams['font.size'] = '8'
+
+            rcParams['legend.frameon'] = True
+            rcParams['legend.fontsize'] = "x-small"
+            rcParams['legend.labelspacing'] = 0.1
+
+            rcParams['xtick.labelsize'] = "x-small"
+            rcParams['ytick.labelsize'] = "x-small"
+
+            rcParams['grid.linewidth'] = 0.2
+
+            rcParams['figure.dpi'] = 300
+            rcParams['figure.facecolor'] = "white"
+
+            rcParams['axes.linewidth'] = 0.25
+            rcParams['legend.framealpha'] = 0.7
+
+        except:
+            print("Encountered an error whilst customising the appearance of charts. This may be because you are running an outdated version of matplotlib.")
+
+        fig = plt.figure(figsize=(width,height))
+        fig.patch.set_facecolor('#FFFFFF')
+
+        axes = [fig.add_subplot(len(channel_combinations), 1, 1+index) for index in range(len(channel_combinations))]
+
+        axis_xlim = (x_axis_lowerlimit, x_axis_upperlimit)
+
+        for channels, axis in zip(channel_combinations, axes):
+
+            axis.set_xlim(axis_xlim)
+
+            for c in channels:
+                channel = self.get_channel(c)
+
+                data = channel.data
+
+                plt.hist(data, bins=bins, histtype="stepfilled", density=True, label=channel.name, alpha=0.5)
+
+            plt.legend()
+            axis.grid()
+
+            plt.xlabel('g')
+            plt.ylabel('Density')
+
+        fig.tight_layout()
+
+        plt.savefig(file_target, dpi=300, facecolor='#FFFFFF')
+        plt.close("all")
+
+

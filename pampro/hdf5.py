@@ -1,3 +1,12 @@
+# pampro - physical activity monitor processing
+# Copyright (C) 2019  MRC Epidemiology Unit, University of Cambridge
+#   
+# This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or any later version.
+#   
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#   
+# You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+
 from datetime import datetime, timedelta
 from collections import OrderedDict
 import h5py
@@ -5,18 +14,16 @@ import numpy as np
 import math
 
 
-
-
 def list_caches(hdf5_file):
     """
     List the name of any functions that have their results cached in this file.
     """
-
     if "cache" in hdf5_file:
 
         return list(hdf5_file["cache"].keys())
     else:
         return "Empty"
+
 
 def get_appropriate_cache(name, args, parameter_names, hdf5_file):
     """
@@ -43,6 +50,7 @@ def get_appropriate_cache(name, args, parameter_names, hdf5_file):
     # None of the caches under "cache/name" were ran with the same parameters
     return None
 
+
 def make_cache(name, args, parameter_names, hdf5_file):
     """
     Create a HDF5 group suitable for caching the results of a process.
@@ -66,6 +74,7 @@ def make_cache(name, args, parameter_names, hdf5_file):
         hdf5_group.attrs[param] = str(args[param])
 
     return hdf5_group
+
 
 def do_if_not_cached(name, method, args, parameter_names, getter, setter, hdf5_file):
     """
@@ -103,6 +112,7 @@ def do_if_not_cached(name, method, args, parameter_names, getter, setter, hdf5_f
 
     return r
 
+
 def delete_cache(hdf5_file):
     """
     Delete the cache folder and its subfolders. Any subsequent query on the cache will conclude nothing has been cached.
@@ -117,13 +127,15 @@ def delete_cache(hdf5_file):
     except:
         return False
 
+
 def dictionary_to_attributes(dictionary, hdf5_thing):
     """
     Write each item in the given dictionary as an attribute attached to the HDF5 group or dataset.
     """
 
-    for k,v in dictionary.items():
+    for k, v in dictionary.items():
         hdf5_thing.attrs[k] = v
+
 
 def dictionary_from_attributes(hdf5_thing):
     """
@@ -131,10 +143,11 @@ def dictionary_from_attributes(hdf5_thing):
     """
 
     dictionary = OrderedDict()
-    for k,v in hdf5_thing.attrs.items():
+    for k, v in hdf5_thing.attrs.items():
         dictionary[k] = v
 
     return dictionary
+
 
 def load_bouts_from_hdf5_group(hdf5_group):
     """
@@ -159,6 +172,7 @@ def load_bouts_from_hdf5_group(hdf5_group):
             bouts.append(Bout(start + one_ms*a, start + one_ms*b))
 
     return bouts
+
 
 def save_bouts_to_hdf5_group(bouts, hdf5_group):
     """
@@ -197,6 +211,7 @@ def save_bouts_to_hdf5_group(bouts, hdf5_group):
         end = hdf5_group.create_dataset("end_timestamps", (num_bouts,), chunks=True, compression="gzip", shuffle=True, compression_opts=9, dtype="uint32")
         end[...] = ends
 
+
 def save_bouts(bouts, output, group_name):
 
     if type(output) is h5py._hl.files.File:
@@ -214,9 +229,10 @@ def save_bouts(bouts, output, group_name):
     group.attrs["pampro_type"] = "bouts"
     save_bouts_to_hdf5_group(bouts, group)
 
+
 def load_time_series(hdf5_group):
     """
-    Given a reference to a hdf5_group, assume it is layed out according to pampro conventions and load a Time Series object from it.
+    Given a reference to a hdf5_group, assume it is laid out according to pampro conventions and load a Time Series object from it.
     """
     from .Channel import Channel
     from .Time_Series import Time_Series
@@ -248,6 +264,7 @@ def load_time_series(hdf5_group):
 
     return ts
 
+
 def timestamps_to_offsets(timestamps):
     """
     Express a list of timestamps as a list of millisecond offsets from the first timestamp
@@ -260,6 +277,7 @@ def timestamps_to_offsets(timestamps):
     offsets = ((timestamps - start)/timedelta(microseconds=1000)).astype("uint32")
 
     return (start,offsets)
+
 
 def interpolate_offsets(offsets, data_length):
     """
@@ -275,7 +293,6 @@ def interpolate_offsets(offsets, data_length):
 
     full_offsets = np.empty(data_length, dtype="uint32")
 
-
     for i,a,b in zip(range(len(offsets)), offsets, offsets[1:]):
 
         diff = (b-a) / data_to_offset_ratio
@@ -288,7 +305,7 @@ def interpolate_offsets(offsets, data_length):
     return full_offsets
 
 
-def save(ts, output_filename, groups=[("Raw", ["X", "Y", "Z"])], meta_candidates=["calibrated", "frequency"], compression=4, data_type="float32"):
+def save(ts, output_filename, file_header=None, groups=[("Raw", ["X", "Y", "Z"])], meta_candidates=["calibrated", "frequency", "missing_value"], compression=4, data_type="float32"):
     """
     Output a Time_Series object to a HDF5 container, for super-fast loading by the data_loading module.
     For information on HDF5: https://www.hdfgroup.org/HDF5/
@@ -306,28 +323,44 @@ def save(ts, output_filename, groups=[("Raw", ["X", "Y", "Z"])], meta_candidates
     # We group them to indicate that they share a common set of timestamps to save storage
     for group_name, channels in groups:
 
+        # groups counter
+        group_number = 1
+
         group = f.create_group(group_name)
 
         first_channel = ts[channels[0]]
-        timestamps = first_channel.timestamps
         data_length = len(first_channel.data)
-        timestamp_length = len(timestamps)
+
+        # set attributes for the first group only
+        if file_header is not None:
+            if group_number == 1:
+                for k, v in file_header.items():
+                    if k is not "start_datetime_python":
+                        group.attrs[k] = v 
+                    else:
+                        pass
+            else:
+                pass
 
         group.attrs["start"] = first_channel.time_period[0].strftime("%d/%m/%Y %H:%M:%S")
 
-        # Convert timestamps to offsets from the first timestamp - makes storing them easier as ints
-        start, offsets = timestamps_to_offsets(timestamps)
+        
 
-        # If the timestamps are sparse, expand them to 1 per observation
-        if timestamp_length < data_length:
-            offsets = interpolate_offsets(offsets, data_length)
+        offsets_dset = group.create_dataset("timestamps", (data_length,), chunks=True, compression="gzip", shuffle=True, compression_opts=9, dtype="uint32")
+        
+        # check is channel data is already timestamped with offsets, if not convert to offsets
+        if first_channel.timestamp_policy != "offset":
+            # Convert timestamps to offsets from the first timestamp - makes storing them easier as ints
+            start, offsets = timestamps_to_offsets(first_channel.timestamps)
 
-        # When we have page-level timestamps from a file, a timestamp points at the first observation in the page
-        # This leaves some data at the end of a file without timestamps
-        # So the data_loading function infers a final timestamp that points at the last observation
-        # This means there is 1 extra timestamp than the page level data, which we want to ignore here
-        if timestamp_length == data_length+1:
-            offsets = offsets[:-1]
+            # If the timestamps are sparse, expand them to 1 per observation
+            if len(first_channel.timestamps) < data_length:
+                offsets = interpolate_offsets(offsets, data_length)
+            
+            offsets_dset[...] = offsets
+        
+        else:
+            offsets_dset[...] = first_channel.timestamps
 
         # Each channel's data array becomes a HDF5 dataset inside the group
         for channel_name in channels:
@@ -342,7 +375,7 @@ def save(ts, output_filename, groups=[("Raw", ["X", "Y", "Z"])], meta_candidates
                 if hasattr(channel, mc):
                     dset.attrs[mc] = getattr(channel, mc)
 
-        offsets_dset = group.create_dataset("timestamps", (data_length,), chunks=True, compression="gzip", shuffle=True, compression_opts=9, dtype="uint32")
-        offsets_dset[...] = offsets
+        # increase the groups counter
+        group_number += 1
 
     f.close()

@@ -1,3 +1,12 @@
+# pampro - physical activity monitor processing
+# Copyright (C) 2019  MRC Epidemiology Unit, University of Cambridge
+#   
+# This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or any later version.
+#   
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#   
+# You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+
 import copy
 from datetime import datetime, date, time, timedelta
 import numpy as np
@@ -60,7 +69,7 @@ def total_time(bouts):
 
 def bout_list_intersection(bouts_a, bouts_b):
 
-	intersection = []
+	intersections = []
 
 	if len(bouts_a) > 0 and len(bouts_b) > 0:
 		for bout_a in bouts_a:
@@ -69,15 +78,15 @@ def bout_list_intersection(bouts_a, bouts_b):
 				if bout_a.overlaps(bout_b):
 
 					bout_c = bout_a.intersection(bout_b)
-					intersection.append(bout_c)
+					intersections.append(bout_c)
 
-	return intersection
+	return intersections
 
 def bout_list_union(bouts_a, bouts_b):
 
-	# TODO: Return the union of two bout lists
-
-	return -1
+    union = list(set(bouts_a) | set(bouts_b))
+    
+    return union
 
 def time_period_minus_bouts(time_period, bouts):
 
@@ -147,7 +156,6 @@ def limit_to_lengths(bouts, min_length=False, max_length=False, sorted=False):
 
 def cache_lengths(bouts):
 	pass
-
 
 
 def write_bouts_to_file(bouts, file_target, date_format="%d/%m/%Y %H:%M:%S:%f"):

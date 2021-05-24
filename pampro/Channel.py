@@ -1,21 +1,22 @@
-import numpy as np
-from datetime import datetime, date, time, timedelta
-import copy
-from struct import *
-from math import *
-import sys
-import re
+# pampro - physical activity monitor processing
+# Copyright (C) 2019  MRC Epidemiology Unit, University of Cambridge
+#   
+# This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or any later version.
+#   
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#   
+# You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+
 from scipy.io.wavfile import write
-import zipfile
-from collections import OrderedDict
 from scipy.interpolate import interp1d
 from bisect import bisect_left, bisect_right
 
-from .Bout  import *
+from .Bout import *
 from .Time_Series import *
 from .time_utilities import *
 from .pampro_utilities import *
 from .hdf5 import *
+
 
 class Channel(object):
 
@@ -32,8 +33,8 @@ class Channel(object):
         self.draw_properties = {}
         self.cached_indices = {}
         self.timestamp_policy = "normal" # sparse, offset
-        self.missing_value = False
-
+        self.missing_value = "None" # changed from False, as false can include zero in some circumstances 24/5/19
+        self.binary_data = False # set to "True" in order to preserve the data as a binary (0/1) channel in other functions
 
     def clone(self):
         """ Return an independent copy of this Channel. """
@@ -51,6 +52,7 @@ class Channel(object):
 
         self.determine_appropriate_methods()
 
+
     def determine_appropriate_methods(self):
         """
         Create some interface shortcuts to certain methods to optimise speed.
@@ -62,11 +64,12 @@ class Channel(object):
 
     def set_timestamp_policy(self, new_timestamp_policy):
         """
-        Not yet implemented.
+        Only currently implemented for converting normal -> offset and sparse -> offset
         """
 
         if self.timestamp_policy == new_timestamp_policy:
-            print("Channel {} is already timestamped according to policy {}".format(self.name, self.timestamp_policy))
+            pass
+            #print("Channel {} is already timestamped according to policy {}".format(self.name, self.timestamp_policy))
 
         else:
 
@@ -76,7 +79,23 @@ class Channel(object):
                     print("sparse -> normal not yet implemented.")
 
                 elif new_timestamp_policy == "offset":
-                    print("sparse -> offset not yet implemented.")
+                    self.start = self.timestamps[0]
+                    old_timestamps = self.timestamps
+                    
+                    # Convert timestamps to offsets from the first timestamp - makes storing them easier as ints
+                    start, offsets = timestamps_to_offsets(old_timestamps)
+                    
+                    # If the timestamps are sparse, expand them to 1 per observation
+                    offsets = interpolate_offsets(offsets, len(self.data))
+                    
+                    # When we have page-level timestamps from a file, a timestamp points at the first observation in the page
+                    # This leaves some data at the end of a file without timestamps
+                    # So the data_loading function infers a final timestamp that points at the last observation
+                    # This means there is 1 extra timestamp than the page level data, which we want to ignore here
+                    #if len(old_timestamps) == len(self.data)+1:
+                    #    offsets = offsets[:-1]
+                    
+                    self.set_contents(self.data, offsets, timestamp_policy="offset")    
 
             elif self.timestamp_policy == "normal":
 
@@ -84,7 +103,25 @@ class Channel(object):
                     print("normal -> sparse not yet implemented.")
 
                 elif new_timestamp_policy == "offset":
-                    print("normal -> offset not yet implemented.")
+                    self.start = self.timestamps[0]
+                    old_timestamps = self.timestamps
+                    
+                    # Convert timestamps to offsets from the first timestamp - makes storing them easier as ints
+                    start, offsets = timestamps_to_offsets(old_timestamps)
+                    
+                    
+                    
+                    # add extra offset to cover final page
+                    offsets = np.concatenate((offsets, [offsets[-1] + (offsets[-1]-offsets[-2])]))
+                    
+                    # When we have page-level timestamps from a file, a timestamp points at the first observation in the page
+                    # This leaves some data at the end of a file without timestamps
+                    # So the data_loading function infers a final timestamp that points at the last observation
+                    # This means there is 1 extra timestamp than the page level data, which we want to ignore here
+                    
+                    #if len(old_timestamps) == len(self.data)+1:
+                    #    offsets = offsets[:-1]
+                    self.set_contents(self.data, offsets, timestamp_policy="offset")    
 
             elif self.timestamp_policy == "offset":
 
@@ -116,9 +153,19 @@ class Channel(object):
             # func is a function, so we just give it new hypothetical offsets
             new_data = func(new_timestamps)
 
+            # when resampling a binary data channel we want to change any value > 0 to 1, and so preserve its binary nature.
+            if self.binary_data:
+                indices = np.where(new_data>0)[0]
+                for i in indices:
+                    new_data[i] = 1
+
             self.cached_indices = {}
             self.set_contents(new_data, new_timestamps, timestamp_policy=self.timestamp_policy)
             self.frequency = frequency
+
+            del func
+            del new_timestamps
+            del new_data
 
         elif self.timestamp_policy == "normal":
 
@@ -137,6 +184,10 @@ class Channel(object):
             self.cached_indices = {}
             self.set_contents(new_data, new_timestamps, timestamp_policy=self.timestamp_policy)
             self.frequency = frequency
+
+            del func
+            del new_timestamps
+            del new_data
 
         else:
             print("NOPE.")
@@ -170,12 +221,26 @@ class Channel(object):
         """ Make this Channel inherit all the time properties of the given Channel. """
 
         self.timestamps = channel.timestamps
-        self.missing_value = channel.missing_value
         self.timestamp_policy = channel.timestamp_policy
         self.indices = channel.indices
         self.cached_indices = channel.cached_indices
         self.timeframe = channel.timeframe
         self.time_period = channel.time_period
+
+        # for backwards compatibility, if channel has been saved with missing_value = False,
+        # then give the new channel the missing_value of "None"
+        if not channel.missing_value:
+            self.missing_value = "None"
+        # Else, inherit missing value from channel
+        else:
+            self.missing_value = channel.missing_value
+
+            # Assign missing values at the same points in the new channel
+            # ONLY IF self.missing_value is not equal to "None"
+            if channel.missing_value != "None":
+                for i in range(len(self.data)):
+                    if channel.data[i] == channel.missing_value:
+                        self.data[i] = self.missing_value
 
         try:
             self.frequency = channel.frequency
@@ -243,7 +308,7 @@ class Channel(object):
 
             try:
                 i = self.cached_indices[datetimestamp]
-            except:
+            except KeyError:
                 i = self.get_index_appropriately(datetimestamp)
                 self.cached_indices[datetimestamp] = i
 
@@ -281,7 +346,6 @@ class Channel(object):
         return (start,end)
 
 
-
     def get_data_index(self, datetimestamp):
         """
         Returns the indices of the data array to use if every observation is timestamped
@@ -302,6 +366,7 @@ class Channel(object):
         return index
 
     def get_offset_data_index(self, datetimestamp):
+        """ Returns the indices of the data array to use if it is timestamped with offsets """
 
         start_index = (datetimestamp - self.time_period[0])/timedelta(microseconds=1000)
 
@@ -348,6 +413,7 @@ class Channel(object):
                 except:
                     pass
 
+    
     def window_statistics(self, start_dts, end_dts, statistics):
         """ Summarise the data between these timestamps using the statistics listed. """
 
@@ -359,16 +425,19 @@ class Channel(object):
             start_index,end_index = self.get_window(start_dts, end_dts)
 
         window_data = self.data[start_index:end_index]
+        window_data_binary = self.data[start_index:end_index]
         #print(start_dts,end_dts,window_data)
         initial_n = len(window_data)
         missing_n = 0
 
-        if self.missing_value is not False:
+        # check if the missing value of the channel has a value (i.e. 0, -1, -111)
+        if self.missing_value != "None":
             window_data = window_data[window_data != self.missing_value]
             missing_n = initial_n - len(window_data)
 
         output_row = []
         data_found = len(window_data) > 0
+        data_found_binary = len(window_data_binary) > 0
         #if (len(window_data) > 0):
 
         # Cache the frequency spectrum, at least 1 statistic needs it
@@ -432,8 +501,25 @@ class Channel(object):
                     elif val == "missing":
 
                         output_row.append(missing_n)
-
-
+                        
+            elif stat[0] == "binary":        
+            # for binary channels (0/1)
+            # Example: ("binary", ["flag"])
+                    
+                for val in stat[1]:
+                    if val == "flag":
+                        
+                        if data_found_binary:
+                            # will flag a window with value "0" if max of data = 0, else flag with value "1"
+                            if np.max(window_data_binary) == 0:
+                                output_row.append(0)
+                            else:
+                                output_row.append(1)
+                        
+                        # or else missing (-1)
+                        else:
+                            output_row.append(-1)
+                            
             elif stat[0] == "cutpoints":
             # Example: ("cutpoints", [[0,10],[10,20],[20,30]])
 
@@ -558,7 +644,6 @@ class Channel(object):
 
         """
         else:
-
         # There was no data for the time period
         # Output -1 for each missing variable
         for i in range(self.expected_results(statistics)):
@@ -574,6 +659,9 @@ class Channel(object):
         for stat in statistics:
             if stat[0] == "generic":
                 expected += len(stat[1])
+                
+            elif stat[0] == "binary":
+                expected += len(stat[1])    
 
             elif stat[0] == "cutpoints":
                 expected += len(stat[1])
@@ -734,7 +822,7 @@ class Channel(object):
             end = time_period[1]
 
         #print("Piecewise statistics: {}".format(self.name))
-        windows = self.generate_piecewise_windows(start,end, window_size)
+        windows = self.generate_piecewise_windows(start, end, window_size)
 
         # Else if we passed an integer as our window size
         #elif str(type(window_size)) == "<class 'int'>":
@@ -771,7 +859,7 @@ class Channel(object):
             if state == 0:
 
                 # And if this value is in the range we want
-                if value >= low and value <= high:
+                if low <= value <= high:
 
                     # Start a bout
                     state = 1
@@ -782,7 +870,7 @@ class Channel(object):
             else:
 
                 # And this value is in the range we want
-                if value >= low and value <= high:
+                if low <= value <= high:
 
                     # So the bout expands to include this value
                     end_index = i
@@ -795,8 +883,11 @@ class Channel(object):
 
                     start_time =  self.timestamps[start_index]
                     end_time = self.timestamps[end_index]
-                    if end_index+1 < self.size:
-                        end_time = self.timestamps[end_index+1]
+                    if self.name == "Validity":
+                        pass
+                    else:
+                        if end_index+1 < self.size:
+                            end_time = self.timestamps[end_index+1]
 
                     bouts.append(Bout(start_time, end_time))
 
@@ -821,11 +912,12 @@ class Channel(object):
 
         return bouts
 
-    def delete_windows(self, windows, missing_value = -111):
-        """ Given a list of Bouts, replace any data inside those time windows with the given missing_value. This masks the data when being summarised by any statistic methods. """
+    def delete_windows(self, windows, missing_value=-111):
+        """ Given a list of Bouts, replace any data inside those time windows with the given missing_value.
+        This masks the data when being summarised by any statistic methods. """
 
         # New approach - don't delete the data, mask it with a set value
-        # Then when we summarise, check if data has been masked (missing_value is not False)
+        # Then when we summarise, check if data has been masked (missing_value is not None)
         # Then analyse only unmasked data
         self.fill_windows(windows, fill_value=missing_value)
         self.missing_value = missing_value
@@ -845,7 +937,7 @@ class Channel(object):
     def fill(self, bout, fill_value=0):
         """ Given a Bout representing a window of time, replace all the data values of this Channel within the time window with a given fill_value. """
 
-        start_index,end_index = self.get_window(bout.start_timestamp,bout.end_timestamp)
+        start_index,end_index = self.get_window(bout.start_timestamp, bout.end_timestamp)
         #print(start_index, end_index)
         self.data[start_index:end_index] = fill_value
 
@@ -883,6 +975,47 @@ class Channel(object):
         for a in annotations:
             self.add_annotation(a)
 
+    def channel_max_decrease(self, time_period=timedelta(hours=24), iterator=25):
+        """Takes a channel and returns the maximum reduction over a given time period (NOT ABSOLUTE),
+        iterating through the channel using a given iterator """
+
+        if self.timestamp_policy == "offset":
+            start_index = self.get_offset_data_index(self.timeframe[0])
+            end_index = self.get_offset_data_index(self.timeframe[0] + time_period)
+            end_file_index = self.get_offset_data_index(self.timeframe[-1])
+
+        elif self.timestamp_policy == "normal":
+            start_index = self.get_data_index(self.timeframe[0])
+            end_index = self.get_data_index(self.timeframe[0] + time_period)
+            end_file_index = self.get_data_index(self.timeframe[-1])
+
+        elif self.timestamp_policy == "sparse":
+            start_index = self.get_sparse_data_index(self.timeframe[0])
+            end_index = self.get_sparse_data_index(self.timeframe[0] + time_period)
+            end_file_index = self.get_sparse_data_index(self.timeframe[-1])
+
+        else:
+            return "Timestamp policy for data channel not recognised"
+
+        max_diff = 0
+
+        while end_index <= end_file_index:
+
+            # check start and end values are not "missing values", if they are then we'll skip this sector as unreliable
+            if self.data[start_index] == self.missing_value or self.data[end_index-1] == self.missing_value:
+                pass
+
+            else:
+                difference = self.data[start_index] - self.data[end_index-1]
+
+                if difference > max_diff:
+                    max_diff = difference
+
+            start_index += iterator
+            end_index += iterator
+
+        return max_diff
+
     def draw(self, axis, time_period=False):
 
         #if not self.sparsely_timestamped:
@@ -898,6 +1031,7 @@ class Channel(object):
 
         for a in self.annotations:
             axis.axvspan(xmin=a.start_timestamp, xmax=a.end_timestamp, **a.draw_properties)
+
 
     def __str__(self):
 
@@ -924,6 +1058,7 @@ class Channel(object):
 
         return output
 
+
 def channel_from_coefficients(coefs, timestamps):
     chan = Channel("Recreated")
 
@@ -931,6 +1066,7 @@ def channel_from_coefficients(coefs, timestamps):
     chan.set_contents(recreated, timestamps)
 
     return chan
+
 
 def channel_from_bouts(bouts, time_period, time_resolution, channel_name, skeleton=False, in_value=1, out_value=0):
 
@@ -963,10 +1099,78 @@ def channel_from_bouts(bouts, time_period, time_resolution, channel_name, skelet
         result.name = channel_name
         result.data.fill(out_value)
 
-
     for bout in bouts:
         result.fill(bout, in_value)
 
-
-
     return result
+
+def resample_normal_channels(channels, target_freq):
+    """ Function to resample a list of normally-timestamped data channels which share a timestamps array to a target frequency,
+     and convert to offset timestamps """
+    
+    c = channels[0]
+    start = c.timestamps[0]
+
+    # Convert timestamps to offsets from the first timestamp
+    start, offsets = timestamps_to_offsets(c.timestamps)
+
+    # add extra offset to cover final page
+    offsets = np.concatenate((offsets, [offsets[-1] + (offsets[-1]-offsets[-2])]))
+
+    delta = int((timedelta(seconds=1)/target_freq).total_seconds()*1000)
+    new_timestamps = np.arange(0, offsets[-1], delta)
+
+    for channel in channels:
+        data = np.concatenate((channel.data, [(channel.data[-1])]))
+
+        # Yields a function that can be called with a new timestamp value
+        func = interp1d(offsets, data)
+
+        # func is a function, so we just give it new hypothetical offsets
+        new_data = func(new_timestamps)
+
+        # when resampling a binary data channel we want to change any value > 0 to 1, and so preserve its binary nature.
+        if channel.binary_data:
+            indices = np.where(new_data>0)[0]
+            for i in indices:
+                new_data[i] = 1
+        
+        channel.start = start
+        channel.cached_indices = {}
+        channel.set_contents(new_data[:-1], new_timestamps[:-1], timestamp_policy="offset")
+        channel.frequency = target_freq                      
+    
+                              
+def resample_sparse_channels(channels, target_freq):
+    """ Function to resample a list of sparsley-timestamped data channels which share a timestamps array to a target frequency,
+     and convert to offset timestamps """
+    
+    c = channels[0]
+    start = c.timestamps[0]
+
+    # Convert timestamps to offsets from the first timestamp
+    start, offsets = timestamps_to_offsets(c.timestamps)
+    
+    # If the timestamps are sparse, expand them to 1 per observation
+    offsets = interpolate_offsets(offsets, len(c.data))
+    
+    delta = int((timedelta(seconds=1)/target_freq).total_seconds()*1000)
+    new_timestamps = np.arange(0, offsets[-1], delta)
+    
+    for channel in channels:
+        # Yields a function that can be called with a new timestamp value
+        func = interp1d(offsets, channel.data)
+
+        # func is a function, so we just give it new hypothetical offsets
+        new_data = func(new_timestamps)
+
+        # when resampling a binary data channel we want to change any value > 0 to 1, and so preserve its binary nature.
+        if channel.binary_data:
+            indices = np.where(new_data>0)[0]
+            for i in indices:
+                new_data[i] = 1
+
+        channel.start = start
+        channel.cached_indices = {}
+        channel.set_contents(new_data, new_timestamps, timestamp_policy="offset")
+        channel.frequency = target_freq
